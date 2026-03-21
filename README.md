@@ -56,4 +56,4 @@ Este proyecto está preparado para el despliegue automático en Vercel:
 
 ---
 
-_Desarrollado por Cristian Velasquez._
+_Desarrollado por Cristian Velasquez Cornejo._
