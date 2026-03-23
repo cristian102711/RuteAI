@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Zap, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { sincronizarNuevoUsuario } from "@/app/dashboard/actions"; // <-- Importamos la acción de sincro
+import Image from "next/image";//para usar la imagen del logo
 
 export default function LoginPage() {
   const router = useRouter();
@@ -36,7 +37,7 @@ export default function LoginPage() {
       } else {
         toast.loading("Creando tu cuenta...", { id: "auth" });
         const { data, error } = await supabase.auth.signUp({ email, password });
-        
+
         if (error) {
           toast.error(error.message, { id: "auth" });
           return;
@@ -61,15 +62,15 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4 relative overflow-hidden">
-      
+
       {/* Fondo decorativo animado */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-emerald-500/5 rounded-full blur-3xl" />
         <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-blue-500/5 rounded-full blur-3xl" />
       </div>
-      
+
       <div className="w-full max-w-md relative z-10">
-        
+
         {/* Logo */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-black tracking-tighter text-white">
@@ -80,33 +81,31 @@ export default function LoginPage() {
 
         {/* Card de Login */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-2xl shadow-black/50">
-          
+
           {/* Tabs de modo */}
           <div className="flex gap-2 bg-zinc-950 rounded-xl p-1 mb-8">
             <button
               onClick={() => setMode("login")}
-              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${
-                mode === "login"
+              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${mode === "login"
                   ? "bg-emerald-500 text-black shadow"
                   : "text-zinc-400 hover:text-white"
-              }`}
+                }`}
             >
               Iniciar Sesión
             </button>
             <button
               onClick={() => setMode("register")}
-              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${
-                mode === "register"
+              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${mode === "register"
                   ? "bg-emerald-500 text-black shadow"
                   : "text-zinc-400 hover:text-white"
-              }`}
+                }`}
             >
               Crear Cuenta
             </button>
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-            
+
             {/* Campo Email */}
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
