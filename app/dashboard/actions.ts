@@ -64,3 +64,36 @@ export async function editarPedido(formData: FormData) {
   revalidatePath("/dashboard");
   return { success: true };
 }
+
+/**
+ * sincronizarNuevoUsuario:
+ * Crea una nueva Empresa y vincula al Usuario recién creado de Supabase 
+ * con la base de datos de Prisma para que todo sea multi-tenant.
+ */
+export async function sincronizarNuevoUsuario(supabaseId: string, email: string, nombreEmpresa: string) {
+  try {
+    // 1. Creamos la empresa primero
+    const nuevaEmpresa = await prisma.empresa.create({
+      data: {
+        nombre: nombreEmpresa,
+        email: email, // Usamos el email del creador como contacto
+      }
+    });
+
+    // 2. Creamos el usuario vinculado a esa empresa
+    await prisma.usuario.create({
+      data: {
+        id: supabaseId,
+        nombre: email.split("@")[0], // Nombre por defecto basado en email
+        email: email,
+        rol: "encargado", // El primer usuario es el administrador
+        empresaId: nuevaEmpresa.id
+      }
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error en sincronizarNuevoUsuario:", error);
+    return { error: "No se pudo crear el perfil de empresa."};
+  }
+}
