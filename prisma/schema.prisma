@@ -1,0 +1,79 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// -------------------------------------------------------------
+// 🏢 1. EMPRESA
+// Cada empresa que contrata RouteAI tendrá su propia cuenta.
+// -------------------------------------------------------------
+model Empresa {
+  id        String   @id @default(uuid())
+  nombre    String
+  email     String   @unique
+  plan      String   @default("starter") // starter, pro, business
+  activa    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  // Relaciones: Una empresa tiene muchos usuarios (encargados/repartidores) y muchos pedidos
+  usuarios  Usuario[]
+  pedidos   Pedido[]
+}
+
+// -------------------------------------------------------------
+// 👤 2. USUARIO (Encargado o Repartidor)
+// Se vincula directamente con el login de Supabase Auth
+// -------------------------------------------------------------
+model Usuario {
+  id        String   @id // Este ID será el mismo que el UUID de Supabase Auth
+  nombre    String
+  email     String   @unique
+  rol       String   @default("repartidor") // "encargado" | "repartidor"
+  
+  empresaId String
+  empresa   Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  // Opcional: Si es repartidor, puede tener pedidos asignados
+  pedidosAsignados Pedido[] @relation("RepartidorPedidos")
+
+  createdAt DateTime @default(now())
+}
+
+// -------------------------------------------------------------
+// 📦 3. PEDIDO Y DESPACHO
+// El núcleo del negocio. Todo lo que se va a enviar.
+// -------------------------------------------------------------
+model Pedido {
+  id                String   @id @default(uuid())
+  nombreCliente     String
+  direccion         String
+  producto          String
+  horarioPreferido  String?  // Ej: "10:00 - 13:00"
+  
+  // IA y Estado
+  estado            String   @default("pendiente") // pendiente, en_ruta, entregado, fallido
+  scoreRiesgo       Int?     // Porcentaje de riesgo calculado por la IA (0-100)
+  
+  // Evidencia de la entrega (Guardaremos las URLs de Supabase Storage)
+  fotoEntregaUrl    String?
+  firmaEntregaUrl   String?
+  motivoFallo       String?
+
+  // Relaciones
+  empresaId         String
+  empresa           Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  repartidorId      String?
+  repartidor        Usuario? @relation("RepartidorPedidos", fields: [repartidorId], references: [id])
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
