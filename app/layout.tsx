@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 
+
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -13,10 +15,15 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+
 export const metadata: Metadata = {
   title: "RouteAI - Panel Logístico",
   description: "Plataforma web Full Stack para despacho de equipos tecnológicos.",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
+
 
 export default function RootLayout({
   children,
