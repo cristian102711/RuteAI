@@ -24,18 +24,22 @@ export async function proxy(request: NextRequest) {
   // Obtener sesión del usuario activo
   const { data: { user } } = await supabase.auth.getUser()
 
-  // SI el usuario NO está logueado y quiere entrar al dashboard → expulsarlo al login
-  if (!user && request.nextUrl.pathname.startsWith('/dashboard')) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
-  }
+  // IMPORTANTE: Solo redirigir en peticiones GET (para navegación)
+  // Las peticiones POST (como Server Actions) no deben ser redirigidas aquí
+  if (request.method === 'GET') {
+    // SI el usuario NO está logueado y quiere entrar al dashboard → expulsarlo al login
+    if (!user && request.nextUrl.pathname.startsWith('/dashboard')) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
+      return NextResponse.redirect(url)
+    }
 
-  // SI el usuario YA está logueado e intenta ir al login → mandarlo al dashboard
-  if (user && request.nextUrl.pathname === '/login') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
-    return NextResponse.redirect(url)
+    // SI el usuario YA está logueado e intenta ir al login → mandarlo al dashboard
+    if (user && request.nextUrl.pathname === '/login') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/dashboard'
+      return NextResponse.redirect(url)
+    }
   }
 
   return supabaseResponse
