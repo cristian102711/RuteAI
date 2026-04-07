@@ -11,7 +11,7 @@ datasource db {
 }
 
 // -------------------------------------------------------------
-// 🏢 1. EMPRESA
+// 1. EMPRESA
 // Cada empresa que contrata RouteAI tendrá su propia cuenta.
 // -------------------------------------------------------------
 model Empresa {
@@ -28,7 +28,7 @@ model Empresa {
 }
 
 // -------------------------------------------------------------
-// 👤 2. USUARIO (Encargado o Repartidor)
+// 2. USUARIO (Encargado o Repartidor)
 // Se vincula directamente con el login de Supabase Auth
 // -------------------------------------------------------------
 model Usuario {
@@ -47,7 +47,7 @@ model Usuario {
 }
 
 // -------------------------------------------------------------
-// 📦 3. PEDIDO Y DESPACHO
+//  3. PEDIDO Y DESPACHO
 // El núcleo del negocio. Todo lo que se va a enviar.
 // -------------------------------------------------------------
 model Pedido {
