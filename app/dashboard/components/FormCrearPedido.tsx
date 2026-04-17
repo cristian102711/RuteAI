@@ -28,17 +28,28 @@ export function FormCrearPedido({ empresaId }: { empresaId: string }) {
   }
 
   return (
-    <form action={handleAction} className="flex flex-col gap-4">
-      <input name="cliente" placeholder="Nombre Destinatario (Ej: Juan Pérez)" required className="bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition disabled:opacity-50 text-white" disabled={isSubmitting} />
-      <input name="direccion" placeholder="Dirección de Envío" required className="bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition disabled:opacity-50 text-white" disabled={isSubmitting} />
-      <input name="producto" placeholder="Producto o Nota Flete" required className="bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition disabled:opacity-50 text-white font-bold uppercase" disabled={isSubmitting} />
+    <form action={handleAction} className="flex flex-col gap-5">
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[10px] font-bold text-zinc-500 tracking-widest uppercase ml-1">Destinatario</label>
+        <input name="cliente" placeholder="Ej: Juan Pérez" required className="w-full bg-zinc-950/80 border border-zinc-800 text-zinc-100 placeholder-zinc-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/50 shadow-inner transition-all text-sm disabled:opacity-50" disabled={isSubmitting} />
+      </div>
+      
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[10px] font-bold text-zinc-500 tracking-widest uppercase ml-1">Dirección de Entrega</label>
+        <input name="direccion" placeholder="Ej: Av. Providencia 1234" required className="w-full bg-zinc-950/80 border border-zinc-800 text-zinc-100 placeholder-zinc-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/50 shadow-inner transition-all text-sm disabled:opacity-50" disabled={isSubmitting} />
+      </div>
+      
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[10px] font-bold text-zinc-500 tracking-widest uppercase ml-1">Despacho / SKU</label>
+        <input name="producto" placeholder="Identificador del equipo" required className="w-full bg-zinc-950/80 border border-zinc-800 text-zinc-100 placeholder-zinc-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/50 shadow-inner transition-all text-sm font-bold uppercase tracking-wider disabled:opacity-50" disabled={isSubmitting} />
+      </div>
       
       <button 
         type="submit" 
         disabled={isSubmitting}
-        className="mt-2 flex justify-center items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm px-4 py-3 rounded-lg transition shadow-[0_0_15px_rgba(52,211,153,0.2)] disabled:opacity-70 disabled:cursor-not-allowed group"
+        className="mt-4 flex justify-center items-center gap-2 bg-emerald-500 hover:bg-emerald-400 hover:shadow-[0_0_25px_rgba(52,211,153,0.4)] text-zinc-950 font-extrabold text-sm px-4 py-3.5 rounded-xl transition-all duration-300 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed group w-full tracking-wide"
       >
-        {isSubmitting ? <span className="w-5 h-5 rounded-full border-2 border-black/20 border-t-black animate-spin" /> : <><Zap className="w-4 h-4 text-black group-hover:scale-110 transition-transform" /> Crear y Evaluar con IA</>}
+        {isSubmitting ? <span className="w-5 h-5 rounded-full border-2 border-zinc-900/20 border-t-zinc-950 animate-spin" /> : <><Zap strokeWidth={2.5} className="w-4 h-4 text-zinc-950 group-hover:scale-110 transition-transform" /> Iniciar Tracking e IA</>}
       </button>
     </form>
   );
