@@ -1,24 +1,28 @@
 import prisma from "@/lib/prisma";
 import { createClient } from "@/lib/supabaseServer";
 import { redirect } from "next/navigation";
-import { Map, Truck, Navigation, CheckCircle2, AlertTriangle } from "lucide-react";
-import { MapaRutas, MapaPlaceholder } from "../components/MapaRutas";
+import { Truck, Navigation, CheckCircle2 } from "lucide-react";
+import { MapaRutas, MapaPlaceholder, type Parada } from "../components/MapaRutas";
 
-// Función que convierte una dirección en lat/lng usando Google Geocoding API
+// Geocodificación gratuita con Nominatim (OpenStreetMap) — sin API key
 async function geocodeDireccion(
-  direccion: string,
-  apiKey: string
+  direccion: string
 ): Promise<{ lat: number; lng: number } | null> {
   try {
     const query = encodeURIComponent(direccion + ", Chile");
     const res = await fetch(
-      `https://maps.googleapis.com/maps/api/geocode/json?address=${query}&key=${apiKey}`,
-      { next: { revalidate: 3600 } } // Cache por 1 hora
+      `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`,
+      {
+        headers: {
+          // Nominatim requiere un User-Agent identificable
+          "User-Agent": "RouteAI-App/1.0 (contact@ruteai.com)",
+        },
+        next: { revalidate: 3600 }, // Cache por 1 hora
+      }
     );
     const data = await res.json();
-    if (data.status === "OK" && data.results[0]) {
-      const { lat, lng } = data.results[0].geometry.location;
-      return { lat, lng };
+    if (data.length > 0) {
+      return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
     }
     return null;
   } catch {
@@ -45,25 +49,12 @@ export default async function RutasPage() {
     orderBy: { createdAt: "asc" },
   });
 
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? "";
-  const tieneApiKey = apiKey.length > 0;
-
-  // Geocodificar direcciones si hay API Key
-  interface Parada {
-    id: string;
-    lat: number;
-    lng: number;
-    label: string;
-    direccion: string;
-    cliente: string;
-    index: number;
-  }
-
+  // Geocodificar con Nominatim — sin API key, completamente gratis
   let paradas: Parada[] = [];
-  if (tieneApiKey && pedidosPendientes.length > 0) {
-    const geocodedResults = await Promise.all(
+  if (pedidosPendientes.length > 0) {
+    const results = await Promise.all(
       pedidosPendientes.map(async (pedido, i) => {
-        const coords = await geocodeDireccion(pedido.direccion, apiKey);
+        const coords = await geocodeDireccion(pedido.direccion);
         if (!coords) return null;
         return {
           id: pedido.id,
@@ -73,10 +64,10 @@ export default async function RutasPage() {
           direccion: pedido.direccion,
           cliente: pedido.nombreCliente,
           index: i,
-        };
+        } satisfies Parada;
       })
     );
-    paradas = geocodedResults.filter((p): p is Parada => p !== null);
+    paradas = results.filter((p): p is Parada => p !== null);
   }
 
   return (
@@ -86,7 +77,7 @@ export default async function RutasPage() {
           <div className="flex flex-col gap-1">
             <span className="text-blue-400 text-sm font-semibold tracking-widest uppercase mb-1 flex items-center gap-2">
               <Navigation className="w-4 h-4" />
-              Logística y Desplazamiento
+              OpenStreetMap · Nominatim
             </span>
             <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-white mb-2">
               Rutas{" "}
@@ -95,23 +86,23 @@ export default async function RutasPage() {
               </span>
             </h1>
             <p className="text-zinc-500/90 text-sm md:text-base max-w-xl">
-              {tieneApiKey
-                ? `${paradas.length} de ${pedidosPendientes.length} despachos geocodificados y listos en el mapa.`
-                : "Configura NEXT_PUBLIC_GOOGLE_MAPS_KEY para activar la geocodificación."}
+              {paradas.length > 0
+                ? `${paradas.length} de ${pedidosPendientes.length} despachos geocodificados en el mapa.`
+                : pedidosPendientes.length === 0
+                ? "No hay despachos pendientes para mapear."
+                : "Geocodificando direcciones con OpenStreetMap..."}
             </p>
           </div>
 
-          {!tieneApiKey && (
-            <div className="mt-4 md:mt-0 flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold px-4 py-2.5 rounded-2xl">
-              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-              API Key no configurada
-            </div>
-          )}
+          <div className="mt-4 md:mt-0 flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold px-4 py-2.5 rounded-2xl">
+            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+            OpenStreetMap · Sin API Key
+          </div>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Manifiesto de Ruta */}
-          <div className="lg:col-span-1 flex flex-col gap-4">
+          <div className="lg:col-span-1">
             <div className="bg-zinc-900/40 backdrop-blur-md border border-zinc-800/60 rounded-3xl p-6 shadow-xl">
               <h2 className="text-sm font-bold tracking-widest uppercase mb-6 text-zinc-300 flex items-center gap-2">
                 <Truck className="w-4 h-4 text-emerald-400" />
@@ -122,40 +113,27 @@ export default async function RutasPage() {
                 <div className="absolute left-[15px] top-4 bottom-4 w-0.5 bg-zinc-800/80 z-0" />
 
                 {pedidosPendientes.length === 0 ? (
-                  <p className="text-zinc-500 text-sm z-10">
-                    No hay despachos pendientes.
-                  </p>
+                  <p className="text-zinc-500 text-sm">No hay despachos pendientes.</p>
                 ) : (
                   pedidosPendientes.map((pedido, index) => {
-                    const geocodificado = paradas.some(
-                      (p) => p.id === pedido.id
-                    );
+                    const geocodificado = paradas.some((p) => p.id === pedido.id);
                     return (
-                      <div
-                        key={pedido.id}
-                        className="flex gap-4 relative z-10 group mb-6 last:mb-0"
-                      >
-                        <div
-                          className={`flex-shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center text-xs font-bold transition-colors shadow-sm ${
-                            geocodificado
-                              ? "bg-zinc-950 border-blue-500/70 text-blue-400 group-hover:bg-blue-500 group-hover:text-zinc-950"
-                              : "bg-zinc-950 border-zinc-700 text-zinc-600"
-                          }`}
-                        >
+                      <div key={pedido.id} className="flex gap-4 relative z-10 group mb-6 last:mb-0">
+                        <div className={`flex-shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center text-xs font-bold transition-colors ${
+                          geocodificado
+                            ? "bg-zinc-950 border-blue-500/70 text-blue-400 group-hover:bg-blue-500 group-hover:text-white"
+                            : "bg-zinc-950 border-zinc-700 text-zinc-600"
+                        }`}>
                           {index + 1}
                         </div>
                         <div className="flex flex-col pt-1">
-                          <h4 className="text-zinc-100 font-bold text-sm leading-none">
-                            {pedido.direccion}
-                          </h4>
-                          <p className="text-zinc-500 text-xs mt-1 font-medium flex items-center gap-1">
-                            {pedido.nombreCliente}
-                            {!geocodificado && tieneApiKey && (
-                              <span className="text-amber-400/70 text-[10px]">
-                                (sin geocodificar)
-                              </span>
-                            )}
-                          </p>
+                          <h4 className="text-zinc-100 font-bold text-sm leading-snug">{pedido.direccion}</h4>
+                          <p className="text-zinc-500 text-xs mt-0.5">{pedido.nombreCliente}</p>
+                          {!geocodificado && (
+                            <p className="text-amber-400/70 text-[10px] mt-0.5 flex items-center gap-1">
+                              ⚠ Dirección no encontrada en OSM
+                            </p>
+                          )}
                         </div>
                       </div>
                     );
@@ -168,9 +146,7 @@ export default async function RutasPage() {
                       <CheckCircle2 className="w-4 h-4" />
                     </div>
                     <div className="flex flex-col pt-1.5">
-                      <h4 className="text-emerald-400 font-bold text-sm leading-none">
-                        Fin del Recorrido
-                      </h4>
+                      <h4 className="text-emerald-400 font-bold text-sm">Fin del Recorrido</h4>
                     </div>
                   </div>
                 )}
@@ -178,27 +154,20 @@ export default async function RutasPage() {
             </div>
           </div>
 
-          {/* Mapa Interactivo */}
+          {/* Mapa Leaflet */}
           <div className="lg:col-span-2 bg-zinc-900/40 backdrop-blur-md border border-zinc-800/60 rounded-3xl overflow-hidden shadow-xl min-h-[520px] relative">
-            {tieneApiKey ? (
+            {paradas.length > 0 ? (
               <div className="absolute inset-0">
-                <MapaRutas paradas={paradas} apiKey={apiKey} />
+                <MapaRutas paradas={paradas} />
               </div>
             ) : (
-              <div className="absolute inset-0 bg-zinc-950 bg-[url('/grid.svg')] opacity-30 pointer-events-none" />
-            )}
-
-            {!tieneApiKey && <MapaPlaceholder />}
-
-            {tieneApiKey && paradas.length === 0 && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center">
-                  <Map className="w-12 h-12 text-blue-400 mx-auto mb-3 opacity-50" />
-                  <p className="text-zinc-500 text-sm">
-                    No hay direcciones geocodificables en este momento.
-                  </p>
-                </div>
-              </div>
+              <MapaPlaceholder
+                mensaje={
+                  pedidosPendientes.length === 0
+                    ? "Sin despachos para mapear"
+                    : "No se pudieron geocodificar las direcciones"
+                }
+              />
             )}
           </div>
         </div>

@@ -1,16 +1,9 @@
 "use client";
 
-import {
-  APIProvider,
-  Map,
-  AdvancedMarker,
-  Pin,
-  InfoWindow,
-} from "@vis.gl/react-google-maps";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Navigation2 } from "lucide-react";
 
-interface Parada {
+export interface Parada {
   id: string;
   lat: number;
   lng: number;
@@ -22,74 +15,134 @@ interface Parada {
 
 interface MapaRutasProps {
   paradas: Parada[];
-  apiKey: string;
 }
 
-export function MapaRutas({ paradas, apiKey }: MapaRutasProps) {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+// Componente del mapa (carga solo en cliente por limitación de Leaflet + SSR)
+export function MapaRutas({ paradas }: MapaRutasProps) {
+  const [isClient, setIsClient] = useState(false);
 
-  // Centro del mapa: primer punto o Santiago de Chile como fallback
-  const centro =
-    paradas.length > 0
-      ? { lat: paradas[0].lat, lng: paradas[0].lng }
-      : { lat: -33.4489, lng: -70.6693 };
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  if (!isClient) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full border-2 border-blue-500/30 border-t-blue-400 animate-spin" />
+      </div>
+    );
+  }
+
+  return <LeafletMap paradas={paradas} />;
+}
+
+// Lazy-load del mapa Leaflet real
+function LeafletMap({ paradas }: { paradas: Parada[] }) {
+  useEffect(() => {
+    // Fix para íconos de Leaflet en Next.js (webpack issue)
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const L = require("leaflet");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require("leaflet/dist/leaflet.css");
+
+    delete L.Icon.Default.prototype._getIconUrl;
+    L.Icon.Default.mergeOptions({
+      iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
+      iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
+      shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+    });
+
+    // Destruir mapa anterior si existe
+    const container = document.getElementById("leaflet-map") as HTMLElement & { _leaflet_id?: number };
+    if (container._leaflet_id) {
+      const existingMap = L.DomUtil.get("leaflet-map");
+      if (existingMap) existingMap._leaflet_id = undefined;
+    }
+
+    const centro: [number, number] =
+      paradas.length > 0
+        ? [paradas[0].lat, paradas[0].lng]
+        : [-33.4489, -70.6693]; // Santiago fallback
+
+    const map = L.map("leaflet-map", {
+      center: centro,
+      zoom: 12,
+      zoomControl: true,
+    });
+
+    // Capa de tiles oscuros (CartoDB Dark Matter)
+    L.tileLayer(
+      "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+      {
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/">CARTO</a>',
+        subdomains: "abcd",
+        maxZoom: 19,
+      }
+    ).addTo(map);
+
+    // Marcadores numerados con colores
+    paradas.forEach((parada) => {
+      const color = parada.index === 0 ? "#10b981" : "#3b82f6";
+      const iconHtml = `
+        <div style="
+          background: ${color};
+          color: #fff;
+          width: 32px;
+          height: 32px;
+          border-radius: 50% 50% 50% 0;
+          transform: rotate(-45deg);
+          border: 2px solid rgba(255,255,255,0.3);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+          font-size: 12px;
+          font-weight: 800;
+        ">
+          <span style="transform: rotate(45deg)">${parada.index + 1}</span>
+        </div>
+      `;
+
+      const icon = L.divIcon({
+        html: iconHtml,
+        className: "",
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
+        popupAnchor: [0, -36],
+      });
+
+      L.marker([parada.lat, parada.lng], { icon })
+        .addTo(map)
+        .bindPopup(`
+          <div style="font-family: sans-serif; min-width: 160px; padding: 4px 0">
+            <p style="font-weight: 800; font-size: 13px; text-transform: uppercase; margin: 0 0 4px 0; letter-spacing: 0.05em">${parada.label}</p>
+            <p style="font-size: 12px; color: #555; margin: 0 0 2px 0">📍 ${parada.direccion}</p>
+            <p style="font-size: 11px; color: #888; margin: 0">👤 ${parada.cliente}</p>
+          </div>
+        `);
+    });
+
+    // Ajustar zoom para mostrar todos los puntos
+    if (paradas.length > 1) {
+      const bounds = L.latLngBounds(paradas.map((p) => [p.lat, p.lng]));
+      map.fitBounds(bounds, { padding: [40, 40] });
+    }
+
+    return () => {
+      map.remove();
+    };
+  }, [paradas]);
 
   return (
-    <APIProvider apiKey={apiKey}>
-      <Map
-        defaultCenter={centro}
-        defaultZoom={12}
-        gestureHandling="greedy"
-        disableDefaultUI={false}
-        mapId="ruteai-map"
-        style={{ width: "100%", height: "100%", borderRadius: "1.5rem" }}
-        colorScheme="DARK"
-      >
-        {paradas.map((parada) => (
-          <AdvancedMarker
-            key={parada.id}
-            position={{ lat: parada.lat, lng: parada.lng }}
-            onClick={() =>
-              setSelectedId(selectedId === parada.id ? null : parada.id)
-            }
-          >
-            <Pin
-              background={parada.index === 0 ? "#10b981" : "#3b82f6"}
-              borderColor={parada.index === 0 ? "#059669" : "#2563eb"}
-              glyphColor="#fff"
-              glyph={String(parada.index + 1)}
-              scale={1.2}
-            />
-          </AdvancedMarker>
-        ))}
-
-        {selectedId &&
-          (() => {
-            const p = paradas.find((x) => x.id === selectedId);
-            if (!p) return null;
-            return (
-              <InfoWindow
-                position={{ lat: p.lat, lng: p.lng }}
-                onCloseClick={() => setSelectedId(null)}
-                pixelOffset={[0, -40]}
-              >
-                <div className="font-sans text-zinc-900 p-1 min-w-[160px]">
-                  <p className="font-extrabold text-sm mb-0.5 uppercase tracking-wide">
-                    {p.label}
-                  </p>
-                  <p className="text-xs text-zinc-600 mb-0.5">📍 {p.direccion}</p>
-                  <p className="text-xs text-zinc-500">👤 {p.cliente}</p>
-                </div>
-              </InfoWindow>
-            );
-          })()}
-      </Map>
-    </APIProvider>
+    <div
+      id="leaflet-map"
+      style={{ width: "100%", height: "100%", borderRadius: "1.5rem" }}
+    />
   );
 }
 
-// Componente de estado "Sin API Key"
-export function MapaPlaceholder() {
+// Placeholder cuando no hay geocodificación disponible
+export function MapaPlaceholder({ mensaje }: { mensaje?: string }) {
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center p-10 text-center">
       <div className="w-24 h-24 mb-6 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center relative">
@@ -97,22 +150,12 @@ export function MapaPlaceholder() {
         <Navigation2 className="w-10 h-10 text-blue-400 relative z-10" />
       </div>
       <h3 className="text-2xl font-bold text-zinc-100 mb-2">
-        Google Maps API no configurada
+        {mensaje ?? "Sin despachos para mapear"}
       </h3>
       <p className="text-zinc-400 max-w-md text-sm leading-relaxed">
-        Agrega tu API Key en el archivo{" "}
-        <code className="bg-zinc-800 px-1.5 py-0.5 rounded text-emerald-400">
-          .env
-        </code>{" "}
-        como{" "}
-        <code className="bg-zinc-800 px-1.5 py-0.5 rounded text-emerald-400">
-          NEXT_PUBLIC_GOOGLE_MAPS_KEY
-        </code>
-        . Habilita{" "}
-        <span className="text-white font-semibold">
-          Maps JS API + Geocoding API
-        </span>{" "}
-        en Google Cloud Console.
+        Crea pedidos pendientes desde el{" "}
+        <span className="text-emerald-400 font-semibold">Panel Central</span>{" "}
+        para verlos aquí geocodificados automáticamente.
       </p>
     </div>
   );
