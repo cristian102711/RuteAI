@@ -15,10 +15,11 @@ export interface Parada {
 
 interface MapaRutasProps {
   paradas: Parada[];
+  empresaId: string;
 }
 
 // Componente del mapa (carga solo en cliente por limitación de Leaflet + SSR)
-export function MapaRutas({ paradas }: MapaRutasProps) {
+export function MapaRutas({ paradas, empresaId }: MapaRutasProps) {
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
@@ -33,11 +34,13 @@ export function MapaRutas({ paradas }: MapaRutasProps) {
     );
   }
 
-  return <LeafletMap paradas={paradas} />;
+  return <LeafletMap paradas={paradas} empresaId={empresaId} />;
 }
 
+import { createClient } from "@/lib/supabaseClient";
+
 // Lazy-load del mapa Leaflet real
-function LeafletMap({ paradas }: { paradas: Parada[] }) {
+function LeafletMap({ paradas, empresaId }: { paradas: Parada[], empresaId: string }) {
   useEffect(() => {
     // Fix para íconos de Leaflet en Next.js (webpack issue)
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -128,10 +131,38 @@ function LeafletMap({ paradas }: { paradas: Parada[] }) {
       map.fitBounds(bounds, { padding: [40, 40] });
     }
 
+    // --- TRACKING EN TIEMPO REAL (SUPABASE BROADCAST) ---
+    const supabase = createClient();
+    
+    const truckIcon = L.divIcon({
+      html: `<div style="font-size: 28px; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.8)); transform: scaleX(-1);">🚚</div>`,
+      className: "transition-all duration-1000 ease-linear", // Animación suave
+      iconSize: [30, 30],
+      iconAnchor: [15, 15],
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let marcCamion: any = null;
+
+    const channel = supabase.channel(`tracking_${empresaId}`);
+    
+    channel
+      .on("broadcast", { event: "location_update" }, (payload) => {
+        const { lat, lng } = payload.payload as { lat: number; lng: number };
+        
+        if (!marcCamion) {
+           marcCamion = L.marker([lat, lng], { icon: truckIcon, zIndexOffset: 1000 }).addTo(map);
+        } else {
+           marcCamion.setLatLng([lat, lng]);
+        }
+      })
+      .subscribe();
+
     return () => {
+      supabase.removeChannel(channel);
       map.remove();
     };
-  }, [paradas]);
+  }, [paradas, empresaId]);
 
   return (
     <div

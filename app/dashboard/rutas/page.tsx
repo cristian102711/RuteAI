@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabaseServer";
 import { redirect } from "next/navigation";
 import { Truck, Navigation, CheckCircle2 } from "lucide-react";
 import { MapaRutas, MapaPlaceholder, type Parada } from "../components/MapaRutas";
+import { SimuladorRuta } from "../components/SimuladorRuta";
 
 // Geocodificación gratuita con Nominatim (OpenStreetMap) — sin API key
 async function geocodeDireccion(
@@ -157,8 +158,9 @@ export default async function RutasPage() {
           {/* Mapa Leaflet */}
           <div className="lg:col-span-2 bg-zinc-900/40 backdrop-blur-md border border-zinc-800/60 rounded-3xl overflow-hidden shadow-xl min-h-[520px] relative">
             {paradas.length > 0 ? (
-              <div className="absolute inset-0">
-                <MapaRutas paradas={paradas} />
+              <div className="absolute inset-0 relative z-0">
+                <SimuladorRuta empresaId={usuarioDB.empresa.id} paradas={paradas} />
+                <MapaRutas paradas={paradas} empresaId={usuarioDB.empresa.id} />
               </div>
             ) : (
               <MapaPlaceholder
