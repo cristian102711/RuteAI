@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Navigation2 } from "lucide-react";
+import "leaflet/dist/leaflet.css";
 
 export interface Parada {
   id: string;
@@ -23,6 +24,7 @@ export function MapaRutas({ paradas, empresaId }: MapaRutasProps) {
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsClient(true);
   }, []);
 
@@ -45,8 +47,6 @@ function LeafletMap({ paradas, empresaId }: { paradas: Parada[], empresaId: stri
     // Fix para íconos de Leaflet en Next.js (webpack issue)
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const L = require("leaflet");
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    require("leaflet/dist/leaflet.css");
 
     delete L.Icon.Default.prototype._getIconUrl;
     L.Icon.Default.mergeOptions({
