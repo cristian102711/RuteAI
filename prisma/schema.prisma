@@ -6,9 +6,10 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")   // Pooler (PgBouncer) — para runtime
-  directUrl = env("DIRECT_URL")     // Conexión directa — para migraciones
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  // directUrl solo se necesita para `prisma migrate`. Como usamos SQL manual,
+  // no es necesaria aquí. Agregar DIRECT_URL a Vercel si se necesita migrar.
 }
 
 // -------------------------------------------------------------
