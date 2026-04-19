@@ -7,72 +7,169 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  url       = env("DATABASE_URL")
+  url       = env("DATABASE_URL")   // Pooler (PgBouncer) — para runtime
+  directUrl = env("DIRECT_URL")     // Conexión directa — para migraciones
 }
 
 // -------------------------------------------------------------
 // 1. EMPRESA
 // Cada empresa que contrata RouteAI tendrá su propia cuenta.
+// planActivo controla si la suscripción está vigente.
 // -------------------------------------------------------------
 model Empresa {
-  id        String   @id @default(uuid())
-  nombre    String
-  email     String   @unique
-  plan      String   @default("starter") // starter, pro, business
-  activa    Boolean  @default(true)
-  createdAt DateTime @default(now())
+  id         String   @id @default(uuid())
+  nombre     String
+  email      String   @unique
+  plan       String   @default("starter") // starter | pro | business
+  planActivo Boolean  @default(false)
+  activa     Boolean  @default(true)
+  createdAt  DateTime @default(now())
 
-  // Relaciones: Una empresa tiene muchos usuarios (encargados/repartidores) y muchos pedidos
-  usuarios  Usuario[]
-  pedidos   Pedido[]
+  usuarios      Usuario[]
+  pedidos       Pedido[]
+  rutas         Ruta[]
+  alertas       Alerta[]
+  reportesCache ReporteCache[]
 }
 
 // -------------------------------------------------------------
 // 2. USUARIO (Encargado o Repartidor)
-// Se vincula directamente con el login de Supabase Auth
+// El id es el mismo UUID de Supabase Auth.
 // -------------------------------------------------------------
 model Usuario {
-  id        String   @id // Este ID será el mismo que el UUID de Supabase Auth
-  nombre    String
-  email     String   @unique
-  rol       String   @default("repartidor") // "encargado" | "repartidor"
-  
-  empresaId String
-  empresa   Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  id       String  @id // UUID de Supabase Auth
+  nombre   String
+  email    String  @unique
+  rol      String  @default("repartidor") // "encargado" | "repartidor"
+  telefono String? // Para notificaciones Twilio
 
-  // Opcional: Si es repartidor, puede tener pedidos asignados
-  pedidosAsignados Pedido[] @relation("RepartidorPedidos")
+  empresaId String
+  empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  pedidosAsignados Pedido[]    @relation("RepartidorPedidos")
+  rutas            Ruta[]      @relation("RepartidorRutas")
+  ubicaciones      Ubicacion[]
+  alertas          Alerta[]    @relation("AlertasRepartidor")
 
   createdAt DateTime @default(now())
 }
 
 // -------------------------------------------------------------
-//  3. PEDIDO Y DESPACHO
-// El núcleo del negocio. Todo lo que se va a enviar.
+// 3. PEDIDO Y DESPACHO
+// Enriquecido con lat/lng y teléfono del cliente para
+// geocodificación y notificaciones Twilio.
 // -------------------------------------------------------------
 model Pedido {
-  id                String   @id @default(uuid())
-  nombreCliente     String
-  direccion         String
-  producto          String
-  horarioPreferido  String?  // Ej: "10:00 - 13:00"
-  
+  id               String  @id @default(uuid())
+  nombreCliente    String
+  clienteTelefono  String? // Para WhatsApp/SMS Twilio
+  direccion        String
+  lat              Float?  // Geocodificado por Nominatim al crear
+  lng              Float?
+  producto         String
+  horarioPreferido String? // Ej: "10:00 - 13:00"
+
   // IA y Estado
-  estado            String   @default("pendiente") // pendiente, en_ruta, entregado, fallido
-  scoreRiesgo       Int?     // Porcentaje de riesgo calculado por la IA (0-100)
-  
-  // Evidencia de la entrega (Guardaremos las URLs de Supabase Storage)
-  fotoEntregaUrl    String?
-  firmaEntregaUrl   String?
-  motivoFallo       String?
+  estado      String @default("pendiente") // pendiente | en_ruta | entregado | fallido
+  scoreRiesgo Float? // 0.0 a 1.0 — calculado por microservicio IA
+
+  // Evidencia de entrega (URLs de Supabase Storage)
+  fotoEntregaUrl  String?
+  firmaEntregaUrl String?
+  motivoFallo     String?
 
   // Relaciones
-  empresaId         String
-  empresa           Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  empresaId String
+  empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
 
-  repartidorId      String?
-  repartidor        Usuario? @relation("RepartidorPedidos", fields: [repartidorId], references: [id])
+  repartidorId String?
+  repartidor   Usuario? @relation("RepartidorPedidos", fields: [repartidorId], references: [id])
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  rutaId String?
+  ruta   Ruta?   @relation(fields: [rutaId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// -------------------------------------------------------------
+// 4. RUTA
+// Agrupa pedidos asignados a un repartidor en un día.
+// rutaOptimizada guarda el orden calculado por la IA como JSON.
+// -------------------------------------------------------------
+model Ruta {
+  id             String   @id @default(uuid())
+  fecha          DateTime @db.Date
+  estado         String   @default("pendiente") // pendiente | activa | completada | cancelada
+  rutaOptimizada Json?    // Orden de paradas calculado por IA
+
+  empresaId String
+  empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  repartidorId String
+  repartidor   Usuario @relation("RepartidorRutas", fields: [repartidorId], references: [id])
+
+  pedidos Pedido[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// -------------------------------------------------------------
+// 5. UBICACION (GPS histórico del repartidor)
+// Cada ping GPS del repartidor se guarda aquí.
+// También alimenta Supabase Realtime para el mapa en vivo.
+// -------------------------------------------------------------
+model Ubicacion {
+  id        String   @id @default(uuid())
+  lat       Float
+  lng       Float
+  timestamp DateTime @default(now())
+
+  repartidorId String
+  repartidor   Usuario @relation(fields: [repartidorId], references: [id], onDelete: Cascade)
+
+  empresaId String
+
+  @@index([repartidorId, timestamp])
+}
+
+// -------------------------------------------------------------
+// 6. ALERTA
+// Generadas automáticamente por la Edge Function de cron.
+// Tipos: desvio | retraso | riesgo_alto
+// -------------------------------------------------------------
+model Alerta {
+  id      String  @id @default(uuid())
+  tipo    String  // "desvio" | "retraso" | "riesgo_alto"
+  mensaje String
+  leida   Boolean @default(false)
+
+  empresaId String
+  empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  repartidorId String?
+  repartidor   Usuario? @relation("AlertasRepartidor", fields: [repartidorId], references: [id])
+
+  pedidoId String? // Pedido relacionado (si aplica)
+
+  createdAt DateTime @default(now())
+
+  @@index([empresaId, leida])
+}
+
+// -------------------------------------------------------------
+// 7. REPORTE CACHE
+// Guarda reportes pre-calculados para no recalcular en cada
+// carga del dashboard. Clave única por empresa + fecha.
+// -------------------------------------------------------------
+model ReporteCache {
+  id        String   @id @default(uuid())
+  fecha     DateTime @db.Date
+  datos     Json     // Métricas: entregas, fallos, eficiencia, costos
+  empresaId String
+  empresa   Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([empresaId, fecha])
 }

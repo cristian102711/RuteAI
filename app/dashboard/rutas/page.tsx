@@ -158,7 +158,7 @@ export default async function RutasPage() {
           {/* Mapa Leaflet */}
           <div className="lg:col-span-2 bg-zinc-900/40 backdrop-blur-md border border-zinc-800/60 rounded-3xl overflow-hidden shadow-xl min-h-[520px] relative">
             {paradas.length > 0 ? (
-              <div className="absolute inset-0 relative z-0">
+              <div className="absolute inset-0 z-0">
                 <SimuladorRuta empresaId={usuarioDB.empresa.id} paradas={paradas} />
                 <MapaRutas paradas={paradas} empresaId={usuarioDB.empresa.id} />
               </div>
