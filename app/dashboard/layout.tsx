@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ReactNode } from "react";
-import { MapPin, Package, Map, Brain, Settings, Bell } from "lucide-react";
+import { MapPin, Package, Map, Brain, Settings, Bell, BarChart3 } from "lucide-react";
 import { createClient } from "@/lib/supabaseServer";
 import { redirect } from "next/navigation";
 import { LogoutButton } from "@/app/dashboard/components/LogoutButton";
@@ -45,6 +45,10 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
           <Link href="/dashboard/ia" className="px-4 py-3.5 rounded-xl text-zinc-400 font-medium hover:bg-zinc-800/50 hover:text-zinc-100 border border-transparent hover:border-zinc-700/50 hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-3 group">
             <Brain className="w-5 h-5 group-hover:scale-110 group-hover:text-purple-400 transition-all" /> Predicciones IA
+          </Link>
+
+          <Link href="/dashboard/reportes" className="px-4 py-3.5 rounded-xl text-zinc-400 font-medium hover:bg-zinc-800/50 hover:text-zinc-100 border border-transparent hover:border-zinc-700/50 hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-3 group">
+            <BarChart3 className="w-5 h-5 group-hover:scale-110 group-hover:text-purple-400 transition-all" /> Reportes
           </Link>
 
           <Link href="/dashboard/alertas" className="px-4 py-3.5 rounded-xl text-zinc-400 font-medium hover:bg-zinc-800/50 hover:text-zinc-100 border border-transparent hover:border-zinc-700/50 hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-3 group">
