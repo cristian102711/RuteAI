@@ -4,7 +4,7 @@
 import { Search } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useDebounce } from "@/lib/hooks/useDebounce"; // Asumiré que lo crearé o usaré uno simple
+import { useDebounce } from "@/hooks/useDebounce"; 
 
 export function BuscadorPedidos() {
   const router = useRouter();

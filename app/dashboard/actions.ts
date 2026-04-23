@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { createAdminClient } from "@/lib/supabaseAdmin";
 
 // Lógica Mock Deterministica para el Riesgo (Simulando API IA Externa)
 function calcularRiesgoIA(cliente: string, direccion: string, producto: string): number {
@@ -127,4 +128,41 @@ export async function crearEmpresaYUsuario(formData: FormData) {
   });
 
   revalidatePath("/dashboard");
+}
+
+export async function agregarRepartidor(formData: FormData, empresaId: string) {
+  const nombre = formData.get("nombre") as string;
+  const email = formData.get("email") as string;
+
+  if (!nombre || !email) return { error: "Faltan datos" };
+
+  try {
+    const supabase = createAdminClient();
+    
+    // 1. Crear el usuario en Supabase Auth
+    const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+      email,
+      email_confirm: true,
+      password: Math.random().toString(36).slice(-12), // Password temporal
+      user_metadata: { nombre, empresaId }
+    });
+
+    if (authError) return { error: authError.message };
+
+    // 2. Guardar en la DB
+    await prisma.usuario.create({
+      data: {
+        id: authUser.user.id,
+        nombre,
+        email,
+        rol: "repartidor",
+        empresaId
+      }
+    });
+
+    revalidatePath("/dashboard/configuracion");
+    return { success: true };
+  } catch (err: any) {
+    return { error: err.message || "Error interno al crear repartidor" };
+  }
 }
