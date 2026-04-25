@@ -54,6 +54,6 @@ Este proyecto está preparado para el despliegue automático en Vercel:
 2. Agrega las variables de entorno (`DATABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`).
 3. Vercel detectará el framework Next.js automáticamente y hará el despliegue en cada `git push`.
 
----
+---freddy push nuevo--
 
 _Desarrollado por Cristian Velasquez Cornejo._
