@@ -60,34 +60,47 @@ export function FilaPedido({ pedido }: { pedido: Pedido }) {
 
   // --- MODO LECTURA NORMAL ---
   return (
-    <div className="flex justify-between items-center p-5 rounded-2xl bg-zinc-900/30 border border-zinc-800/80 hover:border-zinc-700/80 hover:bg-zinc-900/60 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group">
-      <div className="flex flex-col gap-1 pr-4">
-        <h3 className="font-extrabold text-sm uppercase tracking-wide text-zinc-100 border-b border-zinc-800/60 pb-1 mb-1 inline-block w-fit">
+    <div className="flex flex-col md:flex-row justify-between items-start md:items-center p-6 rounded-3xl bg-card-bg/60 border border-border-ui hover:border-emerald-500/40 hover:bg-card-bg hover:shadow-[0_0_30px_rgba(52,211,153,0.05)] hover:-translate-y-1 transition-all duration-500 group relative overflow-hidden min-h-[110px] backdrop-blur-xl">
+      {/* Indicador lateral Dinámico */}
+      <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500/0 group-hover:bg-emerald-500/60 group-hover:shadow-[4px_0_15px_rgba(52,211,153,0.4)] transition-all duration-500" />
+      
+      {/* Light Reflection Effect on Hover */}
+      <div className="absolute top-0 left-[-100%] w-full h-full bg-gradient-to-r from-transparent via-emerald-500/5 to-transparent group-hover:left-[100%] transition-all duration-700 pointer-events-none" />
+      
+      <div className="flex flex-col gap-2 pr-4 relative z-10 flex-1 w-full md:w-auto mb-4 md:mb-0">
+        <h3 className="font-black text-lg md:text-xl uppercase tracking-wider text-foreground group-hover:text-emerald-500 transition-colors leading-tight">
           {pedido.producto} 
         </h3>
-        <p className="text-xs text-zinc-400 truncate max-w-[200px] md:max-w-md lg:max-w-xs font-medium">📍 {pedido.direccion}</p>
-        <p className="text-xs text-zinc-500 truncate mt-0.5">👤 {pedido.nombreCliente}</p>
+        <div className="flex flex-col gap-1.5">
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 font-medium flex items-start gap-2 leading-snug">
+            <span className="text-emerald-500/70 text-xs mt-1">📍</span> 
+            <span className="line-clamp-2 md:line-clamp-1">{pedido.direccion}</span>
+          </p>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 truncate flex items-center gap-2">
+            <span className="text-emerald-500/50 text-xs">👤</span> {pedido.nombreCliente}
+          </p>
+        </div>
       </div>
       
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 md:gap-4 relative z-10 shrink-0 w-full md:w-auto justify-end border-t border-border-ui md:border-none pt-3 md:pt-0">
         
         {/* BOTÓN EXTRA DE EDITAR */}
         {pedido.estado === "pendiente" && (
            <button 
              onClick={() => setIsEditing(true)} 
-             className="p-2 border border-zinc-700/50 bg-zinc-800/30 hover:bg-amber-500/10 hover:border-amber-500/30 text-zinc-400 hover:text-amber-400 rounded-xl transition-all w-9 h-9 flex justify-center items-center group/edit active:scale-95" title="Editar pedido"
+             className="p-2.5 border border-border-ui bg-background/50 hover:bg-amber-500/10 hover:border-amber-500/30 text-zinc-500 hover:text-amber-500 rounded-2xl transition-all w-10 h-10 flex justify-center items-center group/edit active:scale-95 shadow-sm" title="Editar pedido"
            >
-             <Edit3 strokeWidth={2} className="w-4 h-4 group-hover/edit:scale-110 transition-transform" />
+             <Edit3 strokeWidth={2.5} className="w-4 h-4 group-hover/edit:scale-110 transition-transform" />
            </button>
         )}
 
         <BotonesTabla pedidoId={pedido.id} estado={pedido.estado} />
 
         {/* BADGE DE RIESGO */}
-        <span className={`px-3 py-1.5 text-[10px] uppercase tracking-widest font-extrabold rounded-xl whitespace-nowrap shadow-sm border ${
-          (pedido.scoreRiesgo ?? 0) > 70 ? "bg-rose-500/10 text-rose-400 border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.15)]" : 
-          (pedido.scoreRiesgo ?? 0) > 40 ? "bg-amber-500/10 text-amber-400 border-amber-500/30" : 
-          "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+        <span className={`px-4 py-2 text-[11px] uppercase tracking-[0.15em] font-black rounded-2xl whitespace-nowrap shadow-sm border transition-all duration-500 ${
+          (pedido.scoreRiesgo ?? 0) > 70 ? "bg-rose-500/10 text-rose-500 border-rose-500/30" : 
+          (pedido.scoreRiesgo ?? 0) > 40 ? "bg-amber-500/10 text-amber-500 border-amber-500/30" : 
+          "bg-emerald-500/10 text-emerald-500 border-emerald-500/20 group-hover:border-emerald-500/40"
         }`}>
             {(pedido.scoreRiesgo === 0 && pedido.estado === "entregado") ? "Entrega Segura" : `Alerta: ${pedido.scoreRiesgo}%`}
         </span>
