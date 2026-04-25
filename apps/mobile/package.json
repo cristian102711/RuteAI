@@ -1,0 +1,12 @@
+{
+  "name": "@ruteai/mobile",
+  "version": "0.0.0",
+  "private": true,
+  "description": "App móvil para repartidores — React Native (en desarrollo)",
+  "scripts": {
+    "placeholder": "echo 'Mobile app coming soon'"
+  },
+  "dependencies": {
+    "@ruteai/shared-types": "workspace:*"
+  }
+}
