@@ -19,4 +19,9 @@ config.resolver.nodeModulesPaths = [
 // 3. Force Metro to resolve (sub)dependencies only from the `node_modules` folders listed above
 config.resolver.disableHierarchicalLookup = true;
 
+// 4. Extra node modules to help resolution of core packages
+config.resolver.extraNodeModules = {
+  // If you need to alias any packages, add them here
+};
+
 module.exports = withNativeWind(config, { input: "./src/global.css" });

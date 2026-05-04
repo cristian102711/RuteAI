@@ -1,23 +1,38 @@
-import React, { useState } from "react";
+import React from "react";
 import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 import { useRouter } from "expo-router";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import { Colors, Spacing } from "../../design/tokens";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
+import { useAuth } from "../../hooks/useAuth";
+
+const loginSchema = z.object({
+  email: z.string().email("Correo inválido"),
+  password: z.string().min(6, "Mínimo 6 caracteres"),
+});
+
+type LoginForm = z.infer<typeof loginSchema>;
 
 export default function LoginScreen() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const { login, isLoading } = useAuth();
+  
+  const { control, handleSubmit, formState: { errors } } = useForm<LoginForm>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: "", password: "" },
+  });
 
-  const handleLogin = () => {
-    setIsLoading(true);
-    // Simular login
-    setTimeout(() => {
-      setIsLoading(false);
-      router.replace("/(tabs)");
-    }, 1000);
+  const onSubmit = async (data: LoginForm) => {
+    try {
+      await login(data);
+      router.replace("/(app)/dashboard");
+    } catch (err) {
+      console.log("Error al iniciar sesión", err);
+      // Opcional: mostrar un Toast/Error Visual
+    }
   };
 
   return (
@@ -34,25 +49,40 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.form}>
-          <Input
-            label="Correo Electrónico"
-            placeholder="ejemplo@ruteai.com"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
+          <Controller
+            control={control}
+            name="email"
+            render={({ field: { onChange, value } }) => (
+              <Input
+                label="Correo Electrónico"
+                placeholder="repartidor@ruteai.cl"
+                value={value}
+                onChangeText={onChange}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            )}
           />
-          <Input
-            label="Contraseña"
-            placeholder="••••••••"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
+          {errors.email && <Text style={styles.errorText}>{errors.email.message}</Text>}
+
+          <Controller
+            control={control}
+            name="password"
+            render={({ field: { onChange, value } }) => (
+              <Input
+                label="Contraseña"
+                placeholder="••••••••"
+                value={value}
+                onChangeText={onChange}
+                secureTextEntry
+              />
+            )}
           />
+          {errors.password && <Text style={styles.errorText}>{errors.password.message}</Text>}
 
           <Button
             title="Entrar al Sistema"
-            onPress={handleLogin}
+            onPress={handleSubmit(onSubmit)}
             loading={isLoading}
             style={styles.loginButton}
           />
@@ -96,6 +126,12 @@ const styles = StyleSheet.create({
   },
   form: {
     width: "100%",
+  },
+  errorText: {
+    color: Colors.accentRose,
+    fontSize: 12,
+    marginBottom: Spacing.sm,
+    marginTop: -8,
   },
   loginButton: {
     marginTop: Spacing.lg,
