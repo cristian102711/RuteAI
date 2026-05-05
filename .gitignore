@@ -1,43 +1,43 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# dependencies
-/node_modules
+# ── Monorepo: node_modules en todos los packages ──────────────────
+**/node_modules
 /.pnp
 .pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
 
-# testing
-/coverage
+# ── Turborepo cache ───────────────────────────────────────────────
+.turbo
 
-# next.js
-/.next/
-/out/
+# ── Next.js ───────────────────────────────────────────────────────
+apps/web/.next/
+apps/web/out/
+*.tsbuildinfo
 
-# production
+# ── Build outputs ─────────────────────────────────────────────────
+**/dist
 /build
 
-# misc
+# ── Prisma generated client ───────────────────────────────────────
+**/generated/prisma
+
+# ── Environment variables ─────────────────────────────────────────
+.env
+.env.local
+.env*.local
+!.env.example
+# Permitir .env.example en cada package (documentación)
+!packages/**/.env.example
+!apps/**/.env.example
+
+# ── Vercel ────────────────────────────────────────────────────────
+.vercel
+
+# ── Misc ──────────────────────────────────────────────────────────
 .DS_Store
 *.pem
-
-# debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+/coverage
 
-# env files (can opt-in for committing if needed)
-.env*
-
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-
-/app/generated/prisma
