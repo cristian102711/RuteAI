@@ -7,3 +7,6 @@ export const prisma = globalForPrisma.prisma || new PrismaClient();
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
 export * from '@prisma/client';
+
+// Default export para compatibilidad con: import prisma from "@ruteai/database"
+export default prisma;
