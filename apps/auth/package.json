@@ -1,0 +1,9 @@
+{
+    "name":  "@ruteai/auth",
+    "version":  "1.0.0",
+    "dependencies":  {
+                         "@ruteai/shared":  "workspace:*",
+                         "@ruteai/database":  "workspace:*",
+                         "next":  "latest"
+                     }
+}
