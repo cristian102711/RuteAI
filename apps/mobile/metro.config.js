@@ -1,27 +1,40 @@
+const path = require("path");
 const { getDefaultConfig } = require("expo/metro-config");
 const { withNativeWind } = require("nativewind/metro");
-const path = require("path");
 
-const projectRoot = __dirname;
-const workspaceRoot = path.resolve(projectRoot, "../..");
+const config = getDefaultConfig(__dirname);
 
-const config = getDefaultConfig(projectRoot);
-
-// 1. Watch all files within the monorepo
-config.watchFolders = [workspaceRoot];
-
-// 2. Let Metro know where to resolve packages and node_modules
-config.resolver.nodeModulesPaths = [
-  path.resolve(projectRoot, "node_modules"),
-  path.resolve(workspaceRoot, "node_modules"),
+// Prioritize .js over .mjs to avoid ESM issues on web (like import.meta)
+config.resolver.sourceExts = [
+  "ts",
+  "tsx",
+  "js",
+  "jsx",
+  "json",
+  "cjs",
+  "mjs",
+  "scss",
+  "sass",
+  "css",
 ];
 
-// 3. Force Metro to resolve (sub)dependencies only from the `node_modules` folders listed above
-config.resolver.disableHierarchicalLookup = true;
+// Disable package exports to force Metro to use the 'main' field (CJS) instead of 'exports' (which often points to ESM/mjs)
+config.resolver.unstable_enablePackageExports = false;
 
-// 4. Extra node modules to help resolution of core packages
+// Alias zustand to its CJS version to avoid import.meta issues on web
 config.resolver.extraNodeModules = {
-  // If you need to alias any packages, add them here
+  ...config.resolver.extraNodeModules,
+  "zustand": path.resolve(__dirname, "../../node_modules/zustand/index.js"),
+  "zustand/vanilla": path.resolve(__dirname, "../../node_modules/zustand/vanilla.js"),
+  "zustand/middleware": path.resolve(__dirname, "../../node_modules/zustand/middleware.js"),
+  "zustand/traditional": path.resolve(__dirname, "../../node_modules/zustand/traditional.js"),
+  "zustand/shallow": path.resolve(__dirname, "../../node_modules/zustand/shallow.js"),
+  "zustand/middleware/immer": path.resolve(__dirname, "../../node_modules/zustand/middleware/immer.js"),
+  "react": path.resolve(__dirname, "../../node_modules/react"),
+  "react-dom": path.resolve(__dirname, "../../node_modules/react-dom"),
 };
 
+
+
 module.exports = withNativeWind(config, { input: "./src/global.css" });
+

@@ -160,27 +160,27 @@ export default async function ReportesPage() {
   ];
 
   return (
-    <div className="font-sans px-2">
+    <div className="px-2 pb-10">
       <div className="max-w-[85rem] mx-auto">
 
         {/* Header */}
-        <header className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-end border-b border-zinc-800/50 pb-6">
+        <header className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-end border-b border-border-ui pb-8">
           <div>
-            <span className="text-purple-400 text-sm font-semibold tracking-widest uppercase mb-1 flex items-center gap-2">
+            <span className="text-primary text-xs font-bold tracking-[0.2em] uppercase mb-1 flex items-center gap-2">
               <BarChart3 className="w-4 h-4" />
               Análisis y Métricas
             </span>
-            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-white mb-2">
+            <h1 className="text-4xl md:text-5xl font-black tracking-tight text-foreground mb-2">
               Reportes{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
+              <span className="text-primary">
                 Inteligentes
               </span>
             </h1>
-            <p className="text-zinc-500 text-sm">
-              {usuarioDB.empresa.nombre} · Últimos 7 días y totales históricos
+            <p className="text-muted-foreground text-sm font-medium">
+              {usuarioDB.empresa.nombre} · Análisis detallado de los últimos 7 días
             </p>
           </div>
-          <div className="mt-4 md:mt-0 bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs font-bold px-4 py-2.5 rounded-2xl">
+          <div className="mt-4 md:mt-0 bg-primary/10 border border-primary/20 text-primary text-xs font-bold px-4 py-2.5 rounded-2xl shadow-sm">
             {total} despachos totales
           </div>
         </header>
@@ -189,20 +189,31 @@ export default async function ReportesPage() {
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-10">
           {tarjetas.map((t) => {
             const Icono = t.icono;
+            // Map colors to semantic classes
+            const colorMap: Record<string, string> = {
+              "text-blue-400": "text-blue-500",
+              "text-emerald-400": "text-emerald-500",
+              "text-rose-400": "text-rose-500",
+              "text-amber-400": "text-amber-500"
+            };
+            const semanticColor = colorMap[t.color] || t.color;
+            const semanticBg = semanticColor.replace("text-", "bg-") + "/10";
+            const semanticBorder = semanticColor.replace("text-", "border-") + "/20";
+
             return (
               <div
                 key={t.label}
-                className={`${t.bg} border ${t.border} rounded-2xl p-5 flex flex-col gap-2`}
+                className={`bg-card border border-border-ui rounded-2xl p-5 flex flex-col gap-2 shadow-sm hover:shadow-md transition-all duration-300`}
               >
-                <div className={`w-8 h-8 rounded-lg ${t.bg} border ${t.border} flex items-center justify-center`}>
-                  <Icono className={`w-4 h-4 ${t.color}`} />
+                <div className={`w-8 h-8 rounded-lg ${semanticBg} border ${semanticBorder} flex items-center justify-center`}>
+                  <Icono className={`w-4 h-4 ${semanticColor}`} />
                 </div>
-                <p className="text-zinc-500 text-[11px] font-semibold uppercase tracking-wider leading-none">
+                <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-wider leading-none">
                   {t.label}
                 </p>
-                <p className={`text-3xl font-extrabold leading-none ${t.color}`}>
+                <p className={`text-2xl font-black leading-none ${semanticColor}`}>
                   {t.valor}
-                  <span className="text-base font-bold">{t.sufijo}</span>
+                  <span className="text-sm font-bold ml-0.5">{t.sufijo}</span>
                 </p>
               </div>
             );
@@ -217,49 +228,50 @@ export default async function ReportesPage() {
         />
 
         {/* Gráfico de tendencia (row completo) */}
-        <div className="mt-6">
+        <div className="mt-8">
           <GraficoTendenciaRiesgo datosPorDia={datosPorDia} />
         </div>
 
         {/* Tabla de pedidos recientes */}
-        <div className="mt-6 bg-zinc-900/40 backdrop-blur-md border border-zinc-800/60 rounded-3xl p-6 shadow-xl">
-          <h3 className="text-sm font-bold tracking-widest uppercase text-zinc-400 mb-4">
-            📋 Últimos 10 despachos
+        <div className="mt-8 bg-card border border-border-ui rounded-3xl p-6 shadow-sm hover:shadow-md transition-all duration-300">
+          <h3 className="text-[10px] font-bold tracking-widest uppercase text-muted-foreground mb-6 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary/60"></span>
+            Últimos 10 despachos
           </h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-zinc-500 text-xs uppercase tracking-wider border-b border-zinc-800/60">
-                  <th className="pb-3 text-left font-semibold">Cliente</th>
-                  <th className="pb-3 text-left font-semibold">Dirección</th>
-                  <th className="pb-3 text-left font-semibold">Estado</th>
-                  <th className="pb-3 text-left font-semibold">Repartidor</th>
-                  <th className="pb-3 text-right font-semibold">Score IA</th>
+                <tr className="text-muted-foreground text-[10px] uppercase tracking-wider border-b border-border-ui">
+                  <th className="pb-4 text-left font-bold">Cliente</th>
+                  <th className="pb-4 text-left font-bold">Dirección</th>
+                  <th className="pb-4 text-left font-bold">Estado</th>
+                  <th className="pb-4 text-left font-bold">Repartidor</th>
+                  <th className="pb-4 text-right font-bold">Score IA</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-800/40">
+              <tbody className="divide-y divide-border-ui/40">
                 {pedidos.slice(0, 10).map((p) => {
                   const estadoConfig: Record<string, { color: string; label: string }> = {
-                    pendiente: { color: "text-amber-400 bg-amber-500/10", label: "Pendiente" },
-                    en_ruta: { color: "text-blue-400 bg-blue-500/10", label: "En Ruta" },
-                    entregado: { color: "text-emerald-400 bg-emerald-500/10", label: "Entregado" },
-                    fallido: { color: "text-rose-400 bg-rose-500/10", label: "Fallido" },
+                    pendiente: { color: "text-amber-600 dark:text-amber-400 bg-amber-500/10", label: "Pendiente" },
+                    en_ruta: { color: "text-blue-600 dark:text-blue-400 bg-blue-500/10", label: "En Ruta" },
+                    entregado: { color: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10", label: "Entregado" },
+                    fallido: { color: "text-rose-600 dark:text-rose-400 bg-rose-500/10", label: "Fallido" },
                   };
                   const cfg = estadoConfig[p.estado] ?? estadoConfig["pendiente"];
 
                   return (
-                    <tr key={p.id} className="hover:bg-zinc-800/20 transition-colors">
-                      <td className="py-3 pr-4 text-zinc-200 font-medium">{p.nombreCliente}</td>
-                      <td className="py-3 pr-4 text-zinc-500 truncate max-w-[180px]">{p.direccion}</td>
-                      <td className="py-3 pr-4">
-                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${cfg.color}`}>
+                    <tr key={p.id} className="hover:bg-secondary/30 transition-colors group">
+                      <td className="py-4 pr-4 text-foreground font-bold">{p.nombreCliente}</td>
+                      <td className="py-4 pr-4 text-muted-foreground truncate max-w-[180px] font-medium">{p.direccion}</td>
+                      <td className="py-4 pr-4">
+                        <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-tight ${cfg.color}`}>
                           {cfg.label}
                         </span>
                       </td>
-                      <td className="py-3 pr-4 text-zinc-400 text-xs">
+                      <td className="py-4 pr-4 text-muted-foreground text-xs font-medium">
                         {p.repartidor?.nombre ?? "—"}
                       </td>
-                      <td className="py-3 text-right font-mono text-xs text-zinc-400">
+                      <td className="py-4 text-right font-bold text-xs text-foreground">
                         {p.scoreRiesgo !== null && p.scoreRiesgo !== undefined
                           ? `${p.scoreRiesgo}`
                           : "—"}
@@ -269,7 +281,7 @@ export default async function ReportesPage() {
                 })}
                 {pedidos.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="py-10 text-center text-zinc-600">
+                    <td colSpan={5} className="py-20 text-center text-muted-foreground font-medium">
                       No hay despachos registrados aún
                     </td>
                   </tr>

@@ -68,20 +68,20 @@ export default async function DashboardPage() {
   });
 
   return (
-    <div className="font-sans px-2">
+    <div className="px-2">
       <div className="max-w-[85rem] mx-auto">
         
         {/* Cabecera del Panel */}
-        <header className="mb-12 flex flex-col md:flex-row justify-between items-start md:items-end border-b border-zinc-800/50 pb-6">
-          <div className="flex flex-col gap-1">
-            <span className="text-emerald-400/80 text-sm font-semibold tracking-widest uppercase mb-1 flex items-center gap-2">
-               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <header className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-end border-b border-border-ui pb-8">
+          <div className="flex flex-col gap-1.5">
+            <span className="text-primary text-xs font-bold tracking-[0.2em] uppercase mb-1 flex items-center gap-2">
+               <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
                Operativa Global
             </span>
-            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-white mb-2">
-              Panel de <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-emerald-200">{empresaActiva.nombre}</span>
+            <h1 className="text-4xl md:text-5xl font-black tracking-tight text-foreground mb-2">
+              Panel de <span className="text-primary">{empresaActiva.nombre}</span>
             </h1>
-            <p className="text-zinc-500/90 text-sm md:text-base max-w-xl">
+            <p className="text-muted-foreground text-sm md:text-base max-w-xl font-medium">
               Gestión logística inteligente y predicción de riesgo en vivo por RouteAI.
             </p>
           </div>
@@ -90,30 +90,30 @@ export default async function DashboardPage() {
         {/* Zona del Formulario y las Estadísticas Rápidas */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 mb-10">
           
-          <div className="xl:col-span-1 bg-zinc-900/40 backdrop-blur-md border border-zinc-800/60 rounded-3xl p-7 shadow-xl hover:shadow-[0_8px_30px_rgb(0,0,0,0.4)] transition-all duration-500 h-fit hover:border-zinc-700/50 group block">
-            <h2 className="text-sm font-bold tracking-widest uppercase mb-6 text-emerald-400 flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 opacity-70 group-hover:opacity-100 transition-opacity"></span>
+          <div className="xl:col-span-1 bg-card border border-border-ui rounded-3xl p-7 shadow-sm hover:shadow-md transition-all duration-300 h-fit group">
+            <h2 className="text-xs font-bold tracking-widest uppercase mb-6 text-primary flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary opacity-70 group-hover:opacity-100 transition-opacity"></span>
               Nuevo Despacho
             </h2>
             
             <FormCrearPedido empresaId={empresaActiva.id} />
           </div>
 
-          <div className="xl:col-span-2 bg-zinc-900/40 backdrop-blur-md border border-zinc-800/60 rounded-3xl shadow-xl overflow-hidden flex flex-col hover:border-zinc-700/50 transition-all duration-500">
-            <div className="px-8 py-6 border-b border-zinc-800/60 flex justify-between items-center bg-zinc-950/20">
-              <h2 className="text-sm font-bold tracking-widest uppercase text-zinc-300">
-                Despachos en Curso <span className="bg-emerald-500/20 text-emerald-400 px-2.5 py-0.5 rounded-full ml-2 text-xs">{pedidos.length}</span>
+          <div className="xl:col-span-2 bg-card border border-border-ui rounded-3xl shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-all duration-300">
+            <div className="px-8 py-6 border-b border-border-ui flex justify-between items-center bg-secondary/20">
+              <h2 className="text-xs font-bold tracking-widest uppercase text-foreground/80">
+                Despachos en Curso <span className="bg-primary/10 text-primary px-2.5 py-0.5 rounded-full ml-2 text-[10px]">{pedidos.length}</span>
               </h2>
             </div>
             
-            <div className="overflow-y-auto max-h-[480px] p-6 lg:p-8 flex flex-col gap-4 bg-zinc-950/10">
+            <div className="overflow-y-auto max-h-[480px] p-6 lg:p-8 flex flex-col gap-4">
               {pedidos.length === 0 ? (
-                <div className="text-center flex flex-col items-center justify-center py-16 px-4">
-                  <div className="w-20 h-20 mb-4 rounded-full bg-zinc-800/50 flex items-center justify-center border border-zinc-700/50">
+                <div className="text-center flex flex-col items-center justify-center py-20 px-4">
+                  <div className="w-20 h-20 mb-6 rounded-full bg-secondary flex items-center justify-center border border-border-ui">
                      <span className="text-3xl">📦</span>
                   </div>
-                  <h3 className="text-zinc-300 font-semibold text-lg mb-1">Cero despachos activos</h3>
-                  <p className="text-zinc-500 text-sm max-w-sm">Tu bandeja de despachos de hoy está vacía. Crea el primer pedido para iniciar la ruta.</p>
+                  <h3 className="text-foreground font-bold text-lg mb-2">Cero despachos activos</h3>
+                  <p className="text-muted-foreground text-sm max-w-xs font-medium">Tu bandeja de despachos de hoy está vacía. Crea el primer pedido para iniciar la ruta.</p>
                 </div>
               ) : (
                 pedidos.map((pedido) => (
