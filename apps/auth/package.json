@@ -1,9 +1,25 @@
 {
-    "name":  "@ruteai/auth",
-    "version":  "1.0.0",
-    "dependencies":  {
-                         "@ruteai/shared":  "workspace:*",
-                         "@ruteai/database":  "workspace:*",
-                         "next":  "latest"
-                     }
+  "name": "@ruteai/auth",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev":   "next dev --port 3002",
+    "build": "next build",
+    "start": "next start --port 3002",
+    "lint":  "next lint"
+  },
+  "dependencies": {
+    "@ruteai/database":    "workspace:*",
+    "@ruteai/shared":      "workspace:*",
+    "@supabase/supabase-js": "^2.39.0",
+    "next":                "15.3.1",
+    "react":               "^19.0.0",
+    "react-dom":           "^19.0.0",
+    "zod":                 "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node":    "^20.0.0",
+    "@types/react":   "^19.0.0",
+    "typescript":     "^5.4.5"
+  }
 }

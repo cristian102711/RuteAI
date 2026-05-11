@@ -1,5 +1,7 @@
-import { NextResponse } from 'next/server';
+import { signupController } from "@/modules/auth/controllers/auth.controller";
+import type { NextRequest } from "next/server";
 
-export async function POST() {
-  return NextResponse.json({ message: 'Signup route' });
+// Route → Controller → Service → Repository → Supabase
+export async function POST(req: NextRequest) {
+  return signupController(req);
 }
