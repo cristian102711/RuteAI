@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Text, ActivityIndicator } from 'react-native';
-import MapView, { Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Colors, Spacing } from '../../design/tokens';
-import { MapMarker } from '../../components/domain/MapMarker';
 import { useRutas } from '../../hooks/useRutas';
 import { Card } from '../../components/ui/Card';
+import { MapRenderer } from '../../components/domain/MapRenderer';
 
 export default function MapaScreen() {
   const { data: ruta, isLoading } = useRutas();
@@ -44,35 +43,11 @@ export default function MapaScreen() {
 
   return (
     <View style={styles.container}>
-      <MapView
-        provider={PROVIDER_DEFAULT}
-        style={styles.map}
-        initialRegion={{
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-          latitudeDelta: 0.05,
-          longitudeDelta: 0.05,
-        }}
-        showsUserLocation={true}
-        showsMyLocationButton={true}
-        userInterfaceStyle="dark"
-      >
-        {stops.map((stop: any, index: number) => (
-          <MapMarker
-            key={stop.id}
-            coordinate={{ lat: stop.lat, lng: stop.lng }}
-            title={`Parada ${index + 1}`}
-            active={index === 0}
-          />
-        ))}
-
-        <Polyline
-          coordinates={coordinates}
-          strokeColor={Colors.primary}
-          strokeWidth={4}
-          lineDashPattern={[1]}
-        />
-      </MapView>
+      <MapRenderer 
+        location={location} 
+        stops={stops} 
+        coordinates={coordinates} 
+      />
 
       <View style={styles.overlay}>
         <Card style={styles.infoCard}>
@@ -98,9 +73,6 @@ const styles = StyleSheet.create({
   loadingText: {
     color: Colors.textMuted,
     marginTop: Spacing.md,
-  },
-  map: {
-    flex: 1,
   },
   overlay: {
     position: 'absolute',

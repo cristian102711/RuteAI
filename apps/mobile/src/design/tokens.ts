@@ -1,4 +1,4 @@
-import tokens from "../../../shared/tokens.json";
+import tokens from "./tokens.json";
 
 export const Colors = tokens.colors;
 export const Spacing = tokens.spacing;
