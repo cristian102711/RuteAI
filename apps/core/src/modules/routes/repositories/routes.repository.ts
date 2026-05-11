@@ -1,4 +1,4 @@
-import prisma from "@ruteai/database";
+import prisma from "../../../lib/prisma";
 
 export const RoutesRepository = {
   async findAll(empresaId: string) {

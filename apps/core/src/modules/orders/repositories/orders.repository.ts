@@ -1,4 +1,4 @@
-import prisma from "@ruteai/database";
+import prisma from "../../../lib/prisma";
 
 // ── Repository Layer ─────────────────────────────────────────
 // Encapsula todas las operaciones de Pedido en la base de datos.
