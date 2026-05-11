@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "../../../lib/supabase";
 
 // ── Repository Layer ─────────────────────────────────────────
 // Encapsula TODAS las llamadas a Supabase Auth.
