@@ -1,4 +1,5 @@
-import { Router, Request, Response } from "express";
+import { Router } from "express";
+import type { Request, Response } from "express";
 import { OrdersService } from "../modules/orders/services/orders.service";
 import { z } from "zod";
 
@@ -19,9 +20,9 @@ const UpdateEstadoSchema = z.object({
 });
 
 // GET /api/v1/orders?empresaId=xxx
-ordersRouter.get("/", async (req: Request, res: Response) => {
+ordersRouter.get("/", async (req: Request, res: Response): Promise<void> => {
   try {
-    const { empresaId } = req.query;
+    const empresaId = req.query["empresaId"];
     if (!empresaId || typeof empresaId !== "string") {
       res.status(400).json({ success: false, error: "empresaId requerido" });
       return;
@@ -34,9 +35,9 @@ ordersRouter.get("/", async (req: Request, res: Response) => {
 });
 
 // GET /api/v1/orders/:id
-ordersRouter.get("/:id", async (req: Request, res: Response) => {
+ordersRouter.get("/:id", async (req: Request, res: Response): Promise<void> => {
   try {
-    const order = await OrdersService.obtener(req.params.id);
+    const order = await OrdersService.obtener(req.params["id"] ?? "");
     res.json({ success: true, data: order });
   } catch (error) {
     res.status(404).json({ success: false, error: error instanceof Error ? error.message : "No encontrado" });
@@ -44,7 +45,7 @@ ordersRouter.get("/:id", async (req: Request, res: Response) => {
 });
 
 // POST /api/v1/orders
-ordersRouter.post("/", async (req: Request, res: Response) => {
+ordersRouter.post("/", async (req: Request, res: Response): Promise<void> => {
   try {
     const parsed = CreateOrderSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -59,14 +60,14 @@ ordersRouter.post("/", async (req: Request, res: Response) => {
 });
 
 // PATCH /api/v1/orders/:id/estado
-ordersRouter.patch("/:id/estado", async (req: Request, res: Response) => {
+ordersRouter.patch("/:id/estado", async (req: Request, res: Response): Promise<void> => {
   try {
     const parsed = UpdateEstadoSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ success: false, error: "Estado inválido" });
       return;
     }
-    const order = await OrdersService.actualizarEstado(req.params.id, parsed.data.estado);
+    const order = await OrdersService.actualizarEstado(req.params["id"] ?? "", parsed.data.estado);
     res.json({ success: true, data: order });
   } catch (error) {
     res.status(400).json({ success: false, error: error instanceof Error ? error.message : "Error" });
@@ -74,9 +75,9 @@ ordersRouter.patch("/:id/estado", async (req: Request, res: Response) => {
 });
 
 // DELETE /api/v1/orders/:id
-ordersRouter.delete("/:id", async (req: Request, res: Response) => {
+ordersRouter.delete("/:id", async (req: Request, res: Response): Promise<void> => {
   try {
-    await OrdersService.eliminar(req.params.id);
+    await OrdersService.eliminar(req.params["id"] ?? "");
     res.json({ success: true, message: "Pedido eliminado" });
   } catch (error) {
     res.status(404).json({ success: false, error: error instanceof Error ? error.message : "No encontrado" });

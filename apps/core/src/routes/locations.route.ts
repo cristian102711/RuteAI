@@ -1,4 +1,5 @@
-import { Router, Request, Response } from "express";
+import { Router } from "express";
+import type { Request, Response } from "express";
 import { LocationsService } from "../modules/locations/services/locations.service";
 import { z } from "zod";
 
@@ -13,9 +14,9 @@ const RegisterLocationSchema = z.object({
 });
 
 // GET /api/v1/locations?empresaId=xxx
-locationsRouter.get("/", async (req: Request, res: Response) => {
+locationsRouter.get("/", async (req: Request, res: Response): Promise<void> => {
   try {
-    const { empresaId } = req.query;
+    const empresaId = req.query["empresaId"];
     if (!empresaId || typeof empresaId !== "string") {
       res.status(400).json({ success: false, error: "empresaId requerido" });
       return;
@@ -28,9 +29,9 @@ locationsRouter.get("/", async (req: Request, res: Response) => {
 });
 
 // GET /api/v1/locations/repartidor/:id
-locationsRouter.get("/repartidor/:id", async (req: Request, res: Response) => {
+locationsRouter.get("/repartidor/:id", async (req: Request, res: Response): Promise<void> => {
   try {
-    const ubicacion = await LocationsService.ultimaUbicacion(req.params.id);
+    const ubicacion = await LocationsService.ultimaUbicacion(req.params["id"] ?? "");
     res.json({ success: true, data: ubicacion });
   } catch (error) {
     res.status(404).json({ success: false, error: error instanceof Error ? error.message : "Sin ubicación" });
@@ -38,7 +39,7 @@ locationsRouter.get("/repartidor/:id", async (req: Request, res: Response) => {
 });
 
 // POST /api/v1/locations
-locationsRouter.post("/", async (req: Request, res: Response) => {
+locationsRouter.post("/", async (req: Request, res: Response): Promise<void> => {
   try {
     const parsed = RegisterLocationSchema.safeParse(req.body);
     if (!parsed.success) {

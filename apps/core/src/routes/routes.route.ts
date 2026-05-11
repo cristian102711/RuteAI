@@ -1,4 +1,5 @@
-import { Router, Request, Response } from "express";
+import { Router } from "express";
+import type { Request, Response } from "express";
 import { RoutesService } from "../modules/routes/services/routes.service";
 import { z } from "zod";
 
@@ -15,9 +16,9 @@ const UpdateEstadoSchema = z.object({
 });
 
 // GET /api/v1/routes?empresaId=xxx
-routesRouter.get("/", async (req: Request, res: Response) => {
+routesRouter.get("/", async (req: Request, res: Response): Promise<void> => {
   try {
-    const { empresaId } = req.query;
+    const empresaId = req.query["empresaId"];
     if (!empresaId || typeof empresaId !== "string") {
       res.status(400).json({ success: false, error: "empresaId requerido" });
       return;
@@ -30,9 +31,9 @@ routesRouter.get("/", async (req: Request, res: Response) => {
 });
 
 // GET /api/v1/routes/:id
-routesRouter.get("/:id", async (req: Request, res: Response) => {
+routesRouter.get("/:id", async (req: Request, res: Response): Promise<void> => {
   try {
-    const ruta = await RoutesService.obtener(req.params.id);
+    const ruta = await RoutesService.obtener(req.params["id"] ?? "");
     res.json({ success: true, data: ruta });
   } catch (error) {
     res.status(404).json({ success: false, error: error instanceof Error ? error.message : "No encontrada" });
@@ -40,7 +41,7 @@ routesRouter.get("/:id", async (req: Request, res: Response) => {
 });
 
 // POST /api/v1/routes
-routesRouter.post("/", async (req: Request, res: Response) => {
+routesRouter.post("/", async (req: Request, res: Response): Promise<void> => {
   try {
     const parsed = CreateRouteSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -55,14 +56,14 @@ routesRouter.post("/", async (req: Request, res: Response) => {
 });
 
 // PATCH /api/v1/routes/:id/estado
-routesRouter.patch("/:id/estado", async (req: Request, res: Response) => {
+routesRouter.patch("/:id/estado", async (req: Request, res: Response): Promise<void> => {
   try {
     const parsed = UpdateEstadoSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ success: false, error: "Estado inválido" });
       return;
     }
-    const ruta = await RoutesService.actualizarEstado(req.params.id, parsed.data.estado);
+    const ruta = await RoutesService.actualizarEstado(req.params["id"] ?? "", parsed.data.estado);
     res.json({ success: true, data: ruta });
   } catch (error) {
     res.status(400).json({ success: false, error: error instanceof Error ? error.message : "Error" });
