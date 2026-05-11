@@ -1,7 +1,9 @@
-import { NextResponse } from "next/server";
+import { Router } from "express";
 
-export async function GET() {
-  return NextResponse.json({
+export const healthRouter = Router();
+
+healthRouter.get("/health", (_req, res) => {
+  res.json({
     success:   true,
     service:   "@ruteai/auth",
     version:   "1.0.0",
@@ -13,4 +15,4 @@ export async function GET() {
     ],
     timestamp: new Date().toISOString(),
   });
-}
+});
