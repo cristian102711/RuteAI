@@ -8,9 +8,9 @@
 # ── Turborepo cache ───────────────────────────────────────────────
 .turbo
 
-# ── Next.js ───────────────────────────────────────────────────────
-apps/web/.next/
-apps/web/out/
+# ── Next.js (build output — todos los apps) ───────────────────
+**/.next/
+**/out/
 *.tsbuildinfo
 
 # ── Build outputs ─────────────────────────────────────────────────
