@@ -10,6 +10,8 @@ healthRouter.get("/health", (_req, res) => {
     status:    "online",
     endpoints: [
       "POST /api/v1/auth/signup",
+      "POST /api/v1/auth/login",
+      "POST /api/v1/auth/refresh",
       "GET  /api/v1/users",
       "GET  /api/v1/health",
     ],
