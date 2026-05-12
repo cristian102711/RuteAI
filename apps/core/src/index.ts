@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import "dotenv/config";
 import { healthRouter }  from "./routes/health.route";
 import { ordersRouter }  from "./routes/orders.route";
 import { routesRouter }  from "./routes/routes.route";
