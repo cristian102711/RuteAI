@@ -1,6 +1,5 @@
 {
-  "buildCommand": "cd ../.. && pnpm --filter @ruteai/web build",
-  "installCommand": "cd ../.. && pnpm install",
-  "outputDirectory": ".next",
+  "buildCommand": "pnpm build --filter=@ruteai/web",
+  "installCommand": "pnpm install",
   "framework": "nextjs"
 }
