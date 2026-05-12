@@ -10,13 +10,23 @@ RouteAI es una plataforma moderna para el seguimiento y gestión de despachos de
 - **UX**: Notificaciones animadas persistentes con **Sonner** y ventanas de confirmación asíncronas con **SweetAlert2**.
 - **Infraestructura**: Integración con PostgreSQL vía **Prisma ORM**.
 
-## 🛠️ Stack Tecnológico
+## 🛠️ Stack Tecnológico (Monorepo)
 
-- **Frontend**: Next.js 15+ (App Router), React 19, Tailwind CSS.
-- **Backend**: Next.js Server Actions, Prisma.
-- **Base de Datos**: PostgreSQL (Supabase).
+- **Frontend**: Next.js 16 (App Router), React 19, Tailwind CSS.
+- **Backend**: Microservicios con Express y TypeScript.
+- **Monorepo**: Turborepo + pnpm.
+- **Base de Datos**: PostgreSQL (Supabase) + Prisma ORM.
 - **Iconografía**: Lucide React.
-- **Librerías UX**: Sonner, SweetAlert2.
+- **Animaciones**: Framer Motion.
+
+## 🔌 Microservicios y Puertos
+
+| Servicio | Directorio | Puerto |
+| :--- | :--- | :--- |
+| **Web Frontend** | `apps/web` | 3000 |
+| **AI Service** | `apps/ai-service` | 3001 |
+| **Auth Service** | `apps/auth` | 3002 |
+| **Core Service** | `apps/core` | 3003 |
 
 ## 📦 Instalación y Uso
 
