@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Zap, Mail, Lock, Eye, EyeOff } from "lucide-react";
-import Image from "next/image";//para usar la imagen del logo
+// import Image from "next/image";//para usar la imagen del logo
 
 export default function LoginPage() {
   const router = useRouter();
@@ -34,7 +34,7 @@ export default function LoginPage() {
         router.refresh();
       } else {
         toast.loading("Creando tu cuenta...", { id: "auth" });
-        const { data, error } = await supabase.auth.signUp({ email, password });
+        const { error } = await supabase.auth.signUp({ email, password });
 
         if (error) {
           toast.error(error.message, { id: "auth" });

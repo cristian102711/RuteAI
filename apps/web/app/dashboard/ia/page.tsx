@@ -89,11 +89,11 @@ export default async function IAPage() {
                  </li>
                  <li className="flex gap-2 text-sm text-muted-foreground font-medium">
                    <span className="text-foreground font-bold text-rose-500">•</span>
-                   <span>La omisión del número exterior ('S/N') aumenta drásticamente el riesgo (<span className="text-foreground font-bold">+30%</span>).</span>
+                   <span>La omisión del número exterior (&apos;S/N&apos;) aumenta drásticamente el riesgo (<span className="text-foreground font-bold">+30%</span>).</span>
                  </li>
                  <li className="flex gap-2 text-sm text-muted-foreground font-medium">
                    <span className="text-foreground font-bold text-rose-500">•</span>
-                   <span>Productos etiquetados como "FRÁGIL" elevan la cautela en la gestión (<span className="text-foreground font-bold">+25%</span>).</span>
+                   <span>Productos etiquetados como &quot;FRÁGIL&quot; elevan la cautela en la gestión (<span className="text-foreground font-bold">+25%</span>).</span>
                  </li>
                </ul>
             </div>
