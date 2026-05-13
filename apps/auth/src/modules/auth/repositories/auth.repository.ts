@@ -4,12 +4,23 @@ import { supabaseAdmin, supabasePublic } from "../../../lib/supabase";
 // Encapsula TODAS las llamadas a Supabase Auth.
 // El Service Layer no sabe cómo se conecta, solo llama al repo.
 
+export interface UserMeta {
+  nombre:    string;
+  rol:       "super_admin" | "encargado" | "repartidor";
+  empresaId: string;
+}
+
 export const AuthRepository = {
-  async signUp(email: string, password: string) {
+  async signUp(email: string, password: string, meta: UserMeta) {
     const { data, error } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      email_confirm: true, // auto-confirmar para MVP
+      email_confirm: true,          // auto-confirmar para MVP
+      user_metadata: {
+        nombre:    meta.nombre,
+        rol:       meta.rol,
+        empresaId: meta.empresaId,
+      },
     });
     if (error) throw new Error(error.message);
     return data.user;
