@@ -43,6 +43,12 @@ export const AuthRepository = {
     return data;
   },
 
+  async verifyToken(token: string) {
+    const { data, error } = await supabasePublic.auth.getUser(token);
+    if (error) throw new Error(error.message);
+    return data.user;
+  },
+
   async getUserById(userId: string) {
     const { data, error } = await supabaseAdmin.auth.admin.getUserById(userId);
     if (error) throw new Error(error.message);

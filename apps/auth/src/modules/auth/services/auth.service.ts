@@ -56,6 +56,18 @@ export const AuthService = {
     };
   },
 
+  async verificarToken(token: string) {
+    const user = await AuthRepository.verifyToken(token);
+    const meta = user.user_metadata as Partial<UserMeta>;
+    return {
+      id:        user.id,
+      email:     user.email ?? "",
+      nombre:    meta.nombre    ?? user.email?.split("@")[0] ?? "Usuario",
+      rol:       meta.rol       ?? "repartidor",
+      empresaId: meta.empresaId ?? "",
+    };
+  },
+
   async obtenerUsuario(userId: string) {
     const user = await AuthRepository.getUserById(userId);
     const meta = user.user_metadata as Partial<UserMeta>;

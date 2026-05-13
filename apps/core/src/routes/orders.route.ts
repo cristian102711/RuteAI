@@ -1,9 +1,13 @@
 import { Router } from "express";
-import type { Request, Response } from "express";
+import type { Request, Response, RequestHandler } from "express";
 import { OrdersService } from "../modules/orders/services/orders.service";
+import { requireAuth, requireRole } from "../middlewares/auth.middleware";
 import { z } from "zod";
 
 export const ordersRouter = Router();
+
+// Todos los endpoints de órdenes requieren estar autenticados
+ordersRouter.use(requireAuth as RequestHandler);
 
 const CreateOrderSchema = z.object({
   empresaId:       z.string().uuid(),
@@ -19,12 +23,12 @@ const UpdateEstadoSchema = z.object({
   estado: z.enum(["pendiente", "en_ruta", "entregado", "fallido"]),
 });
 
-// GET /api/v1/orders?empresaId=xxx
+// GET /api/v1/orders
 ordersRouter.get("/", async (req: Request, res: Response): Promise<void> => {
   try {
-    const empresaId = req.query["empresaId"];
-    if (!empresaId || typeof empresaId !== "string") {
-      res.status(400).json({ success: false, error: "empresaId requerido" });
+    const empresaId = req.user!.empresaId;
+    if (!empresaId) {
+      res.status(403).json({ success: false, error: "Usuario sin empresa asignada" });
       return;
     }
     const orders = await OrdersService.listar(empresaId);
@@ -52,7 +56,10 @@ ordersRouter.post("/", async (req: Request, res: Response): Promise<void> => {
       res.status(400).json({ success: false, error: "Datos inválidos", details: parsed.error.flatten() });
       return;
     }
-    const order = await OrdersService.crear(parsed.data);
+    const order = await OrdersService.crear({
+      ...parsed.data,
+      empresaId: req.user!.empresaId,
+    });
     res.status(201).json({ success: true, data: order });
   } catch (error) {
     res.status(500).json({ success: false, error: error instanceof Error ? error.message : "Error interno" });
