@@ -66,3 +66,20 @@ authRouter.post("/refresh", async (req: Request, res: Response) => {
     res.status(401).json({ success: false, error: error instanceof Error ? error.message : "Token inválido" });
   }
 });
+
+// GET /api/v1/auth/me
+// Endpoint para que otros microservicios validen el token
+authRouter.get("/me", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      res.status(401).json({ success: false, error: "Token no proporcionado" });
+      return;
+    }
+    const token = authHeader.split(" ")[1];
+    const usuario = await AuthService.verificarToken(token);
+    res.status(200).json({ success: true, data: { usuario } });
+  } catch (error) {
+    res.status(401).json({ success: false, error: error instanceof Error ? error.message : "Token inválido" });
+  }
+});
