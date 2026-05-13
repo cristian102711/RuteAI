@@ -5,8 +5,11 @@ import { z } from "zod";
 export const authRouter = Router();
 
 const SignupSchema = z.object({
-  email:    z.string().email(),
-  password: z.string().min(8),
+  email:     z.string().email(),
+  password:  z.string().min(8),
+  nombre:    z.string().min(1).default("Usuario"),
+  rol:       z.enum(["super_admin", "encargado", "repartidor"]).default("encargado"),
+  empresaId: z.string().default(""),
 });
 
 const LoginSchema = z.object({
@@ -26,8 +29,9 @@ authRouter.post("/signup", async (req: Request, res: Response) => {
       res.status(400).json({ success: false, error: "Datos inválidos", details: parsed.error.flatten() });
       return;
     }
-    const usuario = await AuthService.registrarUsuario(parsed.data.email, parsed.data.password);
-    res.status(201).json({ success: true, data: usuario });
+    const { email, password, nombre, rol, empresaId } = parsed.data;
+    const usuario = await AuthService.registrarUsuario(email, password, { nombre, rol, empresaId });
+    res.status(201).json({ success: true, data: { usuario } });
   } catch (error) {
     res.status(500).json({ success: false, error: error instanceof Error ? error.message : "Error interno" });
   }
