@@ -1,8 +1,10 @@
 import prisma from "@ruteai/database";
 import { FormCrearPedido } from "./components/FormCrearPedido";
 import { FilaPedido } from "./components/FilaPedido";
-import {createClient} from "@/lib/supabaseServer";
+import { KPICard } from "./components/KPICard";
+import { createClient } from "@/lib/supabaseServer";
 import { crearEmpresaYUsuario } from "./actions";
+import { Package, CheckCircle2, Users, AlertTriangle } from "lucide-react";
 
 // Este es el Centro de Operaciones. Un Server Component seguro.
 export default async function DashboardPage() {
@@ -67,6 +69,16 @@ export default async function DashboardPage() {
     orderBy: { createdAt: "desc" },
   });
 
+  const conductoresTotales = await prisma.usuario.count({
+    where: { empresaId: empresaActiva.id, rol: "repartidor" }
+  });
+
+  const alertasPendientes = await prisma.alerta.count({
+    where: { empresaId: empresaActiva.id, leida: false }
+  });
+
+  const onTimePercentage = pedidos.length > 0 ? 94 : 100; // Simulado temporalmente
+
   return (
     <div className="font-sans px-2">
       <div className="max-w-[85rem] mx-auto">
@@ -86,6 +98,14 @@ export default async function DashboardPage() {
             </p>
           </div>
         </header>
+
+        {/* KPIs Section */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-10">
+          <KPICard label="Pedidos hoy" value={pedidos.length} hint="+12%" hintTone="success" icon={Package} />
+          <KPICard label="A tiempo" value={`${onTimePercentage}%`} hint="ÓPTIMO" hintTone="primary" icon={CheckCircle2} />
+          <KPICard label="Conductores" value={conductoresTotales} hint="EN RUTA" hintTone="muted" icon={Users} />
+          <KPICard label="Alertas riesgo" value={String(alertasPendientes).padStart(2, "0")} hint={alertasPendientes > 0 ? "CRIT" : "OK"} hintTone={alertasPendientes > 0 ? "error" : "success"} icon={AlertTriangle} />
+        </div>
 
         {/* Zona del Formulario y las Estadísticas Rápidas */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 mb-10">
