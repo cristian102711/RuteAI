@@ -30,7 +30,16 @@ export default function LoginPage() {
           return;
         }
         toast.success("¡Bienvenido de vuelta!", { id: "auth" });
-        router.push("/dashboard");
+        // Redirigir según el rol almacenado en Supabase user_metadata
+        const { data: { user: loggedUser } } = await supabase.auth.getUser();
+        const rol = loggedUser?.user_metadata?.rol as string | undefined;
+        if (rol === "super_admin") {
+          router.push("/admin");
+        } else if (rol === "repartidor") {
+          router.push("/dashboard/pedidos");
+        } else {
+          router.push("/dashboard");
+        }
         router.refresh();
       } else {
         toast.loading("Creando tu cuenta...", { id: "auth" });

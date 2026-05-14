@@ -32,7 +32,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col bg-zinc-950 text-white">
+      <body suppressHydrationWarning className="min-h-full flex flex-col bg-zinc-950 text-white">
         {/* Toaster global: funciona en /login, /dashboard y cualquier otra página */}
         <Toaster theme="dark" richColors expand={true} position="top-right" />
         {children}

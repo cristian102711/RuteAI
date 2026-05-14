@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { editarPedido } from "../actions";
 import { Edit3, Save } from "lucide-react";
 import { Pedido } from "@prisma/client";
+import { StatusBadge } from "./StatusBadge";
+import { ScoreBadge } from "./ScoreBadge";
 
 export function FilaPedido({ pedido }: { pedido: Pedido }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -60,37 +62,31 @@ export function FilaPedido({ pedido }: { pedido: Pedido }) {
 
   // --- MODO LECTURA NORMAL ---
   return (
-    <div className="flex justify-between items-center p-5 rounded-2xl bg-secondary/10 border border-border-ui hover:border-primary/30 hover:bg-secondary/30 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 group">
+    <div className="flex justify-between items-center p-4 rounded-xl bg-zinc-900/40 border border-zinc-800/60 hover:border-emerald-500/30 hover:bg-zinc-800/40 hover:shadow-md transition-all duration-300 group">
       <div className="flex flex-col gap-1 pr-4">
-        <h3 className="font-extrabold text-sm uppercase tracking-wide text-foreground border-b border-border-ui pb-1 mb-1 inline-block w-fit">
-          {pedido.producto} 
-        </h3>
-        <p className="text-xs text-muted-foreground truncate max-w-[200px] md:max-w-md lg:max-w-xs font-medium">📍 {pedido.direccion}</p>
-        <p className="text-xs text-muted-foreground/80 truncate mt-0.5">👤 {pedido.nombreCliente}</p>
+        <div className="flex items-center gap-3 mb-1">
+          <span className="font-mono text-xs font-bold text-emerald-400">#{pedido.id.slice(-4).toUpperCase()}</span>
+          <StatusBadge estado={pedido.estado} />
+        </div>
+        <p className="text-sm font-semibold text-white">📍 {pedido.direccion}</p>
+        <p className="text-xs text-zinc-500 truncate max-w-[200px] md:max-w-md lg:max-w-xs mt-0.5">👤 {pedido.nombreCliente}</p>
       </div>
       
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-4">
+        
+        <ScoreBadge score={pedido.scoreRiesgo ?? 0} />
         
         {/* BOTÓN EXTRA DE EDITAR */}
         {pedido.estado === "pendiente" && (
            <button 
              onClick={() => setIsEditing(true)} 
-             className="p-2 border border-border-ui bg-secondary/50 hover:bg-amber-500/10 hover:border-amber-500/30 text-muted-foreground hover:text-amber-500 rounded-xl transition-all w-9 h-9 flex justify-center items-center group/edit active:scale-95" title="Editar pedido"
+             className="p-2 border border-zinc-700 bg-zinc-800/50 hover:bg-yellow-500/10 hover:border-yellow-500/30 text-zinc-500 hover:text-yellow-500 rounded-xl transition-all w-8 h-8 flex justify-center items-center group/edit active:scale-95" title="Editar pedido"
            >
-             <Edit3 strokeWidth={2} className="w-4 h-4 group-hover/edit:scale-110 transition-transform" />
+             <Edit3 strokeWidth={2} className="w-3.5 h-3.5 group-hover/edit:scale-110 transition-transform" />
            </button>
         )}
 
         <BotonesTabla pedidoId={pedido.id} estado={pedido.estado} />
-
-        {/* BADGE DE RIESGO */}
-        <span className={`px-3 py-1.5 text-[10px] uppercase tracking-widest font-extrabold rounded-xl whitespace-nowrap shadow-sm border ${
-          (pedido.scoreRiesgo ?? 0) > 70 ? "bg-rose-500/10 text-rose-500 border-rose-500/30" : 
-          (pedido.scoreRiesgo ?? 0) > 40 ? "bg-amber-500/10 text-amber-500 border-amber-500/30" : 
-          "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
-        }`}>
-            {(pedido.scoreRiesgo === 0 && pedido.estado === "entregado") ? "Entrega Segura" : `Riesgo: ${pedido.scoreRiesgo}%`}
-        </span>
       </div>
     </div>
   );
