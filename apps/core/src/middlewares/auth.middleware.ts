@@ -18,6 +18,20 @@ declare global {
 // URL del microservicio de Auth (por defecto localhost:3002)
 const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL ?? "http://localhost:3002";
 
+// Tipo de respuesta esperada del microservicio Auth
+interface AuthMeResponse {
+  success: boolean;
+  data?: {
+    usuario?: {
+      id: string;
+      email: string;
+      nombre: string;
+      rol: string;
+      empresaId: string;
+    };
+  };
+}
+
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const authHeader = req.headers.authorization;
@@ -40,7 +54,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       return;
     }
 
-    const data = await response.json();
+    const data = await response.json() as AuthMeResponse;
     if (!data.success || !data.data?.usuario) {
       res.status(401).json({ success: false, error: "Token inválido" });
       return;
