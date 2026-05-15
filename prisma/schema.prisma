@@ -23,17 +23,14 @@ model Empresa {
   activa    Boolean  @default(true)
   createdAt DateTime @default(now())
 
-  // Relaciones: Una empresa tiene muchos usuarios (encargados/repartidores) y muchos pedidos
+  // Relaciones
   usuarios  Usuario[]
   pedidos   Pedido[]
+  alertas   Alerta[]
 }
 
-// -------------------------------------------------------------
-// 👤 2. USUARIO (Encargado o Repartidor)
-// Se vincula directamente con el login de Supabase Auth
-// -------------------------------------------------------------
 model Usuario {
-  id        String   @id // Este ID será el mismo que el UUID de Supabase Auth
+  id        String   @id // UUID de Supabase Auth
   nombre    String
   email     String   @unique
   rol       String   @default("repartidor") // "encargado" | "repartidor"
@@ -41,16 +38,12 @@ model Usuario {
   empresaId String
   empresa   Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
 
-  // Opcional: Si es repartidor, puede tener pedidos asignados
   pedidosAsignados Pedido[] @relation("RepartidorPedidos")
+  alertas          Alerta[] @relation("AlertasRepartidor")
 
   createdAt DateTime @default(now())
 }
 
-// -------------------------------------------------------------
-// 📦 3. PEDIDO Y DESPACHO
-// El núcleo del negocio. Todo lo que se va a enviar.
-// -------------------------------------------------------------
 model Pedido {
   id                String   @id @default(uuid())
   nombreCliente     String
@@ -58,16 +51,13 @@ model Pedido {
   producto          String
   horarioPreferido  String?  // Ej: "10:00 - 13:00"
   
-  // IA y Estado
   estado            String   @default("pendiente") // pendiente, en_ruta, entregado, fallido
-  scoreRiesgo       Int?     // Porcentaje de riesgo calculado por la IA (0-100)
+  scoreRiesgo       Int?     // Porcentaje de riesgo (0-100)
   
-  // Evidencia de la entrega (Guardaremos las URLs de Supabase Storage)
   fotoEntregaUrl    String?
   firmaEntregaUrl   String?
   motivoFallo       String?
 
-  // Relaciones
   empresaId         String
   empresa           Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
 
@@ -77,3 +67,23 @@ model Pedido {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }
+
+model Alerta {
+  id      String  @id @default(uuid())
+  tipo    String  // "desvio" | "retraso" | "riesgo_alto"
+  mensaje String
+  leida   Boolean @default(false)
+
+  empresaId String
+  empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  repartidorId String?
+  repartidor   Usuario? @relation("AlertasRepartidor", fields: [repartidorId], references: [id])
+
+  pedidoId String? // Pedido relacionado
+
+  createdAt DateTime @default(now())
+
+  @@index([empresaId, leida])
+}
+

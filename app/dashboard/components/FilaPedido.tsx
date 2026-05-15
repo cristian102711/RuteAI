@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { BotonesTabla } from "./BotonesTabla";
 import { toast } from "sonner";
-import { editarPedido, asignarRepartidor } from "../actions";
+import { editarPedido, asignarRepartidor } from "@/app/dashboard/actions";
 import { Edit3, Save, UserCircle2 } from "lucide-react";
 
 export function FilaPedido({ pedido, repartidores }: { pedido: any, repartidores: any[] }) {

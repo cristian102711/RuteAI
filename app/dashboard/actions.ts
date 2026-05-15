@@ -44,6 +44,17 @@ export async function eliminarPedido(id: string) {
   return { success: true };
 }
 
+export async function marcarEnRuta(id: string) {
+  if (!id) return;
+  await prisma.pedido.update({
+    where: { id },
+    data: { estado: "en_ruta" } 
+  });
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+
 export async function editarPedido(formData: FormData) {
   const id = formData.get("pedidoId") as string;
   const cliente = formData.get("cliente") as string;
@@ -98,4 +109,33 @@ export async function asignarRepartidor(pedidoId: string, repartidorId: string) 
 
   revalidatePath("/dashboard");
   return { success: true };
+}
+
+// NUEVA FUNCIÓN PARA EL ONBOARDING
+export async function crearEmpresaYUsuario(formData: FormData) {
+  const nombreEmpresa = formData.get("nombreEmpresa") as string;
+  const userId = formData.get("userId") as string;
+  const userEmail = formData.get("userEmail") as string;
+
+  if (!nombreEmpresa || !userId || !userEmail) {
+    throw new Error("Faltan datos vitales");
+  }
+
+  // Creamos la Empresa y a ti (el Usuario Administrador) de un solo golpe (Transacción)
+  await prisma.empresa.create({
+    data: {
+      nombre: nombreEmpresa,
+      email: userEmail,
+      usuarios: {
+        create: {
+          id: userId,
+          nombre: "Administrador Principal",
+          email: userEmail,
+          rol: "encargado"
+        }
+      }
+    }
+  });
+
+  revalidatePath("/dashboard");
 }

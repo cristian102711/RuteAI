@@ -15,7 +15,7 @@
 - [Stack Tecnológico](#-stack-tecnológico)
 - [Estructura del Repositorio](#-estructura-del-repositorio)
 
----
+---rrgrgrgrgregtehhthtjr....tgeth
 
 ## 📌 Descripción General
 
