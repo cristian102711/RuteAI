@@ -134,7 +134,7 @@ export function Sidebar({ empresaNombre, usuarioNombre, usuarioEmail }: SidebarP
             <div className="truncate text-[11px] text-zinc-400">{usuarioEmail}</div>
           </div>
           <div className="absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <LogoutButton minimal />
+            <LogoutButton compact />
           </div>
         </div>
       </div>
