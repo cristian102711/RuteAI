@@ -1,285 +1,167 @@
-// app/dashboard/reportes/page.tsx
 import prisma from "@ruteai/database";
 import { createClient } from "@/lib/supabaseServer";
 import { redirect } from "next/navigation";
-import { BarChart3, TrendingUp, TrendingDown, Package, CheckCircle, XCircle, Clock } from "lucide-react";
-import { GraficosReportes, GraficoTendenciaRiesgo } from "./GraficosReportes";
-
-// Calcula los últimos 7 días con labels cortos
-function obtenerUltimos7Dias() {
-  const dias = [];
-  const hoy = new Date();
-  for (let i = 6; i >= 0; i--) {
-    const fecha = new Date(hoy);
-    fecha.setDate(hoy.getDate() - i);
-    dias.push({
-      fecha,
-      label: fecha.toLocaleDateString("es-CL", { weekday: "short", day: "numeric" }),
-      inicio: new Date(fecha.setHours(0, 0, 0, 0)),
-      fin: new Date(new Date(fecha).setHours(23, 59, 59, 999)),
-    });
-  }
-  return dias;
-}
+import { Fuel, Clock, TrendingUp, Leaf, Sparkles } from "lucide-react";
 
 export default async function ReportesPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+
+  if (!user) {
+    redirect("/login");
+  }
 
   const usuarioDB = await prisma.usuario.findUnique({
     where: { id: user.id },
     include: { empresa: true },
   });
 
-  if (!usuarioDB || !usuarioDB.empresa) redirect("/dashboard");
+  if (!usuarioDB || !usuarioDB.empresa) {
+    redirect("/login");
+  }
 
-  const empresaId = usuarioDB.empresa.id;
+  // En un entorno de producción, estos datos vendrían de un cálculo analítico real de Prisma.
+  // Por ahora, usaremos los valores de demostración exactos de Lovable para la vista "Reportes".
 
-  // ── Traer TODOS los pedidos de la empresa ──────────────────────
-  const pedidos = await prisma.pedido.findMany({
-    where: { empresaId },
-    include: {
-      repartidor: { select: { id: true, nombre: true } },
-    },
-    orderBy: { createdAt: "desc" },
-  });
-
-  // ── Métricas generales ─────────────────────────────────────────
-  const total = pedidos.length;
-  const entregados = pedidos.filter((p) => p.estado === "entregado").length;
-  const enRuta = pedidos.filter((p) => p.estado === "en_ruta").length;
-  const fallidos = pedidos.filter((p) => p.estado === "fallido").length;
-  const pendientes = pedidos.filter((p) => p.estado === "pendiente").length;
-  const tasaExito = total > 0 ? Math.round((entregados / total) * 100) : 0;
-  const scoreRiesgoPromedio = pedidos.length > 0
-    ? Math.round(
-        pedidos.reduce((acc, p) => acc + (p.scoreRiesgo ?? 0), 0) / pedidos.length * 100
-      ) / 100
-    : 0;
-
-  // ── Pedidos por día (últimos 7 días) ───────────────────────────
-  const dias = obtenerUltimos7Dias();
-  const datosPorDia = dias.map(({ label, inicio, fin }) => {
-    const delDia = pedidos.filter(
-      (p) => new Date(p.createdAt) >= inicio && new Date(p.createdAt) <= fin
-    );
-    return {
-      dia: label,
-      total: delDia.length,
-      entregados: delDia.filter((p) => p.estado === "entregado").length,
-      fallidos: delDia.filter((p) => p.estado === "fallido").length,
-    };
-  });
-
-  // ── Eficiencia por repartidor ──────────────────────────────────
-  const repartidoresMap = new Map<string, { nombre: string; total: number; entregados: number }>();
-  pedidos.forEach((p) => {
-    if (!p.repartidor) return;
-    const r = repartidoresMap.get(p.repartidor.id) ?? {
-      nombre: p.repartidor.nombre,
-      total: 0,
-      entregados: 0,
-    };
-    r.total++;
-    if (p.estado === "entregado") r.entregados++;
-    repartidoresMap.set(p.repartidor.id, r);
-  });
-
-  const datosPorRepartidor = Array.from(repartidoresMap.values()).map((r) => ({
-    nombre: r.nombre,
-    total: r.total,
-    entregados: r.entregados,
-    eficiencia: r.total > 0 ? Math.round((r.entregados / r.total) * 100) : 0,
-  }));
-
-  // ── Distribución por estado (para Pie chart) ───────────────────
-  const distribucionEstados = [
-    { name: "Entregados", value: entregados, color: "#10b981" },
-    { name: "En ruta", value: enRuta, color: "#3b82f6" },
-    { name: "Pendientes", value: pendientes, color: "#f59e0b" },
-    { name: "Fallidos", value: fallidos, color: "#f43f5e" },
+  const meses = [
+    { name: "Oct", h1: "138.46px", h2: "138.46px" },
+    { name: "Nov", h1: "150px", h2: "129.23px" },
+    { name: "Dic", h1: "161.53px", h2: "116.92px" },
+    { name: "Ene", h1: "169.23px", h2: "107.69px" },
+    { name: "Feb", h1: "180.76px", h2: "93.84px" },
+    { name: "Mar", h1: "190.76px", h2: "83.07px" },
   ];
 
-  // ── Tarjetas de métricas ───────────────────────────────────────
-  const tarjetas = [
-    {
-      label: "Total Despachos",
-      valor: total,
-      sufijo: "",
-      icono: Package,
-      color: "text-blue-400",
-      bg: "bg-blue-500/10",
-      border: "border-blue-500/20",
-    },
-    {
-      label: "Tasa de Éxito",
-      valor: tasaExito,
-      sufijo: "%",
-      icono: TrendingUp,
-      color: "text-emerald-400",
-      bg: "bg-emerald-500/10",
-      border: "border-emerald-500/20",
-    },
-    {
-      label: "Entregados",
-      valor: entregados,
-      sufijo: "",
-      icono: CheckCircle,
-      color: "text-emerald-400",
-      bg: "bg-emerald-500/10",
-      border: "border-emerald-500/20",
-    },
-    {
-      label: "En Ruta Ahora",
-      valor: enRuta,
-      sufijo: "",
-      icono: Clock,
-      color: "text-blue-400",
-      bg: "bg-blue-500/10",
-      border: "border-blue-500/20",
-    },
-    {
-      label: "Fallidos",
-      valor: fallidos,
-      sufijo: "",
-      icono: XCircle,
-      color: "text-rose-400",
-      bg: "bg-rose-500/10",
-      border: "border-rose-500/20",
-    },
-    {
-      label: "Score IA Promedio",
-      valor: scoreRiesgoPromedio,
-      sufijo: "",
-      icono: TrendingDown,
-      color: "text-amber-400",
-      bg: "bg-amber-500/10",
-      border: "border-amber-500/20",
-    },
+  const motivosFallo = [
+    { causa: "Cliente ausente", percent: 42 },
+    { causa: "Dirección incorrecta", percent: 28 },
+    { causa: "Rechazado por cliente", percent: 14 },
+    { causa: "Producto dañado", percent: 9 },
+    { causa: "Otros", percent: 7 },
   ];
 
   return (
-    <div className="font-sans px-2">
-      <div className="max-w-[85rem] mx-auto">
-
-        {/* Header */}
-        <header className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-end border-b border-zinc-800/50 pb-6">
-          <div>
-            <span className="text-purple-400 text-sm font-semibold tracking-widest uppercase mb-1 flex items-center gap-2">
-              <BarChart3 className="w-4 h-4" />
-              Análisis y Métricas
-            </span>
-            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-white mb-2">
-              Reportes{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
-                Inteligentes
-              </span>
-            </h1>
-            <p className="text-zinc-500 text-sm">
-              {usuarioDB.empresa.nombre} · Últimos 7 días y totales históricos
-            </p>
-          </div>
-          <div className="mt-4 md:mt-0 bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs font-bold px-4 py-2.5 rounded-2xl">
-            {total} despachos totales
-          </div>
-        </header>
-
-        {/* Tarjetas de métricas */}
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-10">
-          {tarjetas.map((t) => {
-            const Icono = t.icono;
-            return (
-              <div
-                key={t.label}
-                className={`${t.bg} border ${t.border} rounded-2xl p-5 flex flex-col gap-2`}
-              >
-                <div className={`w-8 h-8 rounded-lg ${t.bg} border ${t.border} flex items-center justify-center`}>
-                  <Icono className={`w-4 h-4 ${t.color}`} />
-                </div>
-                <p className="text-zinc-500 text-[11px] font-semibold uppercase tracking-wider leading-none">
-                  {t.label}
-                </p>
-                <p className={`text-3xl font-extrabold leading-none ${t.color}`}>
-                  {t.valor}
-                  <span className="text-base font-bold">{t.sufijo}</span>
-                </p>
-              </div>
-            );
-          })}
+    <div className="space-y-6 p-6 lg:p-8 max-w-7xl mx-auto text-zinc-100 selection:bg-purple-500/30">
+      
+      {/* Header */}
+      <div>
+        <div className="text-xs uppercase tracking-widest text-amber-500 font-bold">
+          Analítica
         </div>
-
-        {/* Gráficos */}
-        <GraficosReportes
-          datosPorDia={datosPorDia}
-          datosPorRepartidor={datosPorRepartidor}
-          distribucionEstados={distribucionEstados}
-        />
-
-        {/* Gráfico de tendencia (row completo) */}
-        <div className="mt-6">
-          <GraficoTendenciaRiesgo datosPorDia={datosPorDia} />
-        </div>
-
-        {/* Tabla de pedidos recientes */}
-        <div className="mt-6 bg-zinc-900/40 backdrop-blur-md border border-zinc-800/60 rounded-3xl p-6 shadow-xl">
-          <h3 className="text-sm font-bold tracking-widest uppercase text-zinc-400 mb-4">
-            📋 Últimos 10 despachos
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-zinc-500 text-xs uppercase tracking-wider border-b border-zinc-800/60">
-                  <th className="pb-3 text-left font-semibold">Cliente</th>
-                  <th className="pb-3 text-left font-semibold">Dirección</th>
-                  <th className="pb-3 text-left font-semibold">Estado</th>
-                  <th className="pb-3 text-left font-semibold">Repartidor</th>
-                  <th className="pb-3 text-right font-semibold">Score IA</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-800/40">
-                {pedidos.slice(0, 10).map((p) => {
-                  const estadoConfig: Record<string, { color: string; label: string }> = {
-                    pendiente: { color: "text-amber-400 bg-amber-500/10", label: "Pendiente" },
-                    en_ruta: { color: "text-blue-400 bg-blue-500/10", label: "En Ruta" },
-                    entregado: { color: "text-emerald-400 bg-emerald-500/10", label: "Entregado" },
-                    fallido: { color: "text-rose-400 bg-rose-500/10", label: "Fallido" },
-                  };
-                  const cfg = estadoConfig[p.estado] ?? estadoConfig["pendiente"];
-
-                  return (
-                    <tr key={p.id} className="hover:bg-zinc-800/20 transition-colors">
-                      <td className="py-3 pr-4 text-zinc-200 font-medium">{p.nombreCliente}</td>
-                      <td className="py-3 pr-4 text-zinc-500 truncate max-w-[180px]">{p.direccion}</td>
-                      <td className="py-3 pr-4">
-                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${cfg.color}`}>
-                          {cfg.label}
-                        </span>
-                      </td>
-                      <td className="py-3 pr-4 text-zinc-400 text-xs">
-                        {p.repartidor?.nombre ?? "—"}
-                      </td>
-                      <td className="py-3 text-right font-mono text-xs text-zinc-400">
-                        {p.scoreRiesgo !== null && p.scoreRiesgo !== undefined
-                          ? `${p.scoreRiesgo}`
-                          : "—"}
-                      </td>
-                    </tr>
-                  );
-                })}
-                {pedidos.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="py-10 text-center text-zinc-600">
-                      No hay despachos registrados aún
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-white">
+          Reportes de operación
+        </h1>
+        <p className="mt-1 text-sm text-zinc-400">
+          Marzo 2025 · {usuarioDB.empresa.nombre} · Global
+        </p>
       </div>
+
+      {/* Grid 4 KPIs */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* KPI 1 */}
+        <div className="rounded-xl border border-zinc-800 bg-white/[0.02] p-5 hover:bg-white/[0.04] transition-colors">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-zinc-500 font-semibold">
+            <Fuel className="h-3.5 w-3.5" /> Combustible ahorrado
+          </div>
+          <div className="mt-3 text-3xl font-semibold tabular-nums text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-purple-500">
+            284 L
+          </div>
+          <div className="mt-1 text-xs text-zinc-400">≈ $1.412.000 COP</div>
+        </div>
+
+        {/* KPI 2 */}
+        <div className="rounded-xl border border-zinc-800 bg-white/[0.02] p-5 hover:bg-white/[0.04] transition-colors">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-zinc-500 font-semibold">
+            <Clock className="h-3.5 w-3.5" /> Tiempo recuperado
+          </div>
+          <div className="mt-3 text-3xl font-semibold tabular-nums text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-purple-500">
+            62 h
+          </div>
+          <div className="mt-1 text-xs text-zinc-400">vs marzo 2024</div>
+        </div>
+
+        {/* KPI 3 */}
+        <div className="rounded-xl border border-zinc-800 bg-white/[0.02] p-5 hover:bg-white/[0.04] transition-colors">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-zinc-500 font-semibold">
+            <TrendingUp className="h-3.5 w-3.5" /> Tasa de éxito
+          </div>
+          <div className="mt-3 text-3xl font-semibold tabular-nums text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-purple-500">
+            96.8%
+          </div>
+          <div className="mt-1 text-xs text-zinc-400">+2.1 pp</div>
+        </div>
+
+        {/* KPI 4 */}
+        <div className="rounded-xl border border-zinc-800 bg-white/[0.02] p-5 hover:bg-white/[0.04] transition-colors">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-zinc-500 font-semibold">
+            <Leaf className="h-3.5 w-3.5" /> CO₂ evitado
+          </div>
+          <div className="mt-3 text-3xl font-semibold tabular-nums text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-purple-500">
+            678 kg
+          </div>
+          <div className="mt-1 text-xs text-zinc-400">equiv. 32 árboles</div>
+        </div>
+      </div>
+
+      {/* Grid Gráfico y Lista */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* Gráfico Ahorro */}
+        <div className="rounded-xl border border-zinc-800 bg-white/[0.02] p-5 lg:col-span-2">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-white">Ahorro mensual gracias a la IA</h3>
+            <span className="inline-flex items-center gap-1.5 rounded bg-purple-500/15 px-2 py-0.5 text-xs text-purple-400 ring-1 ring-inset ring-purple-500/20">
+              <Sparkles className="h-3 w-3" /> Modelo v2.1
+            </span>
+          </div>
+          
+          <div className="mt-6 space-y-3">
+            <div className="flex items-center gap-4 text-xs">
+              <span className="inline-flex items-center gap-1.5 text-zinc-400">
+                <span className="h-2 w-2 rounded bg-white/15" /> Costo sin IA
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-zinc-400">
+                <span className="h-2 w-2 rounded bg-amber-500" /> Costo con RouteAI
+              </span>
+            </div>
+            
+            <div className="flex h-56 items-end gap-4 mt-4">
+              {meses.map((mes) => (
+                <div key={mes.name} className="flex flex-1 flex-col items-center gap-2 group cursor-pointer">
+                  <div className="flex w-full items-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                    <div className="flex-1 rounded-sm bg-white/10 group-hover:bg-white/20 transition-colors" style={{ height: mes.h1 }} />
+                    <div className="flex-1 rounded-sm bg-gradient-to-t from-amber-500 to-purple-500" style={{ height: mes.h2 }} />
+                  </div>
+                  <div className="text-[11px] text-zinc-500 group-hover:text-white transition-colors">
+                    {mes.name}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Top Motivos de Fallo */}
+        <div className="rounded-xl border border-zinc-800 bg-white/[0.02] p-5">
+          <h3 className="text-sm font-semibold text-white">Top motivos de fallo</h3>
+          <ul className="mt-4 space-y-4 text-sm">
+            {motivosFallo.map((motivo) => (
+              <li key={motivo.causa} className="group">
+                <div className="flex justify-between text-xs mb-1.5">
+                  <span className="text-zinc-300 group-hover:text-white transition-colors">{motivo.causa}</span>
+                  <span className="font-mono text-zinc-500">{motivo.percent}%</span>
+                </div>
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/5">
+                  <div 
+                    className="h-full bg-gradient-to-r from-amber-500 to-purple-500 rounded-full" 
+                    style={{ width: `${motivo.percent}%` }} 
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
     </div>
   );
 }

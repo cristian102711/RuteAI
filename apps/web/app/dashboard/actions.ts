@@ -2,6 +2,7 @@
 
 import prisma from "@ruteai/database";
 import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabaseServer";
 
 // Lógica Mock Deterministica para el Riesgo (Simulando API IA Externa)
 function calcularRiesgoIA(cliente: string, direccion: string, producto: string): number {
@@ -19,12 +20,22 @@ function calcularRiesgoIA(cliente: string, direccion: string, producto: string):
   return Math.min(riesgo, 99);
 }
 
-export async function agregarPedidoNuevo(formData: FormData, empresaId: string) {
+export async function agregarPedidoNuevo(formData: FormData) {
   const cliente = formData.get("cliente") as string;
   const direccion = formData.get("direccion") as string;
   const producto = formData.get("producto") as string;
   
   if (!cliente || !direccion || !producto) return { error: "Faltan datos" };
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+
+  const usuarioDB = await prisma.usuario.findUnique({
+    where: { id: user.id },
+    select: { empresaId: true }
+  });
+  if (!usuarioDB) return { error: "Usuario sin empresa asignada" };
 
   const riesgoCalculado = calcularRiesgoIA(cliente, direccion, producto);
 
@@ -35,11 +46,11 @@ export async function agregarPedidoNuevo(formData: FormData, empresaId: string) 
       producto: producto,
       scoreRiesgo: riesgoCalculado,
       estado: "pendiente",
-      empresaId: empresaId,
+      empresaId: usuarioDB.empresaId,
     }
   });
 
-  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/pedidos");
   return { success: true };
 }
 
@@ -67,12 +78,16 @@ export async function marcarComoEntregado(id: string) {
 }
 
 export async function eliminarPedido(id: string) {
-  if (!id) return;
-  await prisma.pedido.delete({
-    where: { id }
-  });
-  revalidatePath("/dashboard");
-  return { success: true };
+  if (!id) return { error: "ID no proporcionado" };
+  try {
+    await prisma.pedido.delete({
+      where: { id }
+    });
+    revalidatePath("/dashboard/pedidos");
+    return { success: true };
+  } catch (e: any) {
+    return { error: "Error al eliminar el pedido" };
+  }
 }
 
 export async function editarPedido(formData: FormData) {
