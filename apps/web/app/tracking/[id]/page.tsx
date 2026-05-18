@@ -1,6 +1,7 @@
 import prisma from "@ruteai/database";
 import { redirect } from "next/navigation";
-import { Package, Truck, CheckCircle2, AlertCircle, Clock } from "lucide-react";
+import { Package, Truck, CheckCircle2, AlertCircle, Clock, ShieldCheck, ImageOff } from "lucide-react";
+import Image from "next/image";
 
 export default async function TrackingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -132,6 +133,71 @@ export default async function TrackingPage({ params }: { params: Promise<{ id: s
               })}
             </div>
         </section>
+
+        {/* EVIDENCIA DE ENTREGA (RF-07) */}
+        {pedido.estado === "entregado" && (pedido.fotoEntregaUrl || pedido.firmaEntregaUrl) && (
+          <section className="relative z-10 mt-6 mb-4">
+            <div className="flex items-center gap-2 mb-4">
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest">
+                Evidencia de entrega
+              </h3>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {/* Foto de entrega */}
+              {pedido.fotoEntregaUrl ? (
+                <div className="flex flex-col gap-2">
+                  <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Foto</p>
+                  <div className="relative aspect-square rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-900">
+                    <Image
+                      src={pedido.fotoEntregaUrl}
+                      alt="Foto de entrega"
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Foto</p>
+                  <div className="aspect-square rounded-2xl border border-zinc-800 bg-zinc-900/50 flex items-center justify-center">
+                    <ImageOff className="w-8 h-8 text-zinc-700" />
+                  </div>
+                </div>
+              )}
+
+              {/* Firma */}
+              {pedido.firmaEntregaUrl ? (
+                <div className="flex flex-col gap-2">
+                  <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Firma</p>
+                  <div className="relative aspect-square rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-900">
+                    <Image
+                      src={pedido.firmaEntregaUrl}
+                      alt="Firma de recepción"
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Firma</p>
+                  <div className="aspect-square rounded-2xl border border-zinc-800 bg-zinc-900/50 flex items-center justify-center">
+                    <ImageOff className="w-8 h-8 text-zinc-700" />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 flex items-center gap-2 rounded-xl bg-emerald-500/5 border border-emerald-500/15 p-3">
+              <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+              <p className="text-xs text-emerald-400/80 font-medium">
+                Entrega verificada y registrada por RouteAI
+              </p>
+            </div>
+          </section>
+        )}
 
       </main>
     </div>
