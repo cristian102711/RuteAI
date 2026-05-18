@@ -1,27 +1,68 @@
 import prisma from "@ruteai/database";
 import { createClient } from "@/lib/supabaseServer";
 import { redirect } from "next/navigation";
-import { Fuel, Clock, TrendingUp, Leaf, Sparkles } from "lucide-react";
+import { Fuel, Clock, TrendingUp, Leaf, Sparkles, Database } from "lucide-react";
+
+// Tipo del JSON almacenado en ReporteCache
+interface DatosReporte {
+  fecha:               string;
+  empresa:             string;
+  total:               number;
+  entregados:          number;
+  fallidos:            number;
+  enRuta:              number;
+  pendientes:          number;
+  tasaExito:           number;
+  scorePromedioRiesgo: number;
+  generadoEn:          string;
+}
 
 export default async function ReportesPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user) {
-    redirect("/login");
-  }
+  if (!user) redirect("/login");
 
   const usuarioDB = await prisma.usuario.findUnique({
     where: { id: user.id },
     include: { empresa: true },
   });
 
-  if (!usuarioDB || !usuarioDB.empresa) {
-    redirect("/login");
-  }
+  if (!usuarioDB?.empresa) redirect("/login");
 
-  // En un entorno de producción, estos datos vendrían de un cálculo analítico real de Prisma.
-  // Por ahora, usaremos los valores de demostración exactos de Lovable para la vista "Reportes".
+  // Leer últimos 30 días de reportes del cache (generados por CRON)
+  const reportesCache = await prisma.reporteCache.findMany({
+    where: { empresaId: usuarioDB.empresaId },
+    orderBy: { fecha: "desc" },
+    take: 30,
+  });
+
+  // Si no hay datos del CRON todavía, calcular métricas del día actual en vivo
+  const hayCache = reportesCache.length > 0;
+
+  const pedidosHoy = hayCache ? null : await prisma.pedido.findMany({
+    where: {
+      empresaId: usuarioDB.empresaId,
+      createdAt: {
+        gte: new Date(new Date().setHours(0, 0, 0, 0)),
+      },
+    },
+    select: { estado: true, scoreRiesgo: true },
+  });
+
+  // Métricas principales (del cache más reciente o del día en vivo)
+  const ultimoReporte = hayCache
+    ? (reportesCache[0].datos as unknown as DatosReporte)
+    : null;
+
+  const totalHoy      = ultimoReporte?.total      ?? pedidosHoy?.length ?? 0;
+  const entregadosHoy = ultimoReporte?.entregados ?? pedidosHoy?.filter(p => p.estado === "entregado").length ?? 0;
+  const fallidosHoy   = ultimoReporte?.fallidos   ?? pedidosHoy?.filter(p => p.estado === "fallido").length ?? 0;
+  const tasaExito     = ultimoReporte?.tasaExito  ?? (totalHoy > 0 ? Math.round((entregadosHoy / totalHoy) * 100) : 0);
+
+  // Datos para la gráfica de barras (últimos 6 reportes)
+  const ultimos6 = reportesCache.slice(0, 6).reverse();
+
 
   const meses = [
     { name: "Oct", h1: "138.46px", h2: "138.46px" },
