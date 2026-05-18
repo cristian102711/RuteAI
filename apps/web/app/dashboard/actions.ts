@@ -4,6 +4,7 @@ import prisma from "@ruteai/database";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabaseServer";
 import { obtenerScoreRiesgo } from "@/lib/aiServiceClient";
+import { notificarPedidoEnRuta, notificarPedidoEntregado } from "@/lib/twilioService";
 
 export async function agregarPedidoNuevo(formData: FormData) {
   const cliente = formData.get("cliente") as string;
@@ -55,23 +56,55 @@ export async function agregarPedidoNuevo(formData: FormData) {
 
 export async function marcarEnRuta(id: string) {
   if (!id) return;
+
+  // Obtener datos del pedido para la notificación (RF-06)
+  const pedido = await prisma.pedido.findUnique({
+    where: { id },
+    select: { nombreCliente: true, clienteTelefono: true, direccion: true },
+  });
+
   await prisma.pedido.update({
     where: { id },
-    data: { estado: "en_ruta" } 
+    data:  { estado: "en_ruta" },
   });
-  // NOTA: Acá iría la integración real con Twilio:
-  // await twilioClient.messages.create({ body: 'Tu pedido va en ruta. Sigue el tracking: ruta.ai/tracking/'+id, to: '+569...' })
-  
+
+  // Disparar notificación Twilio (async, no bloquea la respuesta)
+  if (pedido?.clienteTelefono) {
+    void notificarPedidoEnRuta({
+      pedidoId:  id,
+      telefono:  pedido.clienteTelefono,
+      cliente:   pedido.nombreCliente,
+      direccion: pedido.direccion,
+    });
+  }
+
   revalidatePath("/dashboard");
   return { success: true };
 }
 
 export async function marcarComoEntregado(id: string) {
   if (!id) return;
+
+  const pedido = await prisma.pedido.findUnique({
+    where: { id },
+    select: { nombreCliente: true, clienteTelefono: true, direccion: true },
+  });
+
   await prisma.pedido.update({
     where: { id },
-    data: { estado: "entregado", scoreRiesgo: 0 } 
+    data:  { estado: "entregado", scoreRiesgo: 0 },
   });
+
+  // Notificación de entrega confirmada (RF-06)
+  if (pedido?.clienteTelefono) {
+    void notificarPedidoEntregado({
+      pedidoId:  id,
+      telefono:  pedido.clienteTelefono,
+      cliente:   pedido.nombreCliente,
+      direccion: pedido.direccion,
+    });
+  }
+
   revalidatePath("/dashboard");
   return { success: true };
 }
