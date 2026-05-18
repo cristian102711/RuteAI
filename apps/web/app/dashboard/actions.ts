@@ -5,15 +5,15 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabaseServer";
 import { obtenerScoreRiesgo } from "@/lib/aiServiceClient";
 import { notificarPedidoEnRuta, notificarPedidoEntregado } from "@/lib/twilioService";
+import { geocodificarDireccion } from "@/lib/geocodingService";
 
 export async function agregarPedidoNuevo(formData: FormData) {
-  const cliente = formData.get("cliente") as string;
+  const cliente  = formData.get("cliente")  as string;
   const direccion = formData.get("direccion") as string;
-  const producto = formData.get("producto") as string;
+  const producto  = formData.get("producto")  as string;
   
   if (!cliente || !direccion || !producto) return { error: "Faltan datos" };
 
-  // Obtener el empresaId desde la sesión del servidor (más seguro que recibirlo del cliente)
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "No autenticado" };
@@ -24,29 +24,37 @@ export async function agregarPedidoNuevo(formData: FormData) {
   });
   if (!usuarioDB) return { error: "Usuario sin empresa asignada" };
 
-  // Llamada real al ai-service (con fallback automático si el servicio falla)
+  // RF-02: Geocodificar la dirección + RF-03: Score IA — en paralelo para minimizar latencia
   const horaActual = new Date().getHours();
+  const [coords] = await Promise.all([
+    geocodificarDireccion(direccion),
+  ]);
+
+  const lat = coords?.lat ?? -33.45; // Fallback: Santiago centro
+  const lng = coords?.lng ?? -70.66;
+
   const resultadoIA = await obtenerScoreRiesgo({
     pedidoId:         "new",
-    lat:              -33.45,
-    lng:              -70.66,
+    lat,              // Ahora usa coordenadas reales de la dirección
+    lng,
     hora:             horaActual,
     diasRetraso:      0,
     intentosFallidos: 0,
     zonaRiesgo:       false,
   });
 
-  // El ai-service retorna score 0.0-1.0, la BD almacena 0-100
   const scoreParaBD = Math.round(resultadoIA.score * 100);
 
   await prisma.pedido.create({
     data: {
       nombreCliente: cliente,
-      direccion:     direccion,
-      producto:      producto,
-      scoreRiesgo:   scoreParaBD,
-      estado:        "pendiente",
-      empresaId:     usuarioDB.empresaId,
+      direccion,
+      producto,
+      lat:         coords?.lat ?? null, // Guardar coordenadas reales
+      lng:         coords?.lng ?? null,
+      scoreRiesgo: scoreParaBD,
+      estado:      "pendiente",
+      empresaId:   usuarioDB.empresaId,
     }
   });
 
@@ -119,19 +127,24 @@ export async function eliminarPedido(id: string) {
 }
 
 export async function editarPedido(formData: FormData) {
-  const id = formData.get("pedidoId") as string;
-  const cliente = formData.get("cliente") as string;
+  const id        = formData.get("pedidoId")  as string;
+  const cliente   = formData.get("cliente")   as string;
   const direccion = formData.get("direccion") as string;
-  const producto = formData.get("producto") as string;
+  const producto  = formData.get("producto")  as string;
 
   if (!id || !cliente || !direccion || !producto) return { error: "Faltan datos para editar" };
+
+  // RF-02: Re-geocodificar si cambia la dirección
+  const coords = await geocodificarDireccion(direccion);
 
   await prisma.pedido.update({
     where: { id },
     data: {
       nombreCliente: cliente,
-      direccion: direccion,
-      producto: producto
+      direccion,
+      producto,
+      lat: coords?.lat ?? undefined,
+      lng: coords?.lng ?? undefined,
     }
   });
 
