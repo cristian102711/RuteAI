@@ -67,11 +67,11 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
               </filter>
             </defs>
 
-            {/* Cuadrícula */}
-            {[20, 40, 60, 80].map(v => (
+            {/* Cuadrícula más visible */}
+            {[10, 20, 30, 40, 50, 60, 70, 80, 90].map(v => (
               <g key={v}>
-                <line x1={v} y1="0" x2={v} y2="100" stroke="rgba(255,255,255,0.04)" strokeWidth="0.3" />
-                <line x1="0" y1={v} x2="100" y2={v} stroke="rgba(255,255,255,0.04)" strokeWidth="0.3" />
+                <line x1={v} y1="0" x2={v} y2="100" stroke="rgba(255,255,255,0.08)" strokeWidth="0.3" />
+                <line x1="0" y1={v} x2="100" y2={v} stroke="rgba(255,255,255,0.08)" strokeWidth="0.3" />
               </g>
             ))}
 
@@ -90,12 +90,18 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
             })()}
           </svg>
 
-          {/* Marcadores de Pedidos */}
-          {pedidos.map((pedido) => {
-            if (!pedido.lat || !pedido.lng) return null;
-            const pos = gpsAporcentaje(pedido.lat, pedido.lng);
-            const isEnRuta = pedido.estado === "en_ruta";
+          {/* Marcadores de Pedidos — fallback Santiago si sin coordenadas */}
+          {pedidos.map((pedido, idx) => {
+            // Si no hay coordenadas GPS → posición aproximada en Santiago con offset
+            const defaultLat = -33.4489 + (idx * 0.015);
+            const defaultLng = -70.6693 + (idx * 0.012);
+            const pos = gpsAporcentaje(
+              pedido.lat ?? defaultLat,
+              pedido.lng ?? defaultLng
+            );
+            const isEnRuta  = pedido.estado === "en_ruta";
             const isSelected = selectedPedido === pedido.id;
+            const sinGPS    = !pedido.lat || !pedido.lng;
 
             return (
               <button
@@ -105,7 +111,11 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
                 style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
               >
                 <div className={`relative h-3 w-3 rounded-full ring-2 transition-transform group-hover:scale-150 ${
-                  isEnRuta ? "bg-amber-500 ring-amber-500/40" : "bg-zinc-400 ring-zinc-400/30"
+                  sinGPS
+                    ? "bg-zinc-500 ring-zinc-500/40"
+                    : isEnRuta
+                    ? "bg-amber-500 ring-amber-500/40"
+                    : "bg-emerald-500 ring-emerald-500/30"
                 }`}>
                   {isEnRuta && <span className="absolute inset-0 rounded-full animate-ping bg-amber-500/60" />}
                 </div>
@@ -113,6 +123,7 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 z-20 whitespace-nowrap rounded-md bg-zinc-900/95 px-2 py-1 text-[10px] font-medium text-white ring-1 ring-white/10 shadow-xl">
                     <div className="font-semibold">{pedido.nombreCliente}</div>
                     <div className="text-zinc-400 truncate max-w-[150px]">{pedido.direccion}</div>
+                    {sinGPS && <div className="text-zinc-600 text-[9px]">📍 Pos. aproximada</div>}
                   </div>
                 )}
               </button>
