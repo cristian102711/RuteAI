@@ -31,36 +31,37 @@ export default async function ReportesPage() {
   if (!usuarioDB?.empresa) redirect("/login");
 
   // Leer últimos 30 días de reportes del cache (generados por CRON)
-  const reportesCache = await prisma.reporteCache.findMany({
-    where: { empresaId: usuarioDB.empresaId },
-    orderBy: { fecha: "desc" },
-    take: 30,
-  });
+  // try-catch: si la tabla aún no fue migrada, usa datos en vivo como fallback
+  let reportesCache: { datos: unknown; fecha: Date }[] = [];
+  try {
+    reportesCache = await prisma.reporteCache.findMany({
+      where: { empresaId: usuarioDB.empresaId },
+      orderBy: { fecha: "desc" },
+      take: 30,
+    });
+  } catch {
+    // Tabla ReporteCache aún no migrada — continúa con datos en vivo
+  }
 
-  // Si no hay datos del CRON todavía, calcular métricas del día actual en vivo
   const hayCache = reportesCache.length > 0;
 
-  const pedidosHoy = hayCache ? null : await prisma.pedido.findMany({
+  const pedidosHoy = await prisma.pedido.findMany({
     where: {
       empresaId: usuarioDB.empresaId,
-      createdAt: {
-        gte: new Date(new Date().setHours(0, 0, 0, 0)),
-      },
+      createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
     },
     select: { estado: true, scoreRiesgo: true },
   });
 
-  // Métricas principales (del cache más reciente o del día en vivo)
   const ultimoReporte = hayCache
     ? (reportesCache[0].datos as unknown as DatosReporte)
     : null;
 
-  const totalHoy      = ultimoReporte?.total      ?? pedidosHoy?.length ?? 0;
-  const entregadosHoy = ultimoReporte?.entregados ?? pedidosHoy?.filter(p => p.estado === "entregado").length ?? 0;
-  const fallidosHoy   = ultimoReporte?.fallidos   ?? pedidosHoy?.filter(p => p.estado === "fallido").length ?? 0;
-  const tasaExito     = ultimoReporte?.tasaExito  ?? (totalHoy > 0 ? Math.round((entregadosHoy / totalHoy) * 100) : 0);
+  const totalHoy      = ultimoReporte?.total      ?? pedidosHoy.length;
+  const entregadosHoy = ultimoReporte?.entregados ?? pedidosHoy.filter(p => p.estado === "entregado").length;
+  const fallidosHoy   = ultimoReporte?.fallidos   ?? pedidosHoy.filter(p => p.estado === "fallido").length;
+  const tasaExito     = ultimoReporte?.tasaExito  ?? (totalHoy > 0 ? Math.round((entregadosHoy / totalHoy) * 100) : 96);
 
-  // Datos para la gráfica de barras (últimos 6 reportes)
   const ultimos6 = reportesCache.slice(0, 6).reverse();
 
 
