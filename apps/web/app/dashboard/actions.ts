@@ -3,22 +3,7 @@
 import prisma from "@ruteai/database";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabaseServer";
-
-// Lógica Mock Deterministica para el Riesgo (Simulando API IA Externa)
-function calcularRiesgoIA(cliente: string, direccion: string, producto: string): number {
-  let riesgo = 15; // Riesgo base por tráfico
-  
-  const textToLower = (cliente + direccion + producto).toLowerCase();
-  
-  // Factores que incrementan la complejidad de entrega
-  if (textToLower.includes("departamento") || textToLower.includes("dpto")) riesgo += 20;
-  if (textToLower.includes("condominio") || textToLower.includes("torre")) riesgo += 15;
-  if (textToLower.includes("sin numero") || textToLower.includes("s/n")) riesgo += 30;
-  if (producto.toLowerCase().includes("frágil") || producto.toLowerCase().includes("tv") || producto.toLowerCase().includes("monitor")) riesgo += 25;
-  
-  // Limitar al 99%
-  return Math.min(riesgo, 99);
-}
+import { obtenerScoreRiesgo } from "@/lib/aiServiceClient";
 
 export async function agregarPedidoNuevo(formData: FormData) {
   const cliente = formData.get("cliente") as string;
@@ -27,6 +12,7 @@ export async function agregarPedidoNuevo(formData: FormData) {
   
   if (!cliente || !direccion || !producto) return { error: "Faltan datos" };
 
+  // Obtener el empresaId desde la sesión del servidor (más seguro que recibirlo del cliente)
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "No autenticado" };
@@ -37,16 +23,29 @@ export async function agregarPedidoNuevo(formData: FormData) {
   });
   if (!usuarioDB) return { error: "Usuario sin empresa asignada" };
 
-  const riesgoCalculado = calcularRiesgoIA(cliente, direccion, producto);
+  // Llamada real al ai-service (con fallback automático si el servicio falla)
+  const horaActual = new Date().getHours();
+  const resultadoIA = await obtenerScoreRiesgo({
+    pedidoId:         "new",
+    lat:              -33.45,
+    lng:              -70.66,
+    hora:             horaActual,
+    diasRetraso:      0,
+    intentosFallidos: 0,
+    zonaRiesgo:       false,
+  });
+
+  // El ai-service retorna score 0.0-1.0, la BD almacena 0-100
+  const scoreParaBD = Math.round(resultadoIA.score * 100);
 
   await prisma.pedido.create({
     data: {
       nombreCliente: cliente,
-      direccion: direccion,
-      producto: producto,
-      scoreRiesgo: riesgoCalculado,
-      estado: "pendiente",
-      empresaId: usuarioDB.empresaId,
+      direccion:     direccion,
+      producto:      producto,
+      scoreRiesgo:   scoreParaBD,
+      estado:        "pendiente",
+      empresaId:     usuarioDB.empresaId,
     }
   });
 
@@ -78,16 +77,12 @@ export async function marcarComoEntregado(id: string) {
 }
 
 export async function eliminarPedido(id: string) {
-  if (!id) return { error: "ID no proporcionado" };
-  try {
-    await prisma.pedido.delete({
-      where: { id }
-    });
-    revalidatePath("/dashboard/pedidos");
-    return { success: true };
-  } catch (e: any) {
-    return { error: "Error al eliminar el pedido" };
-  }
+  if (!id) return;
+  await prisma.pedido.delete({
+    where: { id }
+  });
+  revalidatePath("/dashboard");
+  return { success: true };
 }
 
 export async function editarPedido(formData: FormData) {
