@@ -13,7 +13,7 @@ export function FormCrearPedido({ empresaId }: { empresaId: string }) {
     toast.loading("Procesando con RouteAI...", { id: "crear-pedido" });
     
     try {
-      const res = await agregarPedidoNuevo(formData, empresaId);
+      const res = await agregarPedidoNuevo(formData);
       if (res?.error) {
          toast.error(res.error, { id: "crear-pedido" });
          return;
