@@ -52,7 +52,7 @@ export default async function ReportesPage() {
 
   // Métricas principales (del cache más reciente o del día en vivo)
   const ultimoReporte = hayCache
-    ? (reportesCache[0].datos as DatosReporte)
+    ? (reportesCache[0].datos as unknown as DatosReporte)
     : null;
 
   const totalHoy      = ultimoReporte?.total      ?? pedidosHoy?.length ?? 0;
