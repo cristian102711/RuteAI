@@ -18,11 +18,11 @@ declare global {
 // URL del microservicio de Auth (por defecto localhost:3002)
 const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL ?? "http://localhost:3002";
 
-// Tipo de respuesta esperada del microservicio Auth
+// Tipo de la respuesta del endpoint /api/v1/auth/me
 interface AuthMeResponse {
   success: boolean;
   data?: {
-    usuario?: {
+    usuario: {
       id: string;
       email: string;
       nombre: string;
