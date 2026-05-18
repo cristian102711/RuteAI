@@ -2,22 +2,8 @@
 
 import prisma from "@ruteai/database";
 import { revalidatePath } from "next/cache";
-
-// Lógica Mock Deterministica para el Riesgo (Simulando API IA Externa)
-function calcularRiesgoIA(cliente: string, direccion: string, producto: string): number {
-  let riesgo = 15; // Riesgo base por tráfico
-  
-  const textToLower = (cliente + direccion + producto).toLowerCase();
-  
-  // Factores que incrementan la complejidad de entrega
-  if (textToLower.includes("departamento") || textToLower.includes("dpto")) riesgo += 20;
-  if (textToLower.includes("condominio") || textToLower.includes("torre")) riesgo += 15;
-  if (textToLower.includes("sin numero") || textToLower.includes("s/n")) riesgo += 30;
-  if (producto.toLowerCase().includes("frágil") || producto.toLowerCase().includes("tv") || producto.toLowerCase().includes("monitor")) riesgo += 25;
-  
-  // Limitar al 99%
-  return Math.min(riesgo, 99);
-}
+import { createClient } from "@/lib/supabaseServer";
+import { obtenerScoreRiesgo } from "@/lib/aiServiceClient";
 
 export async function agregarPedidoNuevo(formData: FormData, empresaId: string) {
   const cliente = formData.get("cliente") as string;
@@ -26,20 +12,33 @@ export async function agregarPedidoNuevo(formData: FormData, empresaId: string) 
   
   if (!cliente || !direccion || !producto) return { error: "Faltan datos" };
 
-  const riesgoCalculado = calcularRiesgoIA(cliente, direccion, producto);
+  // Llamada real al ai-service (con fallback automático si el servicio falla)
+  const horaActual = new Date().getHours();
+  const resultadoIA = await obtenerScoreRiesgo({
+    pedidoId:         "new", // ID temporal — el pedido aún no existe
+    lat:              -33.45, // Coordenadas base Santiago (default para pedidos sin GPS)
+    lng:              -70.66,
+    hora:             horaActual,
+    diasRetraso:      0, // Pedido nuevo, sin retraso
+    intentosFallidos: 0, // Pedido nuevo, sin intentos
+    zonaRiesgo:       false,
+  });
+
+  // El ai-service retorna score 0.0-1.0, la BD almacena 0-100
+  const scoreParaBD = Math.round(resultadoIA.score * 100);
 
   await prisma.pedido.create({
     data: {
       nombreCliente: cliente,
-      direccion: direccion,
-      producto: producto,
-      scoreRiesgo: riesgoCalculado,
-      estado: "pendiente",
-      empresaId: empresaId,
+      direccion:     direccion,
+      producto:      producto,
+      scoreRiesgo:   scoreParaBD,
+      estado:        "pendiente",
+      empresaId:     empresaId,
     }
   });
 
-  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/pedidos");
   return { success: true };
 }
 
