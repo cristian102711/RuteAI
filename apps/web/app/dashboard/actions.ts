@@ -5,22 +5,33 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabaseServer";
 import { obtenerScoreRiesgo } from "@/lib/aiServiceClient";
 
-export async function agregarPedidoNuevo(formData: FormData, empresaId: string) {
+export async function agregarPedidoNuevo(formData: FormData) {
   const cliente = formData.get("cliente") as string;
   const direccion = formData.get("direccion") as string;
   const producto = formData.get("producto") as string;
   
   if (!cliente || !direccion || !producto) return { error: "Faltan datos" };
 
+  // Obtener el empresaId desde la sesión del servidor (más seguro que recibirlo del cliente)
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+
+  const usuarioDB = await prisma.usuario.findUnique({
+    where: { id: user.id },
+    select: { empresaId: true }
+  });
+  if (!usuarioDB) return { error: "Usuario sin empresa asignada" };
+
   // Llamada real al ai-service (con fallback automático si el servicio falla)
   const horaActual = new Date().getHours();
   const resultadoIA = await obtenerScoreRiesgo({
-    pedidoId:         "new", // ID temporal — el pedido aún no existe
-    lat:              -33.45, // Coordenadas base Santiago (default para pedidos sin GPS)
+    pedidoId:         "new",
+    lat:              -33.45,
     lng:              -70.66,
     hora:             horaActual,
-    diasRetraso:      0, // Pedido nuevo, sin retraso
-    intentosFallidos: 0, // Pedido nuevo, sin intentos
+    diasRetraso:      0,
+    intentosFallidos: 0,
     zonaRiesgo:       false,
   });
 
@@ -34,7 +45,7 @@ export async function agregarPedidoNuevo(formData: FormData, empresaId: string) 
       producto:      producto,
       scoreRiesgo:   scoreParaBD,
       estado:        "pendiente",
-      empresaId:     empresaId,
+      empresaId:     usuarioDB.empresaId,
     }
   });
 
