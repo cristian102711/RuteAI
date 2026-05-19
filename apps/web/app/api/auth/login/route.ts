@@ -48,7 +48,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const data = await response.json() as LoginResponse;
+    const resBody = await response.json() as { success: boolean; data: LoginResponse };
+    const data = resBody.data;
 
     // Sincronizar la sesión en el cliente de Supabase para almacenar las cookies en el navegador
     const supabase = await createClient();
