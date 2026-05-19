@@ -174,3 +174,16 @@ model ReporteCache {
 
   @@unique([empresaId, fecha])
 }
+
+// -------------------------------------------------------------
+// 8. LOG ACCESO (Auditoría de Inicios de Sesión)
+// -------------------------------------------------------------
+model LogAcceso {
+  id        String   @id @default(uuid())
+  email     String
+  estado    String   // "exito" | "error"
+  detalles  String?  // Ej: motivo del fallo o metadata
+  ip        String?
+  timestamp DateTime @default(now())
+}
+
