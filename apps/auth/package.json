@@ -8,6 +8,7 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@ruteai/database": "workspace:*",
     "@ruteai/shared": "workspace:*",
     "@supabase/supabase-js": "^2.39.0",
     "cors": "^2.8.5",

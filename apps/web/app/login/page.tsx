@@ -24,15 +24,35 @@ export default function LoginPage() {
     try {
       if (mode === "login") {
         toast.loading("Verificando credenciales...", { id: "auth" });
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) {
-          toast.error("Credenciales incorrectas. Intenta de nuevo.", { id: "auth" });
+        
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email, password }),
+        });
+
+        if (!response.ok) {
+          const resData = await response.json() as { error?: string };
+          toast.error(resData.error || "Credenciales incorrectas. Intenta de nuevo.", { id: "auth" });
           return;
         }
+
+        const resData = await response.json() as {
+          success: boolean;
+          usuario: {
+            id: string;
+            email: string;
+            nombre: string;
+            rol: string;
+            empresaId: string;
+          };
+        };
+
         toast.success("¡Bienvenido de vuelta!", { id: "auth" });
-        // Redirigir según el rol almacenado en Supabase user_metadata
-        const { data: { user: loggedUser } } = await supabase.auth.getUser();
-        const rol = loggedUser?.user_metadata?.rol as string | undefined;
+        const rol = resData.usuario.rol;
+        
         if (rol === "super_admin") {
           router.push("/admin");
         } else if (rol === "repartidor") {
