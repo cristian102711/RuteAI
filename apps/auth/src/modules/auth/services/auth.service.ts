@@ -1,3 +1,4 @@
+import prisma from "@ruteai/database";
 import { AuthRepository, type UserMeta } from "../repositories/auth.repository";
 
 // ── Service Layer ─────────────────────────────────────────────
@@ -24,26 +25,65 @@ export const AuthService = {
   },
 
   async iniciarSesion(email: string, password: string) {
-    const { user, session } = await AuthRepository.signIn(email, password);
-    if (!user || !session) throw new Error("Credenciales inválidas.");
+    try {
+      const { user, session } = await AuthRepository.signIn(email, password);
+      if (!user || !session) throw new Error("Credenciales inválidas.");
 
-    // Datos de perfil guardados en user_metadata en el momento del registro
-    const meta = user.user_metadata as Partial<UserMeta>;
+      // Datos de perfil guardados en user_metadata en el momento del registro
+      const meta = user.user_metadata as Partial<UserMeta>;
 
-    return {
-      usuario: {
-        id:        user.id,
-        email:     user.email ?? "",
-        nombre:    meta.nombre    ?? (user.email?.split("@")[0] ?? "Usuario"),
-        rol:       meta.rol       ?? "repartidor",
-        empresaId: meta.empresaId ?? "",
-      },
-      tokens: {
-        accessToken:  session.access_token,
-        refreshToken: session.refresh_token,
-        expiresIn:    session.expires_in,
-      },
-    };
+      // Registrar log de éxito en base de datos
+      await prisma.logAcceso.create({
+        data: {
+          email,
+          estado: "exito",
+          detalles: `Usuario logueado exitosamente. Rol: ${meta.rol ?? 'repartidor'}`
+        }
+      }).catch(err => {
+        console.error("Error al guardar log de acceso exitoso:", err);
+      });
+
+      console.log(JSON.stringify({
+        event: "auth.login.success",
+        email,
+        timestamp: new Date().toISOString()
+      }));
+
+      return {
+        usuario: {
+          id:        user.id,
+          email:     user.email ?? "",
+          nombre:    meta.nombre    ?? (user.email?.split("@")[0] ?? "Usuario"),
+          rol:       meta.rol       ?? "repartidor",
+          empresaId: meta.empresaId ?? "",
+        },
+        tokens: {
+          accessToken:  session.access_token,
+          refreshToken: session.refresh_token,
+          expiresIn:    session.expires_in,
+        },
+      };
+    } catch (error: any) {
+      // Registrar log de error en base de datos
+      await prisma.logAcceso.create({
+        data: {
+          email,
+          estado: "error",
+          detalles: error.message || "Error desconocido de autenticación"
+        }
+      }).catch(err => {
+        console.error("Error al guardar log de acceso fallido:", err);
+      });
+
+      console.error(JSON.stringify({
+        event: "auth.login.failure",
+        email,
+        error: error.message || "Error desconocido",
+        timestamp: new Date().toISOString()
+      }));
+
+      throw error;
+    }
   },
 
   async refrescarSesion(refreshToken: string) {
