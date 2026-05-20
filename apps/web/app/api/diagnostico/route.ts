@@ -12,7 +12,8 @@ export async function GET() {
       estado: "conectado",
       usuarios: count,
       tiempo: duration,
-      urlDb: process.env.DATABASE_URL ? "Existe (longitud: " + process.env.DATABASE_URL.length + ")" : "NO EXISTE"
+      urlDb: process.env.DATABASE_URL ? "Existe (longitud: " + process.env.DATABASE_URL.length + ")" : "NO EXISTE",
+      authServiceUrl: process.env.AUTH_SERVICE_URL || "NO DEFINIDO (usando fallback localhost:3002)",
     });
   } catch (error: any) {
     // Devolvemos el error EXACTO y completo

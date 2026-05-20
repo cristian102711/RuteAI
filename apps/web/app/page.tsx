@@ -306,7 +306,7 @@ export default function LandingPage() {
               </div>
               <div className="mt-4 flex items-baseline gap-1"><span className="text-5xl font-semibold tracking-tight text-white">$99</span><span className="text-sm text-zinc-400">/mes</span></div>
               <p className="mt-2 text-sm text-zinc-400">Para operaciones en crecimiento que viven en la calle.</p>
-              <button className="mt-6 w-full rounded-lg px-4 py-2.5 text-sm font-semibold transition bg-gradient-to-r from-amber-500 to-amber-400 text-black hover:opacity-95">Probar 14 días</button>
+              <button className="mt-6 w-full rounded-lg px-4 py-2.5 text-sm font-semibold transition bg-gradient-to-r from-amber-500 to-amber-400 text-black hover:opacity-95">Solicitar demo</button>
               <ul className="mt-6 space-y-2.5 border-t border-zinc-800/50 pt-6 text-sm">
                 {["Hasta 10,000 entregas/mes", "50 repartidores", "Score de riesgo IA", "Webhooks + API REST", "Soporte prioritario"].map(f => (
                   <li key={f} className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" /><span className="text-zinc-400">{f}</span></li>
@@ -336,7 +336,7 @@ export default function LandingPage() {
           <div className="absolute -left-20 -top-20 h-72 w-72 rounded-full bg-amber-500/20 blur-3xl" />
           <div className="absolute -bottom-20 -right-20 h-72 w-72 rounded-full bg-purple-500/20 blur-3xl" />
           <h3 className="text-3xl font-semibold tracking-tight sm:text-4xl text-white">¿Listo para devolverle horas a tu equipo?</h3>
-          <p className="mx-auto mt-3 max-w-xl text-zinc-400">14 días de prueba en el plan Pro. Sin tarjeta de crédito.</p>
+          <p className="mx-auto mt-3 max-w-xl text-zinc-400">Empieza hoy. Sin contratos largos, sin sorpresas.</p>
           <div className="mt-7 flex flex-wrap justify-center gap-3">
             <Link href="/login" className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-amber-500 to-amber-400 px-5 py-3 text-sm font-semibold text-black shadow-[0_0_15px_rgba(245,158,11,0.4)]">
               Empezar ahora <ArrowRight className="h-4 w-4" />

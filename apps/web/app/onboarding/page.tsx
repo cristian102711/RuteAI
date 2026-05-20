@@ -107,7 +107,7 @@ export default function OnboardingPage() {
               ) : (
                 <>
                   <Sparkles className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                  Comenzar prueba gratis de 14 días
+                  Crear mi cuenta
                   <ArrowRight className="w-4 h-4 ml-1 opacity-70 group-hover:translate-x-1 transition-transform" />
                 </>
               )}
