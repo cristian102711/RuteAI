@@ -21,6 +21,16 @@ const RefreshSchema = z.object({
   refreshToken: z.string().min(1),
 });
 
+const LogSchema = z.object({
+  evento:    z.string(),
+  userId:    z.string(),
+  email:     z.string(),
+  provider:  z.string(),
+  status:    z.string(),
+  error:     z.string().optional(),
+  timestamp: z.string(),
+});
+
 // POST /api/v1/auth/signup
 authRouter.post("/signup", async (req: Request, res: Response) => {
   try {
@@ -81,5 +91,21 @@ authRouter.get("/me", async (req: Request, res: Response): Promise<void> => {
     res.status(200).json({ success: true, data: { usuario } });
   } catch (error) {
     res.status(401).json({ success: false, error: error instanceof Error ? error.message : "Token inválido" });
+  }
+});
+
+// POST /api/v1/auth/logs
+authRouter.post("/logs", async (req: Request, res: Response) => {
+  try {
+    const parsed = LogSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ success: false, error: "Datos de log inválidos", details: parsed.error.flatten() });
+      return;
+    }
+    const { evento, userId, email, provider, status, error, timestamp } = parsed.data;
+    console.log(`[AUTH-LOG] [${timestamp}] Evento: ${evento} | Usuario: ${email} (${userId}) | Proveedor: ${provider} | Estado: ${status} ${error ? `| Error: ${error}` : ''}`);
+    res.status(200).json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : "Error al procesar log" });
   }
 });
