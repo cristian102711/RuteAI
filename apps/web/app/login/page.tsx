@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Zap, Mail, Lock, Eye, EyeOff, Route, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { logAuthEvent } from "./actions";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -21,10 +22,40 @@ export default function LoginPage() {
   // Mostrar error si viene en los query params (ej. error de redirección OAuth)
   useEffect(() => {
     const errorParam = searchParams.get("error");
-    if (errorParam === "oauth_error") {
+    if (errorParam === "oauth_error" || errorParam === "auth_failed") {
       toast.error("Error al autenticar con Google. Intenta de nuevo.", { id: "oauth-err" });
     }
   }, [searchParams]);
+
+  const handleGoogleLogin = async () => {
+    try {
+      setIsLoading(true);
+      toast.loading("Redirigiendo a Google...", { id: "auth" });
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (error) {
+        toast.error(error.message, { id: "auth" });
+        await logAuthEvent({
+          userId: "anonymous",
+          email: "unknown",
+          provider: "google",
+          status: "failed",
+          error: error.message,
+        });
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al conectar con Google";
+      toast.error(msg, { id: "auth" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,7 +64,7 @@ export default function LoginPage() {
     try {
       if (mode === "login") {
         toast.loading("Verificando credenciales...", { id: "auth" });
-        
+
         const response = await fetch("/api/auth/login", {
           method: "POST",
           headers: {
@@ -45,6 +76,13 @@ export default function LoginPage() {
         if (!response.ok) {
           const resData = await response.json() as { error?: string };
           toast.error(resData.error || "Credenciales incorrectas. Intenta de nuevo.", { id: "auth" });
+          await logAuthEvent({
+            userId: "anonymous",
+            email: email,
+            provider: "email",
+            status: "failed",
+            error: resData.error ?? "Credenciales inválidas",
+          });
           return;
         }
 
@@ -60,8 +98,16 @@ export default function LoginPage() {
         };
 
         toast.success("¡Bienvenido de vuelta!", { id: "auth" });
+
+        await logAuthEvent({
+          userId: resData.usuario.id,
+          email: resData.usuario.email,
+          provider: "email",
+          status: "success",
+        });
+
         const rol = resData.usuario.rol;
-        
+
         if (rol === "super_admin") {
           router.push("/admin");
         } else if (rol === "repartidor") {
@@ -90,32 +136,9 @@ export default function LoginPage() {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    try {
-      setIsLoading(true);
-      toast.loading("Redirigiendo a Google...", { id: "auth" });
-      
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/api/auth/callback`,
-        },
-      });
-
-      if (error) {
-        toast.error(error.message, { id: "auth" });
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Error al conectar con Google";
-      toast.error(msg, { id: "auth" });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-50 flex items-center justify-center p-4 relative overflow-hidden font-sans selection:bg-amber-500/30">
-      
+
       {/* Estilos locales de grilla */}
       <style dangerouslySetInnerHTML={{__html: `
         .bg-grid {
@@ -154,7 +177,7 @@ export default function LoginPage() {
 
         {/* Card de Login Premium */}
         <div className="bg-zinc-900/40 backdrop-blur-xl border border-zinc-800 rounded-3xl p-6 sm:p-8 shadow-2xl ring-1 ring-inset ring-white/5 relative overflow-hidden group">
-          
+
           {/* Barra de progreso de acento sutil */}
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 via-amber-400 to-purple-600" />
 
