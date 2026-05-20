@@ -29,15 +29,13 @@ export async function GET(request: Request) {
         console.error("[OAuth Callback] Error al registrar log de acceso:", logError);
       }
 
-      const forwardedHost = request.headers.get("x-forwarded-host"); // original origin before Vercel/proxies
       const isLocalEnv = process.env.NODE_ENV === "development";
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || origin;
       
       if (isLocalEnv) {
         return NextResponse.redirect(`${origin}${next}`);
-      } else if (forwardedHost) {
-        return NextResponse.redirect(`https://${forwardedHost}${next}`);
       } else {
-        return NextResponse.redirect(`${origin}${next}`);
+        return NextResponse.redirect(`${appUrl}${next}`);
       }
     }
   }
