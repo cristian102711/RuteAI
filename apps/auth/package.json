@@ -4,10 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "ts-node-dev --respawn src/index.ts",
-    "build": "tsc",
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node20 --outfile=dist/index.js --external:express --external:cors --external:dotenv --external:@prisma/client --external:@supabase/supabase-js --external:zod",
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@ruteai/database": "workspace:*",
     "@ruteai/shared": "workspace:*",
     "@supabase/supabase-js": "^2.39.0",
     "cors": "^2.8.5",
@@ -19,6 +20,7 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/node": "^20.0.0",
+    "esbuild": "^0.28.0",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.4.5"
   }
