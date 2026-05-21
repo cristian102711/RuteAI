@@ -26,11 +26,14 @@ export async function proxy(request: NextRequest) {
   // Obtener sesión del usuario activo
   const { data: { user } } = await supabase.auth.getUser()
 
-  // IMPORTANTE: Solo redirigir en peticiones GET (para navegación)
-  // Las peticiones POST (como Server Actions) no deben ser redirigidas aquí
+  // Solo redirigir en peticiones GET (para navegación)
+  // Las peticiones POST (Server Actions, APIs) no deben ser redirigidas aquí
   if (request.method === 'GET') {
-    // SI el usuario NO está logueado y quiere entrar al dashboard → expulsarlo al login
-    if (!user && request.nextUrl.pathname.startsWith('/dashboard')) {
+    // SI el usuario NO está logueado y quiere entrar al dashboard o admin → redirigir al login
+    if (!user && (
+      request.nextUrl.pathname.startsWith('/dashboard') ||
+      request.nextUrl.pathname.startsWith('/admin')
+    )) {
       const url = request.nextUrl.clone()
       url.pathname = '/login'
       return NextResponse.redirect(url)
@@ -47,9 +50,10 @@ export async function proxy(request: NextRequest) {
   return supabaseResponse
 }
 
-// Mantener alias middleware por si acaso
+// Alias requerido por Next.js 16.2.1
 export const middleware = proxy;
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/login'],
+  // Protege tanto /dashboard como /admin y evita redirigir rutas internas de Next.js
+  matcher: ['/dashboard/:path*', '/admin/:path*', '/login'],
 }
