@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabaseServer";
-import prisma from "@ruteai/database";
-import { logAuthEvent } from "../../../login/actions";
+import { logAuthEvent } from "@/lib/authLogger";
 
 interface LoginResult {
   usuario: {

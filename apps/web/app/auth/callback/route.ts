@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabaseServer';
-import prisma from "@ruteai/database";
-import { logAuthEvent } from '../../login/actions';
+import { createAdminClient } from '@/lib/supabaseAdmin';
+import { logAuthEvent } from '@/lib/authLogger';
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
-  
+
   // Detectar y forzar protocolo seguro HTTPS en producción
   const isLocalEnv = process.env.NODE_ENV === "development";
   let appUrl = origin;
@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     if (code) {
       const supabase = await createClient();
       const { data: { user }, error } = await supabase.auth.exchangeCodeForSession(code);
-      
+
       if (!error && user) {
         // 1. Log success
         await logAuthEvent({
@@ -29,10 +29,19 @@ export async function GET(request: Request) {
           status: "success",
         });
 
-        // 2. Check if user exists in the Prisma database
-        const usuarioDB = await prisma.usuario.findUnique({
-          where: { id: user.id },
-        });
+        // 2. Check if user exists in the database via Supabase Admin (sin prisma/DATABASE_URL)
+        let usuarioDB: { id: string; rol: string } | null = null;
+        try {
+          const admin = createAdminClient();
+          const { data } = await admin
+            .from("Usuario")
+            .select("id, rol")
+            .eq("id", user.id)
+            .single();
+          usuarioDB = data;
+        } catch (dbErr) {
+          console.error("[OAuth Callback] Error al buscar usuario en DB:", dbErr);
+        }
 
         if (!usuarioDB) {
           // Redirect to onboarding to configure company details
@@ -65,4 +74,3 @@ export async function GET(request: Request) {
   // Fallback to login in case of failure
   return NextResponse.redirect(`${redirectBase}/login?error=auth_failed`);
 }
-
