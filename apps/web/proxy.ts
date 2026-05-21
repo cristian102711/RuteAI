@@ -50,7 +50,6 @@ export async function proxy(request: NextRequest) {
   return supabaseResponse
 }
 
-// Alias requerido por Next.js 16.2.1
 export const middleware = proxy;
 
 export const config = {

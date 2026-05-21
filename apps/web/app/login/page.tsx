@@ -28,6 +28,14 @@ export default function LoginPage() {
   }, [searchParams]);
 
   const handleGoogleLogin = async () => {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      toast.error("Faltan variables de entorno: NEXT_PUBLIC_SUPABASE_URL o NEXT_PUBLIC_SUPABASE_ANON_KEY. Asegúrate de agregarlas en el panel de Vercel y realizar un REDEPLOY con limpieza de caché.", { id: "auth" });
+      return;
+    }
+
     try {
       setIsLoading(true);
       toast.loading("Redirigiendo a Google...", { id: "auth" });
