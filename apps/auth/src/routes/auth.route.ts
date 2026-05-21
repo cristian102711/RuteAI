@@ -104,6 +104,12 @@ authRouter.post("/logs", async (req: Request, res: Response) => {
     }
     const { evento, userId, email, provider, status, error, timestamp } = parsed.data;
     console.log(`[AUTH-LOG] [${timestamp}] Evento: ${evento} | Usuario: ${email} (${userId}) | Proveedor: ${provider} | Estado: ${status} ${error ? `| Error: ${error}` : ''}`);
+    
+    // Guardar también en la base de datos
+    const dbEstado = status === "success" ? "exito" : "error";
+    const dbDetalles = `OAuth Login. Evento: ${evento} | Proveedor: ${provider}${error ? ` | Error: ${error}` : ""}`;
+    await AuthService.registrarLog(email, dbEstado, dbDetalles);
+
     res.status(200).json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err instanceof Error ? err.message : "Error al procesar log" });

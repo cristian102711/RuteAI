@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import prisma from "@ruteai/database";
 import { redirect } from "next/navigation";
 import { Package, Truck, CheckCircle2, AlertCircle, Clock, ShieldCheck, ImageOff } from "lucide-react";

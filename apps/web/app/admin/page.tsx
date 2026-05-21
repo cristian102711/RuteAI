@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import prisma from "@ruteai/database";
 import { CrearEmpresaModal } from "./components/CrearEmpresaModal";
 import { EmpresasTable } from "./components/EmpresasTable";

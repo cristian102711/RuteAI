@@ -1,11 +1,32 @@
 import { AuthRepository, type UserMeta } from "../repositories/auth.repository";
+import { supabaseAdmin } from "../../../lib/supabase";
 
 // ── Service Layer ─────────────────────────────────────────────
 // Contiene la lógica de negocio de autenticación.
 // NOTA: Los logs se emiten con console.log/error (visibles en Vercel)
-// para evitar dependencia de @ruteai/database en el entorno serverless.
+// y se guardan en la DB usando supabaseAdmin para evitar dependencia de @ruteai/database.
 
 export const AuthService = {
+  async registrarLog(email: string, estado: "exito" | "error", detalles: string) {
+    try {
+      const { error } = await supabaseAdmin
+        .from("LogAcceso")
+        .insert([
+          {
+            email,
+            estado,
+            detalles,
+            timestamp: new Date().toISOString(),
+          },
+        ]);
+      if (error) {
+        console.error("[AUTH-DB-LOG-ERROR] Error al insertar log en base de datos via Supabase:", error);
+      }
+    } catch (err) {
+      console.error("[AUTH-DB-LOG-ERROR] Excepción al guardar log en base de datos:", err);
+    }
+  },
+
   async registrarUsuario(
     email: string,
     password: string,
@@ -22,6 +43,12 @@ export const AuthService = {
       rol: meta.rol,
       timestamp: new Date().toISOString()
     }));
+
+    await this.registrarLog(
+      email,
+      "exito",
+      `Usuario registrado exitosamente. Rol: ${meta.rol}`
+    );
 
     return {
       id:        user.id,
@@ -49,6 +76,12 @@ export const AuthService = {
         timestamp: new Date().toISOString()
       }));
 
+      await this.registrarLog(
+        email,
+        "exito",
+        `Usuario logueado exitosamente. Rol: ${meta.rol ?? "repartidor"}`
+      );
+
       return {
         usuario: {
           id:        user.id,
@@ -71,6 +104,12 @@ export const AuthService = {
         error: error.message || "Error desconocido",
         timestamp: new Date().toISOString()
       }));
+
+      await this.registrarLog(
+        email,
+        "error",
+        error.message || "Error de inicio de sesión"
+      );
 
       throw error;
     }

@@ -28,7 +28,10 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 1. Intentar autenticación a través del microservicio de auth ──────────
-    const authServiceUrl = process.env.AUTH_SERVICE_URL;
+    const authServiceUrl = process.env.AUTH_SERVICE_URL || 
+      (process.env.NODE_ENV === 'production' 
+        ? 'https://ruteai-auth.vercel.app' 
+        : 'http://localhost:3002');
     let useFallback = true;
     let loginErrorMsg = "Credenciales incorrectas. Intenta de nuevo.";
     let loginStatus = 401;

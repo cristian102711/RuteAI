@@ -30,8 +30,11 @@ app.use((_req, res) => {
 });
 
 // ── Start ─────────────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`🤖 AI Service corriendo en http://localhost:${PORT}`);
-});
+// Solo escuchar en local; en Vercel serverless basta con el export default
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`🤖 AI Service corriendo en http://localhost:${PORT}`);
+  });
+}
 
 export default app;

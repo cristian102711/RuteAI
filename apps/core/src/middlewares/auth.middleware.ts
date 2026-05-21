@@ -16,7 +16,10 @@ declare global {
 }
 
 // URL del microservicio de Auth (por defecto localhost:3002)
-const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL ?? "http://localhost:3002";
+const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL ?? 
+  (process.env.NODE_ENV === 'production' 
+    ? 'https://ruteai-auth.vercel.app' 
+    : 'http://localhost:3002');
 
 // Tipo de la respuesta del endpoint /api/v1/auth/me
 interface AuthMeResponse {

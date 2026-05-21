@@ -7,7 +7,10 @@ export async function logAuthEvent(data: {
   status: string;
   error?: string;
 }) {
-  const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'http://localhost:3002';
+  const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 
+    (process.env.NODE_ENV === 'production' 
+      ? 'https://ruteai-auth.vercel.app' 
+      : 'http://localhost:3002');
   try {
     const body = {
       evento: 'iniciar_sesion',

@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import prisma from "@ruteai/database";
 import { BarChart3, TrendingUp, Package, AlertTriangle, Building2, Users, CheckCircle2, Clock, XCircle } from "lucide-react";
 

@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import prisma from "@ruteai/database";
 import { Users, Building2 } from "lucide-react";
 import { EliminarUsuarioButton } from "../components/EliminarUsuarioButton";
