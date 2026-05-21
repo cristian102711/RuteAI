@@ -48,12 +48,6 @@ importers:
 
   apps/auth:
     dependencies:
-      '@ruteai/database':
-        specifier: workspace:*
-        version: link:../../packages/database
-      '@ruteai/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       '@supabase/supabase-js':
         specifier: ^2.39.0
         version: 2.104.1
