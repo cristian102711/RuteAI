@@ -1,8 +1,9 @@
-import prisma from "@ruteai/database";
 import { AuthRepository, type UserMeta } from "../repositories/auth.repository";
 
 // ── Service Layer ─────────────────────────────────────────────
 // Contiene la lógica de negocio de autenticación.
+// NOTA: Los logs se emiten con console.log/error (visibles en Vercel)
+// para evitar dependencia de @ruteai/database en el entorno serverless.
 
 export const AuthService = {
   async registrarUsuario(
@@ -14,6 +15,14 @@ export const AuthService = {
       throw new Error("La contraseña debe tener al menos 8 caracteres.");
     }
     const user = await AuthRepository.signUp(email, password, meta);
+
+    console.log(JSON.stringify({
+      event: "auth.signup.success",
+      email,
+      rol: meta.rol,
+      timestamp: new Date().toISOString()
+    }));
+
     return {
       id:        user.id,
       email:     user.email,
@@ -32,20 +41,11 @@ export const AuthService = {
       // Datos de perfil guardados en user_metadata en el momento del registro
       const meta = user.user_metadata as Partial<UserMeta>;
 
-      // Registrar log de éxito en base de datos
-      await prisma.logAcceso.create({
-        data: {
-          email,
-          estado: "exito",
-          detalles: `Usuario logueado exitosamente. Rol: ${meta.rol ?? 'repartidor'}`
-        }
-      }).catch(err => {
-        console.error("Error al guardar log de acceso exitoso:", err);
-      });
-
+      // Log de éxito visible en consola de Vercel (ruteai-auth)
       console.log(JSON.stringify({
         event: "auth.login.success",
         email,
+        rol: meta.rol ?? "repartidor",
         timestamp: new Date().toISOString()
       }));
 
@@ -64,17 +64,7 @@ export const AuthService = {
         },
       };
     } catch (error: any) {
-      // Registrar log de error en base de datos
-      await prisma.logAcceso.create({
-        data: {
-          email,
-          estado: "error",
-          detalles: error.message || "Error desconocido de autenticación"
-        }
-      }).catch(err => {
-        console.error("Error al guardar log de acceso fallido:", err);
-      });
-
+      // Log de fallo visible en consola de Vercel (ruteai-auth)
       console.error(JSON.stringify({
         event: "auth.login.failure",
         email,
