@@ -150,7 +150,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, ...result });
     }
 
-
+    return NextResponse.json(
+      { success: false, error: loginErrorMsg },
+      { status: loginStatus }
+    );
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Error interno del servidor";
     console.error("[API/Auth/Login] Error inesperado:", error);

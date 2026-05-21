@@ -20,18 +20,21 @@ export async function logAuthEvent(data: {
     };
     
     // Log to Vercel console
-    console.log(`[Vercel Server Action] Enviando log a auth service:`, body);
+    console.log(`[Vercel Server Action] Enviando log a auth service en ${AUTH_SERVICE_URL}:`, body);
 
+    // Agregamos AbortSignal.timeout para evitar colgar la ejecución de Next.js en producción
     const response = await fetch(`${AUTH_SERVICE_URL}/api/v1/auth/logs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(2000), // Evita bloqueos en Vercel si el servicio no está disponible
     });
 
     if (!response.ok) {
       console.error(`[Vercel Server Action] Auth service respondió con status ${response.status}`);
     }
   } catch (err) {
-    console.error('[Vercel Server Action] Error al enviar log al microservicio de auth:', err);
+    console.error('[Vercel Server Action] Error o Timeout al enviar log al microservicio de auth:', err);
   }
 }
+
