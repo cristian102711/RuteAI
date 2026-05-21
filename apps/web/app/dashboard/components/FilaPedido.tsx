@@ -5,7 +5,7 @@ import { BotonesTabla } from "./BotonesTabla";
 import { toast } from "sonner";
 import { editarPedido } from "../actions";
 import { Edit3, Save } from "lucide-react";
-import { Pedido } from "@prisma/client";
+import { Pedido } from "@ruteai/database";
 import { StatusBadge } from "./StatusBadge";
 import { ScoreBadge } from "./ScoreBadge";
 

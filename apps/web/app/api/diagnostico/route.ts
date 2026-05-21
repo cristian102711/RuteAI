@@ -1,29 +1,55 @@
 import { NextResponse } from "next/server";
-import prisma from "@ruteai/database";
 
 export async function GET() {
+  const dbUrl = process.env.DATABASE_URL;
+  const authServiceUrl = process.env.AUTH_SERVICE_URL;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  // Diagnóstico básico de variables de entorno (sin exponer valores)
+  const envStatus = {
+    DATABASE_URL: dbUrl ? `OK (longitud: ${dbUrl.length})` : "❌ NO DEFINIDA",
+    NEXT_PUBLIC_SUPABASE_URL: supabaseUrl ? "OK" : "❌ NO DEFINIDA",
+    SUPABASE_SERVICE_ROLE_KEY: serviceRoleKey ? "OK" : "❌ NO DEFINIDA",
+    AUTH_SERVICE_URL: authServiceUrl || "usando fallback ruteai-auth.vercel.app",
+  };
+
+  // Si no hay DATABASE_URL, retornar diagnóstico sin intentar conectar Prisma
+  if (!dbUrl) {
+    return NextResponse.json(
+      {
+        estado: "sin_database_url",
+        mensaje: "DATABASE_URL no está configurada en las variables de entorno de Vercel",
+        env: envStatus,
+      },
+      { status: 503 }
+    );
+  }
+
+  // Si hay DATABASE_URL, intentar conexión con Prisma
   try {
-    // Intentamos hacer una consulta básica para ver qué choca
+    const { default: prisma } = await import("@ruteai/database");
     const start = Date.now();
     const count = await prisma.usuario.count();
     const duration = Date.now() - start;
-    
+
     return NextResponse.json({
       estado: "conectado",
       usuarios: count,
-      tiempo: duration,
-      urlDb: process.env.DATABASE_URL ? "Existe (longitud: " + process.env.DATABASE_URL.length + ")" : "NO EXISTE",
-      authServiceUrl: process.env.AUTH_SERVICE_URL || "NO DEFINIDO (usando fallback localhost:3002)",
+      tiempo: `${duration}ms`,
+      env: envStatus,
     });
-  } catch (error: any) {
-    // Devolvemos el error EXACTO y completo
-    console.error("DIAGNOSTICO ERROR:", error);
-    return NextResponse.json({
-      estado: "error_de_conexion",
-      nombre: error.name,
-      mensaje: error.message,
-      stack: error.stack,
-      urlDb: process.env.DATABASE_URL ? "Existe (longitud: " + process.env.DATABASE_URL.length + ")" : "NO EXISTE"
-    }, { status: 500 });
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error("DIAGNOSTICO ERROR:", err);
+    return NextResponse.json(
+      {
+        estado: "error_de_conexion",
+        nombre: err.name,
+        mensaje: err.message,
+        env: envStatus,
+      },
+      { status: 500 }
+    );
   }
 }
