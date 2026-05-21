@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabaseServer";
 import { redirect } from "next/navigation";
 import { AlertTriangle, CheckCheck, Clock, MapPin, TrendingUp } from "lucide-react";
 import { AlertasLista } from "./AlertasLista";
-import type { Alerta } from "@prisma/client";
+import type { Alerta } from "@ruteai/database";
 
 type AlertaConRepartidor = Alerta & {
   repartidor: { id: string; nombre: string } | null;

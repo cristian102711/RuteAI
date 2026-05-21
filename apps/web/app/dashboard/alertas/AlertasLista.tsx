@@ -2,7 +2,7 @@
 
 import { AlertTriangle, CheckCheck } from "lucide-react";
 import { useAlertasRealtime } from "@/hooks/useAlertasRealtime";
-import type { Alerta } from "@prisma/client";
+import type { Alerta } from "@ruteai/database";
 
 type AlertaConRepartidor = Alerta & {
   repartidor: { id: string; nombre: string } | null;

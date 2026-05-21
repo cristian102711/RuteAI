@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabaseClient";
-import type { Alerta } from "@prisma/client";
+import type { Alerta } from "@ruteai/database";
 
 type AlertaConRepartidor = Alerta & {
   repartidor: { id: string; nombre: string } | null;
