@@ -99,19 +99,42 @@ authRouter.post("/logs", async (req: Request, res: Response) => {
   try {
     const parsed = LogSchema.safeParse(req.body);
     if (!parsed.success) {
+      console.warn(JSON.stringify({
+        event: "auth.logs.invalid_payload",
+        errors: parsed.error.flatten(),
+        timestamp: new Date().toISOString(),
+      }));
       res.status(400).json({ success: false, error: "Datos de log inválidos", details: parsed.error.flatten() });
       return;
     }
+
     const { evento, userId, email, provider, status, error, timestamp } = parsed.data;
-    console.log(`[AUTH-LOG] [${timestamp}] Evento: ${evento} | Usuario: ${email} (${userId}) | Proveedor: ${provider} | Estado: ${status} ${error ? `| Error: ${error}` : ''}`);
-    
-    // Guardar también en la base de datos
+
+    // Log estructurado — visible en Vercel → ruteai-auth → Functions logs
+    console.log(JSON.stringify({
+      event: `auth.event.${status}`,
+      evento,
+      userId,
+      email,
+      provider,
+      status,
+      ...(error ? { error } : {}),
+      timestamp,
+      receivedAt: new Date().toISOString(),
+    }));
+
+    // Guardar en la base de datos (LogAcceso)
     const dbEstado = status === "success" ? "exito" : "error";
-    const dbDetalles = `OAuth Login. Evento: ${evento} | Proveedor: ${provider}${error ? ` | Error: ${error}` : ""}`;
+    const dbDetalles = `Evento: ${evento} | Proveedor: ${provider}${error ? ` | Error: ${error}` : ""}`;
     await AuthService.registrarLog(email, dbEstado, dbDetalles);
 
     res.status(200).json({ success: true });
   } catch (err) {
+    console.error(JSON.stringify({
+      event: "auth.logs.handler_error",
+      error: err instanceof Error ? err.message : String(err),
+      timestamp: new Date().toISOString(),
+    }));
     res.status(500).json({ success: false, error: err instanceof Error ? err.message : "Error al procesar log" });
   }
 });
