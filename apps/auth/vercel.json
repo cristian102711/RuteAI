@@ -2,12 +2,11 @@
   "version": 2,
   "installCommand": "cd ../.. && pnpm install",
   "buildCommand": "cd ../.. && pnpm --filter @ruteai/auth build",
-  "builds": [
-    {
-      "src": "src/index.ts",
-      "use": "@vercel/node"
+  "functions": {
+    "src/index.ts": {
+      "runtime": "@vercel/node@3"
     }
-  ],
+  },
   "rewrites": [
     {
       "source": "/(.*)",

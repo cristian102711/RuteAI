@@ -1,17 +1,16 @@
 {
   "version": 2,
-  "buildCommand": "cd ../.. && pnpm --filter @ruteai/core build",
   "installCommand": "cd ../.. && pnpm install",
-  "builds": [
-    {
-      "src": "api/index.ts",
-      "use": "@vercel/node"
+  "buildCommand": "cd ../.. && pnpm --filter @ruteai/core build",
+  "functions": {
+    "src/index.ts": {
+      "runtime": "@vercel/node@3"
     }
-  ],
+  },
   "rewrites": [
     {
       "source": "/(.*)",
-      "destination": "/api/index"
+      "destination": "/src/index"
     }
   ]
 }
