@@ -40,12 +40,11 @@ export default function LoginPage() {
       setIsLoading(true);
       toast.loading("Redirigiendo a Google...", { id: "auth" });
 
-      const redirectTo = `${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/auth/callback`;
-
-      const { error } = await supabase.auth.signInWithOAuth({
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin;
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo,
+          redirectTo: `${appUrl}/auth/callback`,
         },
       });
 
@@ -58,7 +57,22 @@ export default function LoginPage() {
           status: "failed",
           error: error.message,
         });
+        return;
       }
+
+      if (data?.url) {
+        window.location.href = data.url;
+        return;
+      }
+
+      toast.error("No se pudo iniciar el flujo de Google OAuth. Intenta de nuevo.", { id: "auth" });
+      await logAuthEvent({
+        userId: "anonymous",
+          email: "unknown",
+          provider: "google",
+          status: "failed",
+          error: "No OAuth redirect URL returned",
+      });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error al conectar con Google";
       toast.error(msg, { id: "auth" });
@@ -128,7 +142,7 @@ export default function LoginPage() {
         router.refresh();
       } else {
         toast.loading("Creando tu cuenta...", { id: "auth" });
-        const { data, error } = await supabase.auth.signUp({ email, password });
+        const { error } = await supabase.auth.signUp({ email, password });
 
         if (error) {
           toast.error(error.message, { id: "auth" });

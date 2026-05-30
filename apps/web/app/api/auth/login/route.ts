@@ -131,6 +131,21 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      const { session: authSession } = authData;
+      if (authSession) {
+        const { error: setSessionError } = await supabase.auth.setSession({
+          access_token: authSession.access_token,
+          refresh_token: authSession.refresh_token,
+        });
+
+        if (setSessionError) {
+          console.warn(
+            "[Login] No se pudo establecer la sesión de Supabase en el fallback:",
+            setSessionError.message
+          );
+        }
+      }
+
       const user = authData.user;
       const meta = user.user_metadata ?? {};
       const rol: string = typeof meta.rol === "string" ? meta.rol : "repartidor";
