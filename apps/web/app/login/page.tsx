@@ -40,10 +40,12 @@ export default function LoginPage() {
       setIsLoading(true);
       toast.loading("Redirigiendo a Google...", { id: "auth" });
 
+      const redirectTo = `${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/auth/callback`;
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo,
         },
       });
 

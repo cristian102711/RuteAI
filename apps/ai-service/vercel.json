@@ -1,15 +1,17 @@
 {
   "version": 2,
+  "buildCommand": "cd ../.. && pnpm --filter @ruteai/ai-service build",
+  "installCommand": "cd ../.. && pnpm install",
   "builds": [
     {
       "src": "src/index.ts",
       "use": "@vercel/node"
     }
   ],
-  "routes": [
+  "rewrites": [
     {
-      "src": "/(.*)",
-      "dest": "src/index.ts"
+      "source": "/(.*)",
+      "destination": "/src/index"
     }
   ]
 }
