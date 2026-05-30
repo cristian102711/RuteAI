@@ -1,5 +1,7 @@
 {
   "version": 2,
+  "buildCommand": "cd ../.. && pnpm --filter @ruteai/ai-service build",
+  "installCommand": "cd ../.. && pnpm install",
   "builds": [
     {
       "src": "src/index.ts",
