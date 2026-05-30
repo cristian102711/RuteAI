@@ -12,6 +12,8 @@ healthRouter.get("/health", (_req, res) => {
       "POST /api/v1/auth/signup",
       "POST /api/v1/auth/login",
       "POST /api/v1/auth/refresh",
+      "POST /api/v1/auth/logs",
+      "GET  /api/v1/auth/me",
       "GET  /api/v1/users",
       "GET  /api/v1/health",
     ],
