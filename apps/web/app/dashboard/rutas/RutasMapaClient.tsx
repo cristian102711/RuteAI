@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useMemo } from "react";
 import { Layers, Maximize2, Navigation, Sparkles, Wifi, WifiOff } from "lucide-react";
 import { useRealtimeGPS } from "../components/RealtimeGPSPin";
