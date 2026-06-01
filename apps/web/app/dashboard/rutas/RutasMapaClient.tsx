@@ -1,8 +1,7 @@
-"use client";
-
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Layers, Maximize2, Navigation, Sparkles, Wifi, WifiOff } from "lucide-react";
 import { useRealtimeGPS } from "../components/RealtimeGPSPin";
+import { APIProvider, Map, Marker, InfoWindow } from "@vis.gl/react-google-maps";
 
 interface Pedido {
   id: string;
@@ -30,12 +29,25 @@ interface Props {
   ultimasUbicaciones: UbicacionConRepartidor[];
 }
 
-// Convierte lat/lng reales a posición % dentro del SVG (rango Chile)
-function gpsAporcentaje(lat: number, lng: number) {
-  const x = Math.min(95, Math.max(5, ((lng - -75) / (-66 - -75)) * 100));
-  const y = Math.min(95, Math.max(5, ((-17 - lat) / (-17 - -55)) * 100));
-  return { x, y };
-}
+// Estilo oscuro personalizado para Google Maps (coincide con zinc-950)
+const DARK_MAP_STYLE = [
+  { elementType: "geometry", stylers: [{ color: "#09090b" }] },
+  { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#71717a" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#09090b" }] },
+  { featureType: "administrative", elementType: "geometry", stylers: [{ color: "#27272a" }] },
+  { featureType: "administrative.country", elementType: "labels.text.fill", stylers: [{ color: "#a1a1aa" }] },
+  { featureType: "administrative.land_parcel", stylers: [{ visibility: "off" }] },
+  { featureType: "administrative.neighborhood", stylers: [{ visibility: "off" }] },
+  { featureType: "poi", elementType: "labels.text.fill", stylers: [{ color: "#71717a" }] },
+  { featureType: "road", elementType: "geometry.fill", stylers: [{ color: "#18181b" }] },
+  { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#71717a" }] },
+  { featureType: "road.arterial", elementType: "geometry.fill", stylers: [{ color: "#27272a" }] },
+  { featureType: "road.highway", elementType: "geometry.fill", stylers: [{ color: "#27272a" }] },
+  { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#3f3f46" }] },
+  { featureType: "water", elementType: "geometry", stylers: [{ color: "#020617" }] },
+  { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#3f3f46" }] }
+];
 
 export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbicaciones }: Props) {
   const { pinPos, ubicacion, conectado } = useRealtimeGPS(empresaId);
@@ -44,128 +56,137 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
   const enRuta = pedidos.filter(p => p.estado === "en_ruta");
   const pendientes = pedidos.filter(p => p.estado === "pendiente");
 
+  // Calcular el centro del mapa en base a los pedidos o por defecto Santiago de Chile
+  const mapCenter = useMemo(() => {
+    const validPedidos = pedidos.filter(p => p.lat && p.lng);
+    if (validPedidos.length > 0) {
+      const latSum = validPedidos.reduce((sum, p) => sum + p.lat!, 0);
+      const lngSum = validPedidos.reduce((sum, p) => sum + p.lng!, 0);
+      return {
+        lat: latSum / validPedidos.length,
+        lng: lngSum / validPedidos.length
+      };
+    }
+    // Coordenadas en vivo si hay señal GPS
+    if (ubicacion) {
+      return { lat: ubicacion.lat, lng: ubicacion.lng };
+    }
+    // Por defecto Santiago de Chile
+    return { lat: -33.4489, lng: -70.6693 };
+  }, [pedidos, ubicacion]);
+
+  const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || "";
+
   return (
     <div className="flex h-[calc(100vh-4rem)] bg-zinc-950 overflow-hidden">
 
-      {/* Vista Principal - Mapa */}
+      {/* Vista Principal - Mapa de Google */}
       <div className="relative flex-1">
-        <div className="relative overflow-hidden bg-zinc-900/50 backdrop-blur-xl h-full w-full">
-
-          {/* Fondos decorativos */}
-          <div className="absolute -left-16 -top-16 h-64 w-64 rounded-full bg-purple-500/10 blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-20 -right-10 h-72 w-72 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
-
-          {/* SVG Mapa */}
-          <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
-            <defs>
-              <linearGradient id="routeGrad" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#f59e0b" />
-                <stop offset="100%" stopColor="#a855f7" />
-              </linearGradient>
-              <filter id="glow">
-                <feGaussianBlur stdDeviation="1.2" />
-              </filter>
-            </defs>
-
-            {/* Cuadrícula más visible */}
-            {[10, 20, 30, 40, 50, 60, 70, 80, 90].map(v => (
-              <g key={v}>
-                <line x1={v} y1="0" x2={v} y2="100" stroke="rgba(255,255,255,0.08)" strokeWidth="0.3" />
-                <line x1="0" y1={v} x2="100" y2={v} stroke="rgba(255,255,255,0.08)" strokeWidth="0.3" />
-              </g>
-            ))}
-
-            {/* Ruta animada entre pedidos con lat/lng reales */}
-            {pedidos.filter(p => p.lat && p.lng).length >= 2 && (() => {
-              const pts = pedidos
-                .filter(p => p.lat && p.lng)
-                .map(p => gpsAporcentaje(p.lat!, p.lng!));
-              const d = pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`).join(" ");
-              return (
-                <>
-                  <path d={d} fill="none" stroke="url(#routeGrad)" strokeWidth="0.6" filter="url(#glow)" opacity="0.7" />
-                  <path d={d} fill="none" stroke="url(#routeGrad)" strokeWidth="0.3" strokeDasharray="1.5 1.2" />
-                </>
-              );
-            })()}
-          </svg>
-
-          {/* Marcadores de Pedidos — fallback Santiago si sin coordenadas */}
-          {pedidos.map((pedido, idx) => {
-            // Si no hay coordenadas GPS → posición aproximada en Santiago con offset
-            const defaultLat = -33.4489 + (idx * 0.015);
-            const defaultLng = -70.6693 + (idx * 0.012);
-            const pos = gpsAporcentaje(
-              pedido.lat ?? defaultLat,
-              pedido.lng ?? defaultLng
-            );
-            const isEnRuta  = pedido.estado === "en_ruta";
-            const isSelected = selectedPedido === pedido.id;
-            const sinGPS    = !pedido.lat || !pedido.lng;
-
-            return (
-              <button
-                key={pedido.id}
-                onClick={() => setSelectedPedido(isSelected ? null : pedido.id)}
-                className="absolute -translate-x-1/2 -translate-y-1/2 z-10 group"
-                style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
+        <div className="relative h-full w-full">
+          {googleMapsApiKey ? (
+            <APIProvider apiKey={googleMapsApiKey}>
+              <Map
+                defaultCenter={mapCenter}
+                defaultZoom={12}
+                gestureHandling={"greedy"}
+                disableDefaultUI={true}
+                styles={DARK_MAP_STYLE}
+                className="h-full w-full"
               >
-                <div className={`relative h-3 w-3 rounded-full ring-2 transition-transform group-hover:scale-150 ${
-                  sinGPS
-                    ? "bg-zinc-500 ring-zinc-500/40"
-                    : isEnRuta
-                    ? "bg-amber-500 ring-amber-500/40"
-                    : "bg-emerald-500 ring-emerald-500/30"
-                }`}>
-                  {isEnRuta && <span className="absolute inset-0 rounded-full animate-ping bg-amber-500/60" />}
-                </div>
-                {isSelected && (
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 z-20 whitespace-nowrap rounded-md bg-zinc-900/95 px-2 py-1 text-[10px] font-medium text-white ring-1 ring-white/10 shadow-xl">
-                    <div className="font-semibold">{pedido.nombreCliente}</div>
-                    <div className="text-zinc-400 truncate max-w-[150px]">{pedido.direccion}</div>
-                    {sinGPS && <div className="text-zinc-600 text-[9px]">📍 Pos. aproximada</div>}
-                  </div>
-                )}
-              </button>
-            );
-          })}
+                {/* Marcadores de Pedidos */}
+                {pedidos.map((pedido) => {
+                  if (!pedido.lat || !pedido.lng) return null;
+                  const isEnRuta = pedido.estado === "en_ruta";
+                  const isSelected = selectedPedido === pedido.id;
 
-          {/* Pin GPS en Vivo del Repartidor (Realtime) */}
-          {pinPos && (
-            <div
-              className="absolute -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none transition-all duration-1000 ease-linear"
-              style={{ left: `${pinPos.x}%`, top: `${pinPos.y}%` }}
-            >
-              <div className="relative h-5 w-5 rounded-full bg-blue-500 ring-4 ring-blue-500/30 shadow-[0_0_20px_rgba(59,130,246,0.6)]">
-                <span className="absolute inset-0 rounded-full animate-ping bg-blue-400/50" />
-              </div>
-              {ubicacion && (
-                <div className="absolute left-6 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-md bg-blue-900/90 px-2 py-1 text-[10px] font-medium text-blue-200 ring-1 ring-blue-500/30">
-                  📍 En vivo
-                </div>
-              )}
+                  return (
+                    <div key={pedido.id}>
+                      <Marker
+                        position={{ lat: pedido.lat, lng: pedido.lng }}
+                        onClick={() => setSelectedPedido(isSelected ? null : pedido.id)}
+                        options={{
+                          icon: {
+                            path: "M 0,0 C -2,-20 -10,-22 -10,-30 A 10,10 0 1,1 10,-30 C 10,-22 2,-20 0,0 z",
+                            fillColor: isEnRuta ? "#f59e0b" : "#10b981",
+                            fillOpacity: 1,
+                            strokeColor: "#ffffff",
+                            strokeWeight: 1.5,
+                            scale: 1
+                          }
+                        }}
+                      />
+                      {isSelected && (
+                        <InfoWindow
+                          position={{ lat: pedido.lat, lng: pedido.lng }}
+                          onCloseClick={() => setSelectedPedido(null)}
+                        >
+                          <div className="text-zinc-950 p-1 font-sans">
+                            <div className="font-bold text-xs">{pedido.nombreCliente}</div>
+                            <div className="text-[10px] text-zinc-600 truncate max-w-[150px]">{pedido.direccion}</div>
+                            <div className="mt-1 text-[9px] font-semibold text-zinc-500 uppercase">
+                              Estado: <span className={isEnRuta ? "text-amber-600" : "text-emerald-600"}>{pedido.estado}</span>
+                            </div>
+                          </div>
+                        </InfoWindow>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* Pin GPS en Vivo del Repartidor (Realtime) */}
+                {ubicacion && (
+                  <Marker
+                    position={{ lat: ubicacion.lat, lng: ubicacion.lng }}
+                    options={{
+                      icon: {
+                        path: "M 0,0 C -2,-20 -10,-22 -10,-30 A 10,10 0 1,1 10,-30 C 10,-22 2,-20 0,0 z",
+                        fillColor: "#3b82f6",
+                        fillOpacity: 1,
+                        strokeColor: "#ffffff",
+                        strokeWeight: 2,
+                        scale: 1.2
+                      }
+                    }}
+                  />
+                )}
+
+                {/* Pines de última ubicación conocida (cargados del servidor) */}
+                {!pinPos && ultimasUbicaciones.map((ub) => (
+                  <Marker
+                    key={ub.id}
+                    position={{ lat: ub.lat, lng: ub.lng }}
+                    options={{
+                      label: {
+                        text: ub.repartidor.nombre.split(" ")[0],
+                        color: "#ffffff",
+                        fontSize: "9px"
+                      },
+                      icon: {
+                        path: 0, // SymbolPath.CIRCLE
+                        fillColor: "#3b82f6",
+                        fillOpacity: 0.7,
+                        strokeColor: "#ffffff",
+                        strokeWeight: 1,
+                        scale: 8
+                      }
+                    }}
+                  />
+                ))}
+              </Map>
+            </APIProvider>
+          ) : (
+            <div className="flex h-full w-full flex-col items-center justify-center bg-zinc-900 text-zinc-400 p-6 text-center">
+              <div className="text-4xl mb-4">🗺️</div>
+              <h3 className="text-lg font-semibold text-white">Google Maps no configurado</h3>
+              <p className="text-sm text-zinc-500 max-w-md mt-2">
+                Falta la variable de entorno <code className="bg-zinc-800 text-amber-500 px-1.5 py-0.5 rounded text-xs">NEXT_PUBLIC_GOOGLE_MAPS_KEY</code>.
+                Agrega la API Key en tu archivo <code className="bg-zinc-800 text-zinc-300 px-1.5 py-0.5 rounded text-xs">.env</code> para activar el mapa interactivo.
+              </p>
             </div>
           )}
 
-          {/* Pins de última ubicación conocida (cargados del servidor) */}
-          {!pinPos && ultimasUbicaciones.map((ub) => {
-            const pos = gpsAporcentaje(ub.lat, ub.lng);
-            return (
-              <div
-                key={ub.id}
-                className="absolute -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none"
-                style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
-              >
-                <div className="relative h-4 w-4 rounded-full bg-blue-500/50 ring-2 ring-blue-500/30" />
-                <div className="absolute left-5 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-md bg-zinc-900/80 px-1.5 py-0.5 text-[9px] text-zinc-300 ring-1 ring-white/10">
-                  {ub.repartidor.nombre.split(" ")[0]}
-                </div>
-              </div>
-            );
-          })}
-
           {/* Botones de Control */}
-          <div className="absolute left-4 top-4 flex flex-col gap-2">
+          <div className="absolute left-4 top-4 flex flex-col gap-2 z-10">
             {[Layers, Maximize2, Navigation].map((Icon, i) => (
               <button
                 key={i}
@@ -177,7 +198,7 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
           </div>
 
           {/* Indicador Realtime */}
-          <div className="absolute top-4 right-4">
+          <div className="absolute top-4 right-4 z-10">
             <div className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium backdrop-blur border ${
               conectado
                 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
@@ -189,7 +210,7 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
           </div>
 
           {/* Barra inferior con métricas */}
-          <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between rounded-xl bg-zinc-900/70 backdrop-blur-lg border border-white/5 px-4 py-2.5 text-xs">
+          <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between rounded-xl bg-zinc-900/70 backdrop-blur-lg border border-white/5 px-4 py-2.5 text-xs z-10">
             <div className="flex items-center gap-5">
               <span className="text-zinc-400">
                 En ruta: <span className="font-mono text-amber-400 font-semibold">{enRuta.length}</span>
@@ -207,6 +228,7 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
           </div>
         </div>
       </div>
+
 
       {/* Sidebar Derecha — Lista de pedidos activos */}
       <aside className="hidden w-[360px] shrink-0 flex-col border-l border-zinc-800 bg-zinc-950/50 backdrop-blur-xl lg:flex z-10">
