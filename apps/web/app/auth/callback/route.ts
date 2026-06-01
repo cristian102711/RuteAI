@@ -4,7 +4,8 @@ import { logAuthEvent } from '@/lib/authLogger';
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
-  const code = searchParams.get('code');
+  const code  = searchParams.get('code');
+  const error = searchParams.get('error');
 
   // Detectar y forzar protocolo seguro HTTPS en producción
   const isLocalEnv = process.env.NODE_ENV === 'development';
@@ -18,11 +19,18 @@ export async function GET(request: Request) {
     JSON.stringify({
       event: 'oauth.callback.start',
       hasCode: !!code,
+      hasError: !!error,
       origin,
       redirectBase,
       timestamp: new Date().toISOString(),
     })
   );
+
+  // Google rechazó el acceso (el usuario canceló o denegó permisos)
+  if (error) {
+    console.warn('[OAuth Callback] Google devolvió error:', error);
+    return NextResponse.redirect(`${redirectBase}/login?error=oauth_cancelled`);
+  }
 
   try {
     if (!code) {
@@ -33,14 +41,14 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const {
       data: { user },
-      error,
+      error: exchangeError,
     } = await supabase.auth.exchangeCodeForSession(code);
 
-    if (error || !user) {
+    if (exchangeError || !user) {
       console.error(
         JSON.stringify({
           event: 'oauth.callback.exchange_failed',
-          error: error?.message ?? 'No user returned',
+          error: exchangeError?.message ?? 'No user returned',
           timestamp: new Date().toISOString(),
         })
       );
@@ -50,13 +58,13 @@ export async function GET(request: Request) {
         email: 'unknown',
         provider: 'google',
         status: 'failed',
-        error: error?.message ?? 'Error en intercambio de código',
+        error: exchangeError?.message ?? 'Error en intercambio de código',
       });
 
       return NextResponse.redirect(`${redirectBase}/login?error=auth_failed`);
     }
 
-    // Sesión establecida correctamente
+    // ── Sesión establecida correctamente ──────────────────────────────────
     console.log(
       JSON.stringify({
         event: 'oauth.callback.session_ok',
@@ -73,46 +81,63 @@ export async function GET(request: Request) {
       status: 'success',
     });
 
-    // Buscar rol del usuario en la DB vía Admin Client
-    // Si falla (ej: env var ausente en Vercel), redirige a /dashboard como fallback seguro
+    // ── Buscar rol del usuario en la DB vía Admin Client ──────────────────
+    // Si falta SUPABASE_SERVICE_ROLE_KEY en Vercel, redirige a /onboarding
+    // como fallback seguro (el usuario configurará su empresa allí).
     let usuarioDB: { id: string; rol: string } | null = null;
 
     try {
-      // Import dinámico para evitar que un throw en la inicialización rompa el flujo
-      const { createAdminClient } = await import('@/lib/supabaseAdmin');
-      const admin = createAdminClient();
-      const { data, error: dbError } = await admin
-        .from('Usuario')
-        .select('id, rol')
-        .eq('id', user.id)
-        .single();
+      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
-      if (dbError) {
+      if (!serviceKey || !supabaseUrl) {
+        // Variables de entorno ausentes → enviar a onboarding
         console.warn(
           JSON.stringify({
-            event: 'oauth.callback.db_warn',
-            warning: dbError.message,
-            userId: user.id,
+            event: 'oauth.callback.missing_env',
+            missing: !serviceKey ? 'SUPABASE_SERVICE_ROLE_KEY' : 'NEXT_PUBLIC_SUPABASE_URL',
+            fallback: '/onboarding',
             timestamp: new Date().toISOString(),
           })
         );
       } else {
-        usuarioDB = data;
+        const { createAdminClient } = await import('@/lib/supabaseAdmin');
+        const admin = createAdminClient();
+        const { data, error: dbError } = await admin
+          .from('Usuario')
+          .select('id, rol')
+          .eq('id', user.id)
+          .single();
+
+        if (dbError && dbError.code !== 'PGRST116') {
+          // PGRST116 = "no rows found" (usuario nuevo), otros errores son inesperados
+          console.warn(
+            JSON.stringify({
+              event: 'oauth.callback.db_warn',
+              warning: dbError.message,
+              code: dbError.code,
+              userId: user.id,
+              timestamp: new Date().toISOString(),
+            })
+          );
+        } else if (data) {
+          usuarioDB = data;
+        }
       }
     } catch (adminErr) {
-      // Fallo silencioso: la sesión ya está establecida, se usa fallback de redirección
       console.error(
         JSON.stringify({
           event: 'oauth.callback.admin_client_error',
           error: adminErr instanceof Error ? adminErr.message : String(adminErr),
-          fallback: '/dashboard',
+          fallback: '/onboarding',
           timestamp: new Date().toISOString(),
         })
       );
     }
 
-    // Si el usuario no tiene fila en Usuario → onboarding
+    // ── Redirigir según estado del usuario ────────────────────────────────
     if (!usuarioDB) {
+      // Usuario nuevo o no encontrado en la DB → onboarding
       console.log(
         JSON.stringify({
           event: 'oauth.callback.redirect',
@@ -125,7 +150,7 @@ export async function GET(request: Request) {
       return NextResponse.redirect(`${redirectBase}/onboarding`);
     }
 
-    // Rutear según rol
+    // Usuario existente → rutear según rol
     const destination =
       usuarioDB.rol === 'super_admin'
         ? '/admin'
