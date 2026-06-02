@@ -65,6 +65,20 @@ export default async function DashboardPage() {
   // 3. Obtención de Datos de la Base de Datos (Multi-Tenant Real)
   const empresaActiva = usuarioDB.empresa;
   
+  // Extraer ubicación dinámica de la configuración guardada
+  const configuracion = (empresaActiva.configuracion ?? {}) as { pais?: string; direccion?: string };
+  // Intentar obtener la ciudad desde la dirección o usar el país; de lo contrario fallback a Bogotá
+  let ubicacionTexto = "Bogotá";
+  if (configuracion.pais) {
+    ubicacionTexto = configuracion.pais;
+  } else if (configuracion.direccion) {
+    // Si hay dirección, intentar tomar la última parte tras la coma como ciudad/región
+    const partes = configuracion.direccion.split(",");
+    if (partes.length > 0) {
+      ubicacionTexto = partes[partes.length - 1].trim();
+    }
+  }
+
   // Obtener pedidos
   const pedidos = await prisma.pedido.findMany({
     where: { empresaId: empresaActiva.id },
@@ -172,7 +186,7 @@ export default async function DashboardPage() {
         <div>
           <div className="text-xs font-bold uppercase tracking-widest text-amber-500">Operación en Vivo</div>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight text-white">
-            {empresaActiva.nombre} · Bogotá
+            {empresaActiva.nombre} · {ubicacionTexto}
           </h1>
           <p className="mt-1 text-sm text-zinc-400">
             {hoyCapitalized} · {conductoresTotales} repartidores registrados · {pedidosDelDia} pedidos totales
