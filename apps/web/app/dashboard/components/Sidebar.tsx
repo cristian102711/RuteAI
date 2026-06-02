@@ -111,14 +111,13 @@ export function Sidebar({ empresaNombre, usuarioNombre, usuarioEmail }: SidebarP
             Asistente IA
           </span>
         </Link>
-
         <Link 
-          href="/dashboard/ajustes" 
-          className={`group flex items-center justify-between rounded-md px-2.5 py-1.5 text-sm transition-colors ${isActive('/dashboard/ajustes') ? 'bg-white/[0.06] text-white ring-1 ring-inset ring-white/10' : 'text-zinc-400 hover:bg-white/[0.04] hover:text-white'}`}
+          href="/dashboard/configuracion" 
+          className={`group flex items-center justify-between rounded-md px-2.5 py-1.5 text-sm transition-colors ${isActive('/dashboard/configuracion') ? 'bg-white/[0.06] text-white ring-1 ring-inset ring-white/10' : 'text-zinc-400 hover:bg-white/[0.04] hover:text-white'}`}
         >
           <span className="flex items-center gap-2.5">
-            <Settings className={`h-4 w-4 ${isActive('/dashboard/ajustes') ? 'text-amber-500' : ''}`} />
-            Ajustes
+            <Settings className={`h-4 w-4 ${isActive('/dashboard/configuracion') ? 'text-amber-500' : ''}`} />
+            Configuración
           </span>
         </Link>
       </nav>
