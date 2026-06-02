@@ -192,7 +192,7 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
             {[Layers, Maximize2, Navigation].map((Icon, i) => (
               <button
                 key={i}
-                className="grid h-9 w-9 place-items-center rounded-md bg-white/5 backdrop-blur-md text-white hover:bg-white/10 transition-colors border border-white/5"
+                className="grid h-9 w-9 place-items-center rounded-md bg-white/5 backdrop-blur-md text-white hover:bg-white/10 transition-colors border border-white/[0.04]"
               >
                 <Icon className="h-4 w-4" />
               </button>
@@ -204,7 +204,7 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
             <div className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium backdrop-blur border ${
               conectado
                 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                : "bg-zinc-800/80 text-zinc-500 border-zinc-700/50"
+                : "bg-zinc-800/80 text-zinc-500 border-white/[0.04]"
             }`}>
               {conectado ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
               {conectado ? "GPS en vivo" : "Conectando..."}
@@ -212,7 +212,7 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
           </div>
 
           {/* Barra inferior con métricas */}
-          <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between rounded-xl bg-zinc-900/70 backdrop-blur-lg border border-white/5 px-4 py-2.5 text-xs z-10">
+          <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between rounded-xl bg-zinc-900/70 backdrop-blur-lg border border-white/[0.04] px-4 py-2.5 text-xs z-10">
             <div className="flex items-center gap-5">
               <span className="text-zinc-400">
                 En ruta: <span className="font-mono text-amber-400 font-semibold">{enRuta.length}</span>
@@ -233,8 +233,8 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
 
 
       {/* Sidebar Derecha — Lista de pedidos activos */}
-      <aside className="hidden w-[360px] shrink-0 flex-col border-l border-zinc-800 bg-zinc-950/50 backdrop-blur-xl lg:flex z-10">
-        <div className="border-b border-zinc-800 p-5">
+      <aside className="hidden w-[360px] shrink-0 flex-col border-l border-white/[0.04] bg-zinc-950/20 backdrop-blur-xl lg:flex z-10">
+        <div className="border-b border-white/[0.04] p-5">
           <div className="text-xs uppercase tracking-widest text-amber-500 font-bold">Ruta activa</div>
           <h2 className="mt-1 text-xl font-semibold text-white">{empresaNombre}</h2>
           <p className="mt-1 text-xs text-zinc-400">{pedidos.length} paradas · Datos en tiempo real</p>
@@ -260,7 +260,7 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
                 }`}
               >
                 {index !== pedidos.length - 1 && (
-                  <div className="absolute left-[1.85rem] top-10 bottom-0 w-px bg-zinc-800" />
+                  <div className="absolute left-[1.85rem] top-10 bottom-0 w-px bg-white/[0.04]" />
                 )}
 
                 <div className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs font-bold z-10 ${

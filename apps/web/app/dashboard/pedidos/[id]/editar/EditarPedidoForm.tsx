@@ -38,7 +38,7 @@ export function EditarPedidoForm({ pedido }: { pedido: Pedido }) {
 
   return (
     <>
-      <header className="mb-8 flex flex-col border-b border-zinc-800/50 pb-6">
+      <header className="mb-8 flex flex-col border-b border-white/[0.04] pb-6">
         <Link href="/dashboard/pedidos" className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors mb-4 text-sm font-medium w-fit">
           <ArrowLeft className="w-4 h-4" /> Volver a Pedidos
         </Link>
@@ -56,7 +56,7 @@ export function EditarPedidoForm({ pedido }: { pedido: Pedido }) {
         </div>
       </header>
 
-      <section className="bg-zinc-900/40 backdrop-blur-md border border-zinc-800/60 rounded-3xl p-8 shadow-xl">
+      <section className="bg-zinc-900/40 backdrop-blur-md border border-white/[0.04] rounded-3xl p-8 shadow-xl">
         <form action={handleSubmit} className="flex flex-col gap-5">
           <div className="grid gap-1.5">
             <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Cliente / Destinatario</label>
@@ -64,7 +64,7 @@ export function EditarPedidoForm({ pedido }: { pedido: Pedido }) {
               name="cliente" 
               required 
               defaultValue={pedido.nombreCliente}
-              className="bg-zinc-950/80 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500/50 text-white transition-all outline-none"
+              className="bg-zinc-950/80 border border-white/[0.04] rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500/50 text-white transition-all outline-none"
             />
           </div>
 
@@ -75,7 +75,7 @@ export function EditarPedidoForm({ pedido }: { pedido: Pedido }) {
               type="tel"
               defaultValue={pedido.clienteTelefono || ""}
               placeholder="Ej: +56912345678"
-              className="bg-zinc-950/80 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500/50 text-white transition-all outline-none"
+              className="bg-zinc-950/80 border border-white/[0.04] rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500/50 text-white transition-all outline-none"
             />
           </div>
 
@@ -85,7 +85,7 @@ export function EditarPedidoForm({ pedido }: { pedido: Pedido }) {
               name="direccion" 
               required 
               defaultValue={pedido.direccion}
-              className="bg-zinc-950/80 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500/50 text-white transition-all outline-none"
+              className="bg-zinc-950/80 border border-white/[0.04] rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500/50 text-white transition-all outline-none"
             />
           </div>
 
@@ -95,14 +95,14 @@ export function EditarPedidoForm({ pedido }: { pedido: Pedido }) {
               name="producto" 
               required 
               defaultValue={pedido.producto}
-              className="bg-zinc-950/80 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500/50 text-white transition-all outline-none"
+              className="bg-zinc-950/80 border border-white/[0.04] rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500/50 text-white transition-all outline-none"
             />
           </div>
 
-          <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-zinc-800/50">
+          <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-white/[0.04]">
             <Link 
               href="/dashboard/pedidos"
-              className="px-5 py-2.5 text-sm font-semibold rounded-xl border border-zinc-700 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all"
+              className="px-5 py-2.5 text-sm font-semibold rounded-xl border border-white/[0.04] text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all"
             >
               Cancelar
             </Link>
