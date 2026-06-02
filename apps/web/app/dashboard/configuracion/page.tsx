@@ -2,12 +2,11 @@
 
 import { useState } from "react";
 import { 
-  Building2, User, BellRing, Sparkles, CreditCard, Code, Shield, 
-  Settings, ChevronRight, Check, Send, Upload, Trash2, Globe, Sliders
+  Building2, User, BellRing, Sparkles, ChevronRight, Send, Upload
 } from "lucide-react";
 import { toast } from "sonner";
 
-type TabId = "empresa" | "perfil" | "notificaciones" | "ia" | "facturacion" | "api" | "seguridad";
+type TabId = "empresa" | "perfil" | "notificaciones" | "ia";
 
 export default function ConfiguracionPage() {
   const [activeTab, setActiveTab] = useState<TabId>("empresa");
@@ -47,10 +46,6 @@ export default function ConfiguracionPage() {
   const [reasignacionAuto, setReasignacionAuto] = useState(false);
   const [validacionDireccion, setValidacionDireccion] = useState(true);
 
-  // API & Webhooks
-  const [apiKey, setApiKey] = useState("sk_live_ruteai_5a9b8c7d6e5f4g3h2i1j0");
-  const [showApiKey, setShowApiKey] = useState(false);
-
   // --- MANEJADORES ---
   const handleGuardarCambios = (seccion: string) => {
     toast.success(`Cambios en "${seccion}" guardados con éxito`, {
@@ -83,9 +78,6 @@ export default function ConfiguracionPage() {
     { id: "perfil", label: "Perfil", icon: User },
     { id: "notificaciones", label: "Notificaciones", icon: BellRing },
     { id: "ia", label: "IA & Optimización", icon: Sparkles },
-    { id: "facturacion", label: "Facturación", icon: CreditCard },
-    { id: "api", label: "API & Webhooks", icon: Code },
-    { id: "seguridad", label: "Seguridad", icon: Shield },
   ];
 
   return (
@@ -114,8 +106,8 @@ export default function ConfiguracionPage() {
                 onClick={() => setActiveTab(item.id as TabId)}
                 className={`w-full flex items-center justify-between px-4 py-3 text-xs font-bold rounded-2xl transition-all ${
                   isSelected
-                    ? "bg-zinc-800 text-amber-500 shadow-md border border-zinc-700/50"
-                    : "text-zinc-400 hover:text-white hover:bg-zinc-800/20"
+                    ? "bg-zinc-850 text-amber-500 shadow-md border border-zinc-700/50"
+                    : "text-zinc-400 hover:text-white hover:bg-zinc-855/20"
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -229,7 +221,7 @@ export default function ConfiguracionPage() {
             <div className="bg-zinc-900/40 backdrop-blur-md border border-zinc-800/80 rounded-3xl p-6 sm:p-8 space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
               <div>
                 <h2 className="text-lg font-extrabold text-white">Tu perfil</h2>
-                <p className="text-xs text-zinc-500 mt-1 font-medium">Información personal y preferencias.</p>
+                <p className="text-xs text-zinc-500 mt-1 font-medium font-sans">Información personal y preferencias.</p>
               </div>
 
               {/* Avatar e info básica */}
@@ -347,7 +339,7 @@ export default function ConfiguracionPage() {
                   <div className="flex items-center justify-between bg-zinc-950/30 border border-zinc-850 p-4 rounded-2xl">
                     <div>
                       <p className="text-xs font-bold text-white">Repartidor sin conexión &gt; 15 min</p>
-                      <p className="text-[10px] text-zinc-500 mt-0.5">Detección automática de pérdida de señal.</p>
+                      <p className="text-[10px] text-zinc-500 mt-0.5 font-sans">Detección automática de pérdida de señal.</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input type="checkbox" className="sr-only peer" checked={notifDesconexion} onChange={() => setNotifDesconexion(!notifDesconexion)} />
@@ -588,168 +580,6 @@ export default function ConfiguracionPage() {
                 </button>
               </div>
 
-            </div>
-          )}
-
-          {/* VISTA 5: FACTURACIÓN */}
-          {activeTab === "facturacion" && (
-            <div className="bg-zinc-900/40 backdrop-blur-md border border-zinc-800/80 rounded-3xl p-6 sm:p-8 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <div>
-                <h2 className="text-lg font-extrabold text-white">Plan actual</h2>
-                <p className="text-xs text-zinc-500 mt-1 font-medium">Estás en Business con renovación mensual.</p>
-              </div>
-
-              {/* Box de Plan */}
-              <div className="bg-zinc-950/60 border border-zinc-850 p-6 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-base font-extrabold text-white">Business</span>
-                    <span className="bg-amber-500/10 border border-amber-500/20 text-amber-500 font-bold text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider">Activo</span>
-                  </div>
-                  <p className="text-[10px] text-zinc-500 mt-1 font-medium">Próxima factura: 14 abril 2025</p>
-                </div>
-                <div className="flex items-baseline gap-1 text-right">
-                  <span className="text-2xl font-black text-white">$899</span>
-                  <span className="text-[10px] text-zinc-500 font-medium">/mes</span>
-                </div>
-              </div>
-
-              {/* Métricas */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-zinc-950/40 border border-zinc-850 p-4 rounded-xl">
-                  <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Entregas / Mes</p>
-                  <p className="text-base font-black text-white mt-1">18.420 / <span className="text-zinc-600 font-normal text-xs">∞</span></p>
-                </div>
-                <div className="bg-zinc-950/40 border border-zinc-850 p-4 rounded-xl">
-                  <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Repartidores</p>
-                  <p className="text-base font-black text-white mt-1">12 / <span className="text-zinc-600 font-normal text-xs">∞</span></p>
-                </div>
-                <div className="bg-zinc-950/40 border border-zinc-850 p-4 rounded-xl">
-                  <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Llamadas API</p>
-                  <p className="text-base font-black text-white mt-1">84.210 / <span className="text-zinc-500 text-xs font-semibold">500.000</span></p>
-                </div>
-              </div>
-
-              {/* Método de pago */}
-              <div className="pt-6 border-t border-zinc-800/60 space-y-4">
-                <h3 className="text-sm font-extrabold text-white">Método de pago</h3>
-                <div className="bg-zinc-950/40 border border-zinc-850 p-4 rounded-2xl flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl">💳</span>
-                    <div>
-                      <p className="text-xs font-bold text-white">VISA •••• •••• •••• 4242</p>
-                      <p className="text-[10px] text-zinc-500 font-medium mt-0.5">Vence 12/27</p>
-                    </div>
-                  </div>
-                  <button className="text-amber-500 hover:text-amber-400 font-bold text-xs">Actualizar</button>
-                </div>
-              </div>
-
-              {/* Historial de Facturas */}
-              <div className="pt-6 border-t border-zinc-800/60 space-y-4">
-                <h3 className="text-sm font-extrabold text-white">Historial de facturas</h3>
-                <div className="space-y-1">
-                  {[
-                    { fecha: "Marzo 2025", monto: "$899.00" },
-                    { fecha: "Febrero 2025", monto: "$899.00" },
-                    { fecha: "Enero 2025", monto: "$899.00" },
-                    { fecha: "Diciembre 2024", monto: "$499.00" }
-                  ].map((inv, index) => (
-                    <div key={index} className="flex items-center justify-between py-3 border-b border-zinc-800/30 text-xs">
-                      <span className="font-semibold text-zinc-300">{inv.fecha}</span>
-                      <div className="flex items-center gap-4">
-                        <span className="font-bold text-white">{inv.monto}</span>
-                        <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Pagada</span>
-                        <button className="text-zinc-500 hover:text-white font-bold text-[10px]">Descargar</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* VISTA 6: API & WEBHOOKS */}
-          {activeTab === "api" && (
-            <div className="bg-zinc-900/40 backdrop-blur-md border border-zinc-800/80 rounded-3xl p-6 sm:p-8 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <div>
-                <h2 className="text-lg font-extrabold text-white">Credenciales API</h2>
-                <p className="text-xs text-zinc-500 mt-1 font-medium font-sans">Integra el motor de geocodificación y optimización de RouteAI con tu propia ERP o ecommerce.</p>
-              </div>
-
-              <div className="space-y-4 bg-zinc-950/60 border border-zinc-850 p-5 rounded-2xl">
-                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block ml-1">Clave de API en Producción</label>
-                <div className="flex items-center gap-3 mt-2">
-                  <input
-                    type={showApiKey ? "text" : "password"}
-                    value={apiKey}
-                    readOnly
-                    className="flex-1 bg-zinc-900 border border-zinc-850 rounded-xl px-4 py-2.5 text-xs text-zinc-300 font-mono outline-none"
-                  />
-                  <button
-                    onClick={() => setShowApiKey(!showApiKey)}
-                    className="border border-zinc-800 hover:bg-zinc-800/50 text-zinc-300 font-bold text-xs px-4 py-2.5 rounded-xl transition"
-                  >
-                    {showApiKey ? "Ocultar" : "Mostrar"}
-                  </button>
-                </div>
-                <p className="text-[10px] text-zinc-500 leading-relaxed font-sans">Nunca compartas tu clave secreta de API en canales públicos ni la dejes expuesta en el código del navegador cliente.</p>
-              </div>
-
-              <div className="pt-4 border-t border-zinc-800/60 space-y-4">
-                <h3 className="text-sm font-extrabold text-white">Webhooks</h3>
-                <p className="text-xs text-zinc-500 font-medium font-sans">Suscríbete a eventos para notificar de forma automática a tus sistemas cuando un pedido sea entregado o falle.</p>
-                <button className="bg-zinc-950 border border-zinc-800 hover:bg-zinc-800/50 text-white font-bold text-xs py-3 px-6 rounded-xl transition">
-                  Configurar Webhook
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* VISTA 7: SEGURIDAD */}
-          {activeTab === "seguridad" && (
-            <div className="bg-zinc-900/40 backdrop-blur-md border border-zinc-800/80 rounded-3xl p-6 sm:p-8 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <div>
-                <h2 className="text-lg font-extrabold text-white">Seguridad de la cuenta</h2>
-                <p className="text-xs text-zinc-500 mt-1 font-medium font-sans">Administra tu contraseña y factores de autenticación.</p>
-              </div>
-
-              <div className="space-y-4 max-w-md">
-                <div>
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Contraseña Actual</label>
-                  <input
-                    type="password"
-                    placeholder="••••••••••••"
-                    className="w-full mt-2 bg-zinc-950/70 border border-zinc-800 rounded-xl px-4 py-3 text-xs text-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Nueva Contraseña</label>
-                  <input
-                    type="password"
-                    placeholder="Mínimo 8 caracteres"
-                    className="w-full mt-2 bg-zinc-950/70 border border-zinc-800 rounded-xl px-4 py-3 text-xs text-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Confirmar Nueva Contraseña</label>
-                  <input
-                    type="password"
-                    placeholder="Confirma tu contraseña"
-                    className="w-full mt-2 bg-zinc-950/70 border border-zinc-800 rounded-xl px-4 py-3 text-xs text-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-6 border-t border-zinc-800/60">
-                <button className="px-5 py-2.5 rounded-xl text-xs font-bold text-zinc-400 hover:text-white transition">Cancelar</button>
-                <button
-                  onClick={() => handleGuardarCambios("Seguridad")}
-                  className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs px-6 py-2.5 rounded-xl transition shadow-lg shadow-amber-500/10 active:scale-95"
-                >
-                  Cambiar contraseña
-                </button>
-              </div>
             </div>
           )}
 
