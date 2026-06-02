@@ -184,3 +184,49 @@ export async function crearEmpresaYUsuario(formData: FormData) {
 
   revalidatePath("/dashboard");
 }
+
+export async function obtenerUbicacionRepartidorPublico(pedidoId: string) {
+  if (!pedidoId) return { error: "ID de pedido no provisto" };
+
+  // Buscar el pedido y su repartidor
+  const pedido = await prisma.pedido.findUnique({
+    where: { id: pedidoId },
+    select: {
+      estado: true,
+      repartidorId: true,
+      lat: true,
+      lng: true,
+    }
+  });
+
+  if (!pedido) {
+    return { error: "Pedido no encontrado" };
+  }
+
+  // Solo exponer si el estado es "en_ruta"
+  if (pedido.estado !== "en_ruta") {
+    return { error: "El pedido no está en ruta" };
+  }
+
+  if (!pedido.repartidorId) {
+    return { error: "No hay repartidor asignado a este pedido" };
+  }
+
+  // Buscar la última ubicación conocida del repartidor
+  const ultimaUbicacion = await prisma.ubicacion.findFirst({
+    where: { repartidorId: pedido.repartidorId },
+    orderBy: { timestamp: "desc" },
+    select: {
+      lat: true,
+      lng: true,
+    }
+  });
+
+  return {
+    success: true,
+    lat: ultimaUbicacion?.lat ?? null,
+    lng: ultimaUbicacion?.lng ?? null,
+    pedidoLat: pedido.lat,
+    pedidoLng: pedido.lng,
+  };
+}
