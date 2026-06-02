@@ -67,8 +67,8 @@ export default async function DashboardPage() {
   
   // Extraer ubicación dinámica de la configuración guardada
   const configuracion = (empresaActiva.configuracion ?? {}) as { pais?: string; direccion?: string };
-  // Intentar obtener la ciudad desde la dirección o usar el país; de lo contrario fallback a Bogotá
-  let ubicacionTexto = "Bogotá";
+  // Intentar obtener la ciudad desde la dirección o usar el país; de lo contrario fallback a Chile
+  let ubicacionTexto = "Chile";
   if (configuracion.pais) {
     ubicacionTexto = configuracion.pais;
   } else if (configuracion.direccion) {
