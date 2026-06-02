@@ -45,9 +45,10 @@ export function FilaPedido({ pedido }: { pedido: Pedido }) {
         </h3>
         
         <div className="grid grid-cols-2 gap-3 mt-3">
-          <input name="producto" defaultValue={pedido.producto} required className="bg-secondary border border-border-ui rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none text-foreground font-bold uppercase transition-all" />
-          <input name="cliente" defaultValue={pedido.nombreCliente} required className="bg-secondary border border-border-ui rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none text-foreground transition-all" />
-          <input name="direccion" defaultValue={pedido.direccion} required className="bg-secondary border border-border-ui rounded-xl px-4 py-2 text-sm col-span-2 focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none text-foreground transition-all" />
+          <input name="producto" defaultValue={pedido.producto} required placeholder="Producto" className="bg-secondary border border-border-ui rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none text-foreground font-bold uppercase transition-all" />
+          <input name="cliente" defaultValue={pedido.nombreCliente} required placeholder="Cliente" className="bg-secondary border border-border-ui rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none text-foreground transition-all" />
+          <input name="clienteTelefono" defaultValue={pedido.clienteTelefono || ""} placeholder="Teléfono (Ej: +56912345678)" className="bg-secondary border border-border-ui rounded-xl px-4 py-2 text-sm col-span-2 focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none text-foreground transition-all" />
+          <input name="direccion" defaultValue={pedido.direccion} required placeholder="Dirección" className="bg-secondary border border-border-ui rounded-xl px-4 py-2 text-sm col-span-2 focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none text-foreground transition-all" />
         </div>
         
         <div className="flex gap-3 justify-end mt-2">
@@ -69,7 +70,7 @@ export function FilaPedido({ pedido }: { pedido: Pedido }) {
           <StatusBadge estado={pedido.estado} />
         </div>
         <p className="text-sm font-semibold text-white">📍 {pedido.direccion}</p>
-        <p className="text-xs text-zinc-500 truncate max-w-[200px] md:max-w-md lg:max-w-xs mt-0.5">👤 {pedido.nombreCliente}</p>
+        <p className="text-xs text-zinc-500 truncate max-w-[200px] md:max-w-md lg:max-w-xs mt-0.5">👤 {pedido.nombreCliente} {pedido.clienteTelefono && `• 📞 ${pedido.clienteTelefono}`}</p>
       </div>
       
       <div className="flex items-center gap-4">

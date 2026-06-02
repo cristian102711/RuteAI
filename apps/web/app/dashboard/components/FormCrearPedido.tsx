@@ -33,6 +33,11 @@ export function FormCrearPedido({ empresaId }: { empresaId: string }) {
         <label className="text-[10px] font-bold text-muted-foreground tracking-widest uppercase ml-1">Destinatario</label>
         <input name="cliente" placeholder="Ej: Juan Pérez" required className="w-full bg-secondary border border-border-ui text-foreground placeholder-muted-foreground/60 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary shadow-sm transition-all text-sm disabled:opacity-50" disabled={isSubmitting} />
       </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[10px] font-bold text-muted-foreground tracking-widest uppercase ml-1">Teléfono Destinatario (SMS/WhatsApp)</label>
+        <input name="clienteTelefono" type="tel" placeholder="Ej: +56912345678" className="w-full bg-secondary border border-border-ui text-foreground placeholder-muted-foreground/60 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary shadow-sm transition-all text-sm disabled:opacity-50" disabled={isSubmitting} />
+      </div>
       
       <div className="flex flex-col gap-1.5">
         <label className="text-[10px] font-bold text-muted-foreground tracking-widest uppercase ml-1">Dirección de Entrega</label>

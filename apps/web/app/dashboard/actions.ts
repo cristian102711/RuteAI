@@ -11,6 +11,7 @@ export async function agregarPedidoNuevo(formData: FormData) {
   const cliente  = formData.get("cliente")  as string;
   const direccion = formData.get("direccion") as string;
   const producto  = formData.get("producto")  as string;
+  const clienteTelefono = formData.get("clienteTelefono") as string;
   
   if (!cliente || !direccion || !producto) return { error: "Faltan datos" };
 
@@ -50,6 +51,7 @@ export async function agregarPedidoNuevo(formData: FormData) {
       nombreCliente: cliente,
       direccion,
       producto,
+      clienteTelefono: clienteTelefono || null,
       lat:         coords?.lat ?? null, // Guardar coordenadas reales
       lng:         coords?.lng ?? null,
       scoreRiesgo: scoreParaBD,
@@ -127,10 +129,11 @@ export async function eliminarPedido(id: string) {
 }
 
 export async function editarPedido(formData: FormData) {
-  const id        = formData.get("pedidoId")  as string;
-  const cliente   = formData.get("cliente")   as string;
-  const direccion = formData.get("direccion") as string;
-  const producto  = formData.get("producto")  as string;
+  const id              = formData.get("pedidoId")        as string;
+  const cliente         = formData.get("cliente")         as string;
+  const direccion       = formData.get("direccion")       as string;
+  const producto        = formData.get("producto")        as string;
+  const clienteTelefono = formData.get("clienteTelefono") as string;
 
   if (!id || !cliente || !direccion || !producto) return { error: "Faltan datos para editar" };
 
@@ -143,6 +146,7 @@ export async function editarPedido(formData: FormData) {
       nombreCliente: cliente,
       direccion,
       producto,
+      clienteTelefono: clienteTelefono || null,
       lat: coords?.lat ?? undefined,
       lng: coords?.lng ?? undefined,
     }

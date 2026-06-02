@@ -12,6 +12,7 @@ interface Pedido {
   nombreCliente: string;
   direccion: string;
   producto: string;
+  clienteTelefono?: string | null;
 }
 
 export function EditarPedidoForm({ pedido }: { pedido: Pedido }) {
@@ -63,6 +64,17 @@ export function EditarPedidoForm({ pedido }: { pedido: Pedido }) {
               name="cliente" 
               required 
               defaultValue={pedido.nombreCliente}
+              className="bg-zinc-950/80 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500/50 text-white transition-all outline-none"
+            />
+          </div>
+
+          <div className="grid gap-1.5">
+            <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Teléfono Destinatario (SMS/WhatsApp)</label>
+            <input 
+              name="clienteTelefono" 
+              type="tel"
+              defaultValue={pedido.clienteTelefono || ""}
+              placeholder="Ej: +56912345678"
               className="bg-zinc-950/80 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500/50 text-white transition-all outline-none"
             />
           </div>
