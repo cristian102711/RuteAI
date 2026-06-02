@@ -20,11 +20,11 @@ export function Sidebar({ empresaNombre, usuarioNombre, usuarioEmail }: SidebarP
   const isActive = (path: string) => pathname === path || pathname?.startsWith(`${path}/`);
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-zinc-800 bg-[#0f0e13] md:flex">
+    <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-zinc-805 bg-[oklch(0.17_0.005_285)] md:flex">
       {/* Logo */}
-      <div className="flex h-16 items-center border-b border-zinc-800 px-5">
+      <div className="flex h-16 items-center border-b border-zinc-850 px-5">
         <div className="flex items-center gap-2.5">
-          <div className="h-8 w-8 relative grid place-items-center rounded-lg bg-gradient-to-br from-amber-500 to-purple-600 shadow-[0_0_15px_rgba(245,158,11,0.4)]">
+          <div className="h-8 w-8 relative grid place-items-center rounded-lg bg-gradient-to-br from-amber-500 to-purple-600 shadow-[0_0_15px_rgba(245,158,11,0.25)]">
             <Route className="h-1/2 w-1/2 text-white" strokeWidth={2.5} />
           </div>
           <span className="text-lg font-semibold tracking-tight text-white">
