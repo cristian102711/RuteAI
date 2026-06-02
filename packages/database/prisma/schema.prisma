@@ -6,10 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-  // directUrl solo se necesita para `prisma migrate`. Como usamos SQL manual,
-  // no es necesaria aquí. Agregar DIRECT_URL a Vercel si se necesita migrar.
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // -------------------------------------------------------------
@@ -18,13 +17,14 @@ datasource db {
 // planActivo controla si la suscripción está vigente.
 // -------------------------------------------------------------
 model Empresa {
-  id         String   @id @default(uuid())
-  nombre     String
-  email      String   @unique
-  plan       String   @default("starter") // starter | pro | business
-  planActivo Boolean  @default(false)
-  activa     Boolean  @default(true)
-  createdAt  DateTime @default(now())
+  id             String   @id @default(uuid())
+  nombre         String
+  email          String   @unique
+  plan           String   @default("starter") // starter | pro | business
+  planActivo     Boolean  @default(false)
+  activa         Boolean  @default(true)
+  configuracion  Json?    // RUT, país, dirección, notificaciones, ajustes IA
+  createdAt      DateTime @default(now())
 
   usuarios      Usuario[]
   pedidos       Pedido[]

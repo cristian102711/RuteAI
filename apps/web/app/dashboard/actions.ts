@@ -264,3 +264,119 @@ export async function actualizarPerfil(nombre: string, telefono: string) {
   revalidatePath("/dashboard/configuracion");
   return { success: true };
 }
+
+// ──────────────────────────────────────────────────────────────
+// Guardar configuración extendida de la empresa (RUT, país, etc.)
+// ──────────────────────────────────────────────────────────────
+export async function actualizarConfiguracionEmpresa(data: {
+  nombre: string;
+  email: string;
+  rut: string;
+  pais: string;
+  zonaHoraria: string;
+  direccion: string;
+}) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+
+  const usuarioDB = await prisma.usuario.findUnique({
+    where: { id: user.id },
+    select: { empresaId: true, empresa: { select: { configuracion: true } } }
+  });
+  if (!usuarioDB) return { error: "Usuario sin empresa" };
+
+  // Merge con la configuración existente para no perder otros campos
+  const configActual = (usuarioDB.empresa?.configuracion as Record<string, unknown>) ?? {};
+
+  await prisma.empresa.update({
+    where: { id: usuarioDB.empresaId },
+    data: {
+      nombre: data.nombre,
+      email: data.email,
+      configuracion: {
+        ...configActual,
+        rut: data.rut,
+        pais: data.pais,
+        zonaHoraria: data.zonaHoraria,
+        direccion: data.direccion,
+      }
+    }
+  });
+
+  revalidatePath("/dashboard/configuracion");
+  return { success: true };
+}
+
+// ──────────────────────────────────────────────────────────────
+// Guardar preferencias de Notificaciones en el campo JSON
+// ──────────────────────────────────────────────────────────────
+export async function actualizarConfiguracionNotificaciones(data: {
+  notifFallo: boolean;
+  notifRiesgo: boolean;
+  notifDesconexion: boolean;
+  notifDiario: boolean;
+  notifSemanal: boolean;
+}) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+
+  const usuarioDB = await prisma.usuario.findUnique({
+    where: { id: user.id },
+    select: { empresaId: true, empresa: { select: { configuracion: true } } }
+  });
+  if (!usuarioDB) return { error: "Usuario sin empresa" };
+
+  const configActual = (usuarioDB.empresa?.configuracion as Record<string, unknown>) ?? {};
+
+  await prisma.empresa.update({
+    where: { id: usuarioDB.empresaId },
+    data: {
+      configuracion: {
+        ...configActual,
+        notificaciones: data,
+      }
+    }
+  });
+
+  revalidatePath("/dashboard/configuracion");
+  return { success: true };
+}
+
+// ──────────────────────────────────────────────────────────────
+// Guardar ajustes de IA & Optimización en el campo JSON
+// ──────────────────────────────────────────────────────────────
+export async function actualizarConfiguracionIA(data: {
+  agresividad: number;
+  modeloActivo: string;
+  recalcularTiempo: string;
+  prediccionFallo: boolean;
+  reasignacionAuto: boolean;
+  validacionDireccion: boolean;
+}) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+
+  const usuarioDB = await prisma.usuario.findUnique({
+    where: { id: user.id },
+    select: { empresaId: true, empresa: { select: { configuracion: true } } }
+  });
+  if (!usuarioDB) return { error: "Usuario sin empresa" };
+
+  const configActual = (usuarioDB.empresa?.configuracion as Record<string, unknown>) ?? {};
+
+  await prisma.empresa.update({
+    where: { id: usuarioDB.empresaId },
+    data: {
+      configuracion: {
+        ...configActual,
+        ia: data,
+      }
+    }
+  });
+
+  revalidatePath("/dashboard/configuracion");
+  return { success: true };
+}
