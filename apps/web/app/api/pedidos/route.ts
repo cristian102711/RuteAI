@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@ruteai/database";
 import { createClient } from "@/lib/supabaseServer";
+import { geocodificarDireccion } from "@/lib/geocodingService";
 
 // Schema Zod para validar la creación de un pedido
 const CrearPedidoSchema = z.object({
@@ -91,24 +92,10 @@ export async function POST(req: NextRequest) {
     const { nombreCliente, clienteTelefono, direccion, producto, horarioPreferido, repartidorId } =
       parsed.data;
 
-    // Geocodificar la dirección con Nominatim de forma asíncrona
-    let lat: number | null = null;
-    let lng: number | null = null;
-
-    try {
-      const query = encodeURIComponent(direccion + ", Chile");
-      const geoRes = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`,
-        { headers: { "User-Agent": "RouteAI-App/1.0 (contact@ruteai.com)" } }
-      );
-      const geoData = await geoRes.json();
-      if (geoData.length > 0) {
-        lat = parseFloat(geoData[0].lat);
-        lng = parseFloat(geoData[0].lon);
-      }
-    } catch {
-      // Geocodificación opcional — no bloquea la creación del pedido
-    }
+    // Geocodificar la dirección con Google Geocoding API
+    const coords = await geocodificarDireccion(direccion);
+    const lat = coords?.lat ?? null;
+    const lng = coords?.lng ?? null;
 
     const pedido = await prisma.pedido.create({
       data: {

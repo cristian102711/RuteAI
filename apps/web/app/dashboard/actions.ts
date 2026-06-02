@@ -117,6 +117,29 @@ export async function marcarComoEntregado(id: string) {
   return { success: true };
 }
 
+export async function asignarRepartidor(pedidoId: string, repartidorId: string | null) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+
+  const usuarioDB = await prisma.usuario.findUnique({
+    where: { id: user.id },
+    select: { empresaId: true, rol: true },
+  });
+
+  if (!usuarioDB || usuarioDB.rol !== "encargado") {
+    return { error: "Solo los encargados pueden asignar repartidores" };
+  }
+
+  await prisma.pedido.update({
+    where: { id: pedidoId, empresaId: usuarioDB.empresaId },
+    data: { repartidorId: repartidorId ?? null },
+  });
+
+  revalidatePath("/dashboard/pedidos");
+  return { success: true };
+}
+
 export async function eliminarPedido(id: string) {
   if (!id) return;
   await prisma.pedido.delete({

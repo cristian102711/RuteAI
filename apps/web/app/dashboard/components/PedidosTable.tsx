@@ -2,9 +2,15 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, Sparkles, Funnel, MoreHorizontal } from "lucide-react";
+import { Search, Sparkles, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { eliminarPedido } from "../actions";
+import { AsignarRepartidor } from "./AsignarRepartidor";
+
+interface Repartidor {
+  id: string;
+  nombre: string;
+}
 
 interface Pedido {
   id: string;
@@ -13,9 +19,15 @@ interface Pedido {
   direccion: string;
   estado: string;
   scoreRiesgo: number | null;
+  repartidorId: string | null;
 }
 
-export function PedidosTable({ pedidos }: { pedidos: Pedido[] }) {
+interface Props {
+  pedidos: Pedido[];
+  repartidores: Repartidor[];
+}
+
+export function PedidosTable({ pedidos, repartidores }: Props) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<string>("Todos");
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
@@ -150,9 +162,7 @@ export function PedidosTable({ pedidos }: { pedidos: Pedido[] }) {
                 const riskScore = o.scoreRiesgo ?? Math.floor(Math.random() * 100);
                 const risk = getRiskBadge(riskScore);
 
-                // Mock repartidor
-                const repartidores = ["Diego Morales", "Camila Ríos", "Mateo Álvarez", "Lucía Ramírez"];
-                const repartidor = repartidores[o.id.charCodeAt(0) % repartidores.length];
+                const esEditable = o.estado === "pendiente" || o.estado === "en_ruta";
 
                 return (
                   <tr key={o.id} className="hover:bg-white/[0.02] transition-colors group">
@@ -160,7 +170,7 @@ export function PedidosTable({ pedidos }: { pedidos: Pedido[] }) {
                     <td className="px-5 py-3 font-medium text-white">{o.nombreCliente}</td>
                     <td className="px-5 py-3 max-w-xs truncate text-zinc-400">{o.direccion}</td>
                     <td className="px-5 py-3 text-zinc-400">{o.producto}</td>
-                    
+
                     {/* Estado */}
                     <td className="px-5 py-3">
                       <span className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${status.classes}`}>
@@ -168,7 +178,7 @@ export function PedidosTable({ pedidos }: { pedidos: Pedido[] }) {
                         {status.label}
                       </span>
                     </td>
-                    
+
                     {/* Riesgo IA */}
                     <td className="px-5 py-3">
                       <div className="inline-flex items-center gap-2">
@@ -181,8 +191,16 @@ export function PedidosTable({ pedidos }: { pedidos: Pedido[] }) {
                         </span>
                       </div>
                     </td>
-                    
-                    <td className="px-5 py-3 text-zinc-400">{repartidor}</td>
+
+                    {/* Repartidor — editable en pedidos activos */}
+                    <td className="px-5 py-3">
+                      <AsignarRepartidor
+                        pedidoId={o.id}
+                        repartidorActualId={o.repartidorId}
+                        repartidores={repartidores}
+                        readonly={!esEditable}
+                      />
+                    </td>
                     
                     {/* Acciones */}
                     <td className="px-5 py-3 text-right">

@@ -56,10 +56,20 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: "No autenticado" }, { status: 401 });
     }
 
+    const usuarioDB = await prisma.usuario.findUnique({
+      where: { id: user.id },
+      select: { empresaId: true },
+    });
+
+    if (!usuarioDB) {
+      return NextResponse.json({ success: false, error: "Usuario no encontrado" }, { status: 404 });
+    }
+
     const repartidorId = req.nextUrl.searchParams.get("repartidorId") ?? user.id;
 
+    // Filtramos por empresaId para evitar que un usuario consulte ubicaciones de otra empresa
     const ultima = await prisma.ubicacion.findFirst({
-      where: { repartidorId },
+      where: { repartidorId, empresaId: usuarioDB.empresaId },
       orderBy: { timestamp: "desc" },
     });
 

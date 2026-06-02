@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { createClient } from "@/lib/supabaseServer";
 
 const ScoreSchema = z.object({
   pedidoId:         z.string(),
@@ -14,6 +15,16 @@ const ScoreSchema = z.object({
 // BFF: apps/web actúa como intermediario entre el cliente y el AI microservice
 export async function POST(req: NextRequest) {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: "No autorizado" },
+        { status: 401 }
+      );
+    }
+
     const body = await req.json();
     const parsed = ScoreSchema.safeParse(body);
 

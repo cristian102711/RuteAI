@@ -1,13 +1,18 @@
 // ============================================================
 // Geocoding Service — RF-02
-// Usa Nominatim (OpenStreetMap) — Gratis, sin API Key
+// Usa Google Geocoding API — mayor precisión para Chile
 // Convierte una dirección de texto en coordenadas lat/lng
 // ============================================================
 
-interface NominatimResult {
-  lat: string;
-  lon: string;
-  display_name: string;
+interface GoogleGeocodingResponse {
+  status: string;
+  results: Array<{
+    formatted_address: string;
+    geometry: {
+      location: { lat: number; lng: number };
+    };
+  }>;
+  error_message?: string;
 }
 
 interface GeocodingResult {
@@ -16,45 +21,43 @@ interface GeocodingResult {
   displayName: string;
 }
 
-/**
- * Geocodifica una dirección de texto a coordenadas GPS.
- * Usa Nominatim (OpenStreetMap) — completamente gratuito.
- *
- * @param direccion - Ej: "Av. Providencia 1234, Santiago"
- * @param pais - Código de país para mejorar la precisión (default: "CL")
- * @returns Coordenadas lat/lng o null si no se encontró
- */
 export async function geocodificarDireccion(
   direccion: string,
-  pais: string = "CL"
+  region: string = "cl"
 ): Promise<GeocodingResult | null> {
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY;
+
+  if (!apiKey) {
+    console.warn("[Geocoding] NEXT_PUBLIC_GOOGLE_MAPS_KEY no configurado");
+    return null;
+  }
+
   try {
-    const query    = encodeURIComponent(`${direccion}, ${pais}`);
-    const url      = `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1&countrycodes=${pais.toLowerCase()}`;
+    const query = encodeURIComponent(direccion);
+    const url   = `https://maps.googleapis.com/maps/api/geocode/json?address=${query}&region=${region}&language=es&key=${apiKey}`;
 
     const response = await fetch(url, {
-      headers: {
-        // Nominatim requiere un User-Agent identificativo
-        "User-Agent": "RuteAI/1.0 (ruteai.vercel.app)",
-      },
-      // Timeout de 5 segundos para no bloquear la creación del pedido
       signal: AbortSignal.timeout(5000),
     });
 
     if (!response.ok) return null;
 
-    const results = await response.json() as NominatimResult[];
+    const data = await response.json() as GoogleGeocodingResponse;
 
-    if (!results || results.length === 0) return null;
+    if (data.status !== "OK" || data.results.length === 0) {
+      if (data.status !== "ZERO_RESULTS") {
+        console.warn(`[Geocoding] Google API respondió con status: ${data.status}`);
+      }
+      return null;
+    }
 
-    const [primer] = results;
+    const { lat, lng } = data.results[0].geometry.location;
     return {
-      lat:         parseFloat(primer.lat),
-      lng:         parseFloat(primer.lon),
-      displayName: primer.display_name,
+      lat,
+      lng,
+      displayName: data.results[0].formatted_address,
     };
   } catch (error) {
-    // No lanzamos error — la creación del pedido continúa sin coordenadas
     console.warn(`[Geocoding] No se pudo geocodificar "${direccion}":`, error);
     return null;
   }

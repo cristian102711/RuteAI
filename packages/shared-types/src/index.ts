@@ -1,5 +1,5 @@
 // packages/shared-types/src/index.ts
-// Interfaces TypeScript compartidas entre apps/web y apps/mobile
+// Interfaces TypeScript compartidas entre los servicios y apps/web
 // Derivadas de los 7 modelos Prisma de RuteAI
 
 // ── Union types para campos string con valores fijos ──────────────
