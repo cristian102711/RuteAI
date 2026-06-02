@@ -1,12 +1,27 @@
 "use client";
 
 import { createCompany } from "./actions";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Building2, User, ArrowRight, Sparkles, Route } from "lucide-react";
 import { toast } from "sonner";
 
 export default function OnboardingPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const [nombre, setNombre] = useState("");
+  const [empresa, setEmpresa] = useState("");
+
+  useEffect(() => {
+    // Intentar leer de localStorage si viene del registro inmediato
+    const localNombre = localStorage.getItem("onboarding_nombre");
+    const localEmpresa = localStorage.getItem("onboarding_empresa");
+    
+    if (localNombre) setNombre(localNombre);
+    if (localEmpresa) setEmpresa(localEmpresa);
+
+    // Limpiar localStorage para no dejar residuos
+    if (localNombre) localStorage.removeItem("onboarding_nombre");
+    if (localEmpresa) localStorage.removeItem("onboarding_empresa");
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -74,6 +89,8 @@ export default function OnboardingPage() {
                   name="nombre"
                   type="text"
                   placeholder="Ej. Juan Pérez"
+                  value={nombre}
+                  onChange={(e) => setNombre(e.target.value)}
                   required
                   disabled={isLoading}
                   className="w-full bg-white/[0.03] border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-sm text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/40 transition disabled:opacity-50"
@@ -90,6 +107,8 @@ export default function OnboardingPage() {
                   name="empresa"
                   type="text"
                   placeholder="Ej. Distribuidora del Valle"
+                  value={empresa}
+                  onChange={(e) => setEmpresa(e.target.value)}
                   required
                   disabled={isLoading}
                   className="w-full bg-white/[0.03] border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-sm text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/40 transition disabled:opacity-50"
