@@ -230,3 +230,37 @@ export async function obtenerUbicacionRepartidorPublico(pedidoId: string) {
     pedidoLng: pedido.lng,
   };
 }
+
+export async function actualizarEmpresa(nombre: string, email: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+
+  const usuarioDB = await prisma.usuario.findUnique({
+    where: { id: user.id },
+    select: { empresaId: true }
+  });
+  if (!usuarioDB) return { error: "Usuario sin empresa" };
+
+  await prisma.empresa.update({
+    where: { id: usuarioDB.empresaId },
+    data: { nombre, email }
+  });
+
+  revalidatePath("/dashboard/configuracion");
+  return { success: true };
+}
+
+export async function actualizarPerfil(nombre: string, telefono: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+
+  await prisma.usuario.update({
+    where: { id: user.id },
+    data: { nombre, telefono }
+  });
+
+  revalidatePath("/dashboard/configuracion");
+  return { success: true };
+}
