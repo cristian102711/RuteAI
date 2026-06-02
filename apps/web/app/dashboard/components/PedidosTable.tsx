@@ -81,21 +81,21 @@ export function PedidosTable({ pedidos }: { pedidos: Pedido[] }) {
   };
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-white/5 overflow-hidden">
+    <div className="rounded-xl border border-white/[0.04] bg-white/5 overflow-hidden">
       
       {/* Controles de tabla */}
-      <div className="flex flex-wrap items-center gap-3 border-b border-zinc-800 p-3 bg-zinc-950/50">
+      <div className="flex flex-wrap items-center gap-3 border-b border-white/[0.04] p-3 bg-zinc-950/20">
         <div className="relative flex-1 max-w-sm">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
           <input
             placeholder="Buscar cliente, ID o dirección…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="h-9 w-full rounded-md border border-zinc-800 bg-white/5 pl-9 text-sm placeholder:text-zinc-500 text-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 transition-shadow"
+            className="h-9 w-full rounded-md border border-white/[0.04] bg-white/5 pl-9 text-sm placeholder:text-zinc-500 text-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 transition-shadow"
           />
         </div>
         
-        <div className="flex flex-wrap items-center gap-1 rounded-md border border-zinc-800 bg-white/5 p-0.5 text-xs">
+        <div className="flex flex-wrap items-center gap-1 rounded-md border border-white/[0.04] bg-white/5 p-0.5 text-xs">
           {filters.map((f) => (
             <button
               key={f}
@@ -111,7 +111,7 @@ export function PedidosTable({ pedidos }: { pedidos: Pedido[] }) {
           ))}
         </div>
         
-        <button className="inline-flex items-center gap-1.5 rounded-md border border-zinc-800 bg-white/5 px-3 py-1.5 text-xs text-zinc-300 hover:bg-white/10 transition-colors">
+        <button className="inline-flex items-center gap-1.5 rounded-md border border-white/[0.04] bg-white/5 px-3 py-1.5 text-xs text-zinc-300 hover:bg-white/10 transition-colors">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-filter h-3.5 w-3.5" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
           Riesgo IA
         </button>
@@ -120,8 +120,8 @@ export function PedidosTable({ pedidos }: { pedidos: Pedido[] }) {
       {/* Tabla */}
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="text-left text-xs uppercase tracking-wider text-zinc-500 bg-zinc-950/50">
-            <tr className="border-b border-zinc-800">
+          <thead className="text-left text-xs uppercase tracking-wider text-zinc-500 bg-zinc-950/20">
+            <tr className="border-b border-white/[0.04]">
               <th className="px-5 py-3 font-medium">ID</th>
               <th className="px-5 py-3 font-medium">Cliente</th>
               <th className="px-5 py-3 font-medium">Destino</th>
@@ -136,7 +136,7 @@ export function PedidosTable({ pedidos }: { pedidos: Pedido[] }) {
               <th className="px-5 py-3"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-800">
+          <tbody className="divide-y divide-white/[0.04]">
             {filtered.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-5 py-8 text-center text-zinc-500">
