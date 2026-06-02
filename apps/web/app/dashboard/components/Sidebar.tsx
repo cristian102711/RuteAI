@@ -20,9 +20,9 @@ export function Sidebar({ empresaNombre, usuarioNombre, usuarioEmail }: SidebarP
   const isActive = (path: string) => pathname === path || pathname?.startsWith(`${path}/`);
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-zinc-805 bg-[oklch(0.17_0.005_285)] md:flex">
+    <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-white/[0.04] bg-[oklch(0.17_0.005_285)] md:flex">
       {/* Logo */}
-      <div className="flex h-16 items-center border-b border-zinc-850 px-5">
+      <div className="flex h-16 items-center border-b border-white/[0.04] px-5">
         <div className="flex items-center gap-2.5">
           <div className="h-8 w-8 relative grid place-items-center rounded-lg bg-gradient-to-br from-amber-500 to-purple-600 shadow-[0_0_15px_rgba(245,158,11,0.25)]">
             <Route className="h-1/2 w-1/2 text-white" strokeWidth={2.5} />
@@ -34,7 +34,7 @@ export function Sidebar({ empresaNombre, usuarioNombre, usuarioEmail }: SidebarP
       </div>
 
       {/* Selector de Empresa */}
-      <div className="border-b border-zinc-800 px-3 py-3">
+      <div className="border-b border-white/[0.04] px-3 py-3">
         <button className="flex w-full items-center justify-between rounded-lg bg-white/5 px-2.5 py-2 text-left ring-1 ring-inset ring-white/5 hover:bg-white/10 transition">
           <div className="flex items-center gap-2.5">
             <div className="grid h-7 w-7 place-items-center rounded-md bg-gradient-to-br from-amber-500/30 to-purple-500/30 text-xs font-bold text-white">
@@ -123,7 +123,7 @@ export function Sidebar({ empresaNombre, usuarioNombre, usuarioEmail }: SidebarP
       </nav>
 
       {/* Perfil Usuario */}
-      <div className="border-t border-zinc-800 p-3">
+      <div className="border-t border-white/[0.04] p-3">
         <div className="flex items-center gap-2.5 rounded-lg p-2 hover:bg-white/5 transition group relative">
           <div className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-amber-500 to-purple-600 text-xs font-bold text-white">
             {usuarioNombre.substring(0, 2).toUpperCase()}
