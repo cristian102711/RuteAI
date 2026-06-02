@@ -144,14 +144,12 @@ export default function LoginPage() {
         }
         router.refresh();
       } else {
-        // Validación básica
         if (!nombreCompleto || !nombreEmpresa) {
           toast.error("Por favor completa tu nombre y el de tu empresa.", { id: "auth" });
           setIsLoading(false);
           return;
         }
 
-        // Guardar valores en localStorage para auto-llenar el onboarding en caso de redirección automática
         localStorage.setItem("onboarding_nombre", nombreCompleto);
         localStorage.setItem("onboarding_empresa", nombreEmpresa);
 
@@ -176,12 +174,9 @@ export default function LoginPage() {
 
         toast.success("¡Cuenta creada con éxito! Entrando al sistema...", { id: "auth" });
         
-        // Auto-login tras registro si es posible
         if (data?.session) {
           router.push("/onboarding");
         } else {
-          // Si requiere confirmación de email (por configuración de Supabase),
-          // igual lo pasamos a login para que pueda entrar.
           setMode("login");
         }
       }
@@ -194,43 +189,40 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#070709] text-zinc-50 flex flex-col lg:flex-row relative overflow-hidden font-sans selection:bg-amber-500/30">
+    <div className="min-h-screen bg-[#09090b] text-zinc-50 flex flex-col lg:flex-row relative overflow-hidden font-sans selection:bg-amber-500/30">
 
-      {/* Grid y gradientes de fondo decorativos */}
+      {/* Override de estilos para el autofill de Google Chrome e inputs */}
       <style dangerouslySetInnerHTML={{__html: `
-        .bg-grid {
-          background-size: 50px 50px;
-          background-image: linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-                            linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover, 
+        input:-webkit-autofill:focus, 
+        input:-webkit-autofill:active {
+          -webkit-box-shadow: 0 0 0 30px #131316 inset !important;
+          -webkit-text-fill-color: #f4f4f5 !important;
+          transition: background-color 5000s ease-in-out 0s;
         }
-        .text-gradient-amber {
-          background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-        }
-        .text-gradient-brand {
+        .text-gradient-pink-purple {
           background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
         }
       `}} />
 
-      {/* Fondos radiales e iluminación */}
+      {/* Iluminación de fondo radial suave y moderna (sin cuadricula) */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="absolute inset-0 bg-grid opacity-70" />
-        <div className="absolute top-[-20%] left-[-15%] w-[800px] h-[800px] bg-purple-600/10 rounded-full blur-[140px] animate-pulse" style={{ animationDuration: '10s' }} />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[700px] h-[700px] bg-amber-500/10 rounded-full blur-[140px] animate-pulse" style={{ animationDuration: '12s', animationDelay: '2s' }} />
+        <div className="absolute top-[-10%] left-[-15%] w-[850px] h-[850px] bg-amber-500/[0.04] rounded-full blur-[140px] animate-pulse" style={{ animationDuration: '14s' }} />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[900px] h-[900px] bg-purple-600/[0.05] rounded-full blur-[150px] animate-pulse" style={{ animationDuration: '12s', animationDelay: '2s' }} />
       </div>
 
       {/* Botón Volver al Sitio (Top Right Absoluto) */}
       <div className="absolute top-6 right-6 lg:top-8 lg:right-12 z-50">
-        <Link href="/" className="text-zinc-400 hover:text-zinc-200 transition-colors text-xs font-semibold flex items-center gap-1.5 bg-zinc-900/40 backdrop-blur-md px-4 py-2 rounded-full border border-zinc-800/80 hover:border-zinc-700">
+        <Link href="/" className="text-zinc-400 hover:text-zinc-200 transition-colors text-xs font-semibold flex items-center gap-1.5 bg-[#121214]/60 backdrop-blur-md px-4 py-2.5 rounded-full border border-zinc-800/80 hover:border-zinc-700">
           <span>←</span>
           <span>Volver al sitio</span>
         </Link>
       </div>
 
-      {/* 1. COLUMNA IZQUIERDA: PRESENTACIÓN MARKETING DE LA IA (Oculto en móvil) */}
+      {/* 1. COLUMNA IZQUIERDA: PANEL DE MARKETING */}
       <div className="hidden lg:flex w-1/2 flex-col justify-between p-16 xl:p-24 relative z-10">
         {/* Header - Logo */}
         <Link href="/" className="flex items-center gap-3 hover:opacity-90 transition self-start">
@@ -238,14 +230,14 @@ export default function LoginPage() {
             <Route className="h-5 w-5 text-white" strokeWidth={2.5} />
           </div>
           <span className="text-2xl font-bold tracking-tight text-white">
-            Route<span className="text-gradient-brand font-black">AI</span>
+            Route<span className="text-gradient-pink-purple font-black">AI</span>
           </span>
         </Link>
 
         {/* Bloque Central de Textos */}
         <div className="my-auto max-w-lg space-y-8 pt-12">
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 border border-zinc-800 bg-zinc-900/40 backdrop-blur-md px-3.5 py-1.5 rounded-full text-xs font-semibold text-zinc-300 shadow-sm">
+          <div className="inline-flex items-center gap-2 border border-zinc-800/60 bg-zinc-900/30 backdrop-blur-md px-3.5 py-1.5 rounded-full text-xs font-semibold text-zinc-300 shadow-sm">
             <span className="flex h-2 w-2 relative">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
@@ -256,7 +248,7 @@ export default function LoginPage() {
 
           {/* Headline */}
           <h1 className="text-5xl xl:text-6xl font-black text-white leading-[1.1] tracking-tight">
-            La operación que <span className="text-gradient-amber">se optimiza sola.</span>
+            La operación que <span className="text-[#f5a623]">se</span> optimiza <span className="bg-gradient-to-r from-[#ec4899] to-[#a855f7] bg-clip-text text-transparent">sola.</span>
           </h1>
 
           {/* Subheadline */}
@@ -268,7 +260,7 @@ export default function LoginPage() {
           <div className="space-y-5 pt-4">
             {/* Feature 1 */}
             <div className="flex items-start gap-4 group">
-              <div className="h-10 w-10 shrink-0 grid place-items-center rounded-xl bg-zinc-900/60 border border-zinc-800 text-amber-500 shadow-sm group-hover:border-amber-500/30 transition-all duration-300">
+              <div className="h-10 w-10 shrink-0 grid place-items-center rounded-xl bg-zinc-900/30 border border-zinc-800 text-amber-500 shadow-sm group-hover:border-amber-500/40 transition-all duration-300">
                 <Zap className="h-5 w-5" />
               </div>
               <div>
@@ -279,7 +271,7 @@ export default function LoginPage() {
 
             {/* Feature 2 */}
             <div className="flex items-start gap-4 group">
-              <div className="h-10 w-10 shrink-0 grid place-items-center rounded-xl bg-zinc-900/60 border border-zinc-800 text-purple-500 shadow-sm group-hover:border-purple-500/30 transition-all duration-300">
+              <div className="h-10 w-10 shrink-0 grid place-items-center rounded-xl bg-zinc-900/30 border border-zinc-800 text-purple-500 shadow-sm group-hover:border-purple-500/40 transition-all duration-300">
                 <ShieldAlert className="h-5 w-5" />
               </div>
               <div>
@@ -290,7 +282,7 @@ export default function LoginPage() {
 
             {/* Feature 3 */}
             <div className="flex items-start gap-4 group">
-              <div className="h-10 w-10 shrink-0 grid place-items-center rounded-xl bg-zinc-900/60 border border-zinc-800 text-cyan-400 shadow-sm group-hover:border-cyan-400/30 transition-all duration-300">
+              <div className="h-10 w-10 shrink-0 grid place-items-center rounded-xl bg-zinc-900/30 border border-zinc-800 text-cyan-400 shadow-sm group-hover:border-cyan-400/40 transition-all duration-300">
                 <Globe className="h-5 w-5" />
               </div>
               <div>
@@ -304,10 +296,10 @@ export default function LoginPage() {
         {/* Footer de la columna izquierda (Avatar Stack) */}
         <div className="flex items-center gap-3">
           <div className="flex -space-x-2">
-            <span className="h-6 w-6 rounded-full bg-amber-500 border-2 border-[#070709] shrink-0" />
-            <span className="h-6 w-6 rounded-full bg-purple-500 border-2 border-[#070709] shrink-0" />
-            <span className="h-6 w-6 rounded-full bg-cyan-400 border-2 border-[#070709] shrink-0" />
-            <span className="h-6 w-6 rounded-full bg-emerald-400 border-2 border-[#070709] shrink-0" />
+            <span className="h-6 w-6 rounded-full bg-amber-500 border-2 border-[#09090b] shrink-0" />
+            <span className="h-6 w-6 rounded-full bg-purple-500 border-2 border-[#09090b] shrink-0" />
+            <span className="h-6 w-6 rounded-full bg-cyan-400 border-2 border-[#09090b] shrink-0" />
+            <span className="h-6 w-6 rounded-full bg-emerald-400 border-2 border-[#09090b] shrink-0" />
           </div>
           <span className="text-xs text-zinc-500 font-medium">
             +240 empresas en LATAM ya optimizan con RouteAI.
@@ -315,23 +307,23 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* 2. COLUMNA DERECHA: CARD DE AUTENTICACIÓN (LOGIN/CREACIÓN) */}
+      {/* 2. COLUMNA DERECHA: CARD DE AUTENTICACIÓN (LOGIN/CREACIÓN) - AHORA MÁS ANCHA */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 md:p-16 lg:p-24 relative z-10 min-h-screen">
-        {/* Contenedor principal de la tarjeta */}
-        <div className="w-full max-w-[460px] bg-[#0c0c0e]/50 backdrop-blur-xl border border-zinc-800/80 rounded-[28px] p-8 sm:p-10 shadow-2xl relative overflow-hidden flex flex-col group/card ring-1 ring-white/[0.02]">
+        {/* Contenedor principal de la tarjeta (Expandido a max-w-[520px]) */}
+        <div className="w-full max-w-[520px] bg-[#121214]/65 backdrop-blur-xl border border-zinc-800/80 rounded-[28px] p-8 sm:p-10 shadow-2xl relative overflow-hidden flex flex-col group/card ring-1 ring-white/[0.02]">
           
           {/* Barra de progreso de acento sutil */}
           <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-amber-500 via-purple-600 to-cyan-400 opacity-60" />
 
           {/* Selector de Modo (Tabs Capsule) */}
-          <div className="flex gap-1 bg-[#040405]/80 rounded-[16px] p-1 mb-8 border border-zinc-800/40">
+          <div className="flex gap-1 bg-[#09090b]/90 rounded-[16px] p-1.5 mb-8 border border-zinc-800/40">
             <button
               type="button"
               onClick={() => { setMode("login"); }}
               disabled={isLoading}
               className={`flex-1 py-3 text-xs font-semibold rounded-[12px] transition-all duration-300 ${
                 mode === "login"
-                  ? "bg-zinc-800/70 text-white font-bold border border-zinc-700/50 shadow-sm"
+                  ? "bg-zinc-800/60 text-white font-bold border border-zinc-700/50 shadow-sm"
                   : "text-zinc-500 hover:text-zinc-300"
               }`}
             >
@@ -343,7 +335,7 @@ export default function LoginPage() {
               disabled={isLoading}
               className={`flex-1 py-3 text-xs font-semibold rounded-[12px] transition-all duration-300 ${
                 mode === "register"
-                  ? "bg-zinc-800/70 text-white font-bold border border-zinc-700/50 shadow-sm"
+                  ? "bg-zinc-800/60 text-white font-bold border border-zinc-700/50 shadow-sm"
                   : "text-zinc-500 hover:text-zinc-300"
               }`}
             >
@@ -379,7 +371,7 @@ export default function LoginPage() {
                       onChange={(e) => setNombreCompleto(e.target.value)}
                       required
                       disabled={isLoading}
-                      className="w-full bg-[#050506]/40 border border-zinc-800 hover:border-zinc-700 focus:border-amber-500/40 rounded-xl pl-11 pr-4 py-3.5 text-sm text-zinc-200 placeholder-zinc-700 focus:outline-none focus:ring-2 focus:ring-amber-500/10 transition-all duration-300"
+                      className="w-full bg-[#131316]/50 border border-zinc-800/80 hover:border-zinc-700/80 focus:border-amber-500/40 rounded-xl pl-11 pr-4 py-3.5 text-sm text-zinc-200 placeholder-zinc-700 focus:outline-none focus:ring-2 focus:ring-amber-500/10 transition-all duration-300"
                     />
                   </div>
                 </div>
@@ -396,7 +388,7 @@ export default function LoginPage() {
                       onChange={(e) => setNombreEmpresa(e.target.value)}
                       required
                       disabled={isLoading}
-                      className="w-full bg-[#050506]/40 border border-zinc-800 hover:border-zinc-700 focus:border-amber-500/40 rounded-xl pl-11 pr-4 py-3.5 text-sm text-zinc-200 placeholder-zinc-700 focus:outline-none focus:ring-2 focus:ring-amber-500/10 transition-all duration-300"
+                      className="w-full bg-[#131316]/50 border border-zinc-800/80 hover:border-zinc-700/80 focus:border-amber-500/40 rounded-xl pl-11 pr-4 py-3.5 text-sm text-zinc-200 placeholder-zinc-700 focus:outline-none focus:ring-2 focus:ring-amber-500/10 transition-all duration-300"
                     />
                   </div>
                 </div>
@@ -415,7 +407,7 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   disabled={isLoading}
-                  className="w-full bg-[#050506]/40 border border-zinc-800 hover:border-zinc-700 focus:border-amber-500/40 rounded-xl pl-11 pr-4 py-3.5 text-sm text-zinc-200 placeholder-zinc-700 focus:outline-none focus:ring-2 focus:ring-amber-500/10 transition-all duration-300"
+                  className="w-full bg-[#131316]/50 border border-zinc-800/80 hover:border-zinc-700/80 focus:border-amber-500/40 rounded-xl pl-11 pr-4 py-3.5 text-sm text-zinc-200 placeholder-zinc-700 focus:outline-none focus:ring-2 focus:ring-amber-500/10 transition-all duration-300"
                 />
               </div>
             </div>
@@ -432,7 +424,7 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   disabled={isLoading}
-                  className="w-full bg-[#050506]/40 border border-zinc-800 hover:border-zinc-700 focus:border-amber-500/40 rounded-xl pl-11 pr-12 py-3.5 text-sm text-zinc-200 placeholder-zinc-700 focus:outline-none focus:ring-2 focus:ring-amber-500/10 transition-all duration-300"
+                  className="w-full bg-[#131316]/50 border border-zinc-800/80 hover:border-zinc-700/80 focus:border-amber-500/40 rounded-xl pl-11 pr-12 py-3.5 text-sm text-zinc-200 placeholder-zinc-700 focus:outline-none focus:ring-2 focus:ring-amber-500/10 transition-all duration-300"
                 />
                 <button
                   type="button"
@@ -453,7 +445,7 @@ export default function LoginPage() {
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
                     disabled={isLoading}
-                    className="w-4 h-4 rounded border-zinc-800 bg-[#050506]/40 text-amber-500 focus:ring-amber-500/20 focus:ring-offset-0 focus:outline-none transition"
+                    className="w-4 h-4 rounded border-zinc-800 bg-[#131316]/50 text-amber-500 focus:ring-amber-500/20 focus:ring-offset-0 focus:outline-none transition"
                   />
                   <span className="text-xs font-semibold text-zinc-400">Mantener sesión</span>
                 </label>
@@ -474,7 +466,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="mt-4 flex w-full justify-center items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-400 text-zinc-950 font-extrabold py-3.5 rounded-xl hover:opacity-95 transition-all shadow-[0_0_20px_rgba(245,158,11,0.15)] hover:shadow-[0_0_25px_rgba(245,158,11,0.35)] disabled:opacity-75 disabled:cursor-not-allowed group active:scale-[0.98] text-sm tracking-wide"
+              className="mt-4 flex w-full justify-center items-center gap-2 bg-[#f5a623] hover:bg-[#e29312] text-zinc-950 font-extrabold py-4 rounded-xl transition-all shadow-[0_0_20px_rgba(245,166,35,0.15)] hover:shadow-[0_0_25px_rgba(245,166,35,0.3)] disabled:opacity-75 disabled:cursor-not-allowed group active:scale-[0.98] text-sm tracking-wide"
             >
               {isLoading ? (
                 <span className="w-5 h-5 rounded-full border-2 border-zinc-950/20 border-t-zinc-950 animate-spin" />
@@ -494,12 +486,12 @@ export default function LoginPage() {
             <div className="flex-grow border-t border-zinc-800/40"></div>
           </div>
 
-          {/* Botones de Proveedores Sociales (Solo Google) */}
+          {/* Botón de Google */}
           <button
             type="button"
             onClick={handleGoogleLogin}
             disabled={isLoading}
-            className="w-full flex items-center justify-center gap-3 bg-[#111113]/60 hover:bg-[#18181c]/80 border border-zinc-800/80 hover:border-zinc-700 text-zinc-200 font-semibold py-3.5 px-4 rounded-xl transition-all active:scale-[0.98] disabled:opacity-50 text-sm shadow-sm"
+            className="w-full flex items-center justify-center gap-3 bg-[#18181c]/50 hover:bg-[#202024]/70 border border-zinc-800/80 hover:border-zinc-700 text-zinc-200 font-semibold py-3.5 px-4 rounded-xl transition-all active:scale-[0.98] disabled:opacity-50 text-sm shadow-sm"
           >
             <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
