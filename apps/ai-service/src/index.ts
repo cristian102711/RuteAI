@@ -21,8 +21,19 @@ app.use(express.json());
 
 // ── Rutas ─────────────────────────────────────────────────────
 app.use('/api/health',   healthRouter);
-app.use('/api/score',    scoreRouter);
-app.use('/api/optimize', optimizeRouter);
+
+// Middleware de Autenticación
+const requireAiAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const key = req.headers['x-api-key'];
+  if (!process.env.AI_SERVICE_SECRET || key !== process.env.AI_SERVICE_SECRET) {
+    res.status(401).json({ success: false, error: 'No autorizado' });
+    return;
+  }
+  next();
+};
+
+app.use('/api/score',    requireAiAuth, scoreRouter);
+app.use('/api/optimize', requireAiAuth, optimizeRouter);
 
 // ── 404 handler ───────────────────────────────────────────────
 app.use((_req, res) => {

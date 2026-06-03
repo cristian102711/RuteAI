@@ -15,11 +15,8 @@ declare global {
   }
 }
 
-// URL del microservicio de Auth (por defecto localhost:3002)
-const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL ?? 
-  (process.env.NODE_ENV === 'production' 
-    ? 'https://ruteai-auth.vercel.app' 
-    : 'http://localhost:3002');
+// URL del microservicio de Auth
+const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL;
 
 // Tipo de la respuesta del endpoint /api/v1/auth/me
 interface AuthMeResponse {
@@ -43,13 +40,21 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       return;
     }
 
+    if (process.env.NODE_ENV === 'production' && !AUTH_SERVICE_URL) {
+      console.error('[CONFIG] AUTH_SERVICE_URL no está definida.');
+      res.status(500).json({ success: false, error: 'Configuración del servidor incompleta' });
+      return;
+    }
+    const finalAuthUrl = AUTH_SERVICE_URL || 'http://localhost:3002';
+
     // Interrogar al microservicio Auth
-    const response = await fetch(`${AUTH_SERVICE_URL}/api/v1/auth/me`, {
+    const response = await fetch(`${finalAuthUrl}/api/v1/auth/me`, {
       method: "GET",
       headers: {
         "Authorization": authHeader,
         "Content-Type": "application/json",
       },
+      signal: AbortSignal.timeout(5000),
     });
 
     if (!response.ok) {
@@ -67,6 +72,10 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     req.user = data.data.usuario;
     next();
   } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      res.status(503).json({ success: false, error: 'Servicio de autenticación no disponible' });
+      return;
+    }
     res.status(500).json({ success: false, error: "Error validando la sesión" });
   }
 }

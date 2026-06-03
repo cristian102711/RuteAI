@@ -359,18 +359,18 @@ de PrismaClient si no se configura bien el singleton.
 
 | ID | Descripción | Severidad | Estado |
 |---|---|---|---|
-| C-1 | BFF no devuelve tokens tras login | 🔴 Crítico | ⬜ Pendiente |
-| A-1 | CORS abierto en Auth y Core | 🟠 Alto | ⬜ Pendiente |
-| A-2 | AI Service sin autenticación | 🟠 Alto | ⬜ Pendiente |
-| M-1 | Timeout ausente en middleware Core | 🟡 Medio | ⬜ Pendiente |
-| M-2 | Build command vacío en AI Service | 🟡 Medio | ⬜ Pendiente |
-| M-3 | CORE_SERVICE_URL sin implementar | 🟡 Medio | ⬜ Pendiente |
-| M-4 | OPENROUTER_API_KEY sin implementar | 🟡 Medio | ⬜ Pendiente |
-| M-5 | Fallbacks a localhost sin error explícito | 🟡 Medio | ⬜ Pendiente |
-| B-1 | Paquete @ruteai/shared sin usar | 🟢 Bajo | ⬜ Pendiente |
-| B-2 | Respuestas BFF inconsistentes | 🟢 Bajo | ⬜ Pendiente |
-| B-3 | BFF accede a Prisma directamente | 🟢 Bajo | ⬜ Pendiente |
-| B-4 | Core usa Prisma con ruta relativa | 🟢 Bajo | ⬜ Pendiente |
+| C-1 | BFF no devuelve tokens tras login | 🔴 Crítico | ✅ Resuelto |
+| A-1 | CORS abierto en Auth y Core | 🟠 Alto | ✅ Resuelto |
+| A-2 | AI Service sin autenticación | 🟠 Alto | ✅ Resuelto |
+| M-1 | Timeout ausente en middleware Core | 🟡 Medio | ✅ Resuelto |
+| M-2 | Build command vacío en AI Service | 🟡 Medio | ✅ Resuelto |
+| M-3 | CORE_SERVICE_URL sin implementar | 🟡 Medio | ✅ Resuelto |
+| M-4 | OPENROUTER_API_KEY sin implementar | 🟡 Medio | ✅ Resuelto |
+| M-5 | Fallbacks a localhost sin error explícito | 🟡 Medio | ✅ Resuelto |
+| B-1 | Paquete @ruteai/shared sin usar | 🟢 Bajo | ✅ Resuelto |
+| B-2 | Respuestas BFF inconsistentes | 🟢 Bajo | ✅ Resuelto |
+| B-3 | BFF accede a Prisma directamente | 🟢 Bajo | ✅ Resuelto |
+| B-4 | Core usa Prisma con ruta relativa | 🟢 Bajo | ✅ Resuelto |
 
 ---
 

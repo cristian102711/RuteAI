@@ -10,6 +10,11 @@ interface LoginResult {
     rol: string;
     empresaId: string | null;
   };
+  tokens?: {
+    accessToken: string;
+    refreshToken: string;
+    expiresIn?: number;
+  };
 }
 
 export async function POST(req: NextRequest) {
@@ -28,19 +33,20 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 1. Intentar autenticación a través del microservicio de auth ──────────
-    const authServiceUrl = process.env.AUTH_SERVICE_URL ||
-      (process.env.NODE_ENV === 'production'
-        ? 'https://ruteai-auth.vercel.app'
-        : 'http://localhost:3002');
+    const authServiceUrl = process.env.AUTH_SERVICE_URL;
+    if (process.env.NODE_ENV === 'production' && !authServiceUrl) {
+      throw new Error('[CONFIG] AUTH_SERVICE_URL no está definida. Configúrala en Vercel.');
+    }
+    const finalAuthUrl = authServiceUrl || 'http://localhost:3002';
 
     let useFallback = true;
     let loginErrorMsg = "Credenciales incorrectas. Intenta de nuevo.";
     let loginStatus = 401;
 
-    if (authServiceUrl) {
+    if (finalAuthUrl) {
       try {
-        console.log(`[Login] Intentando autenticación mediante microservicio en: ${authServiceUrl}`);
-        const response = await fetch(`${authServiceUrl}/api/v1/auth/login`, {
+        console.log(`[Login] Intentando autenticación mediante microservicio en: ${finalAuthUrl}`);
+        const response = await fetch(`${finalAuthUrl}/api/v1/auth/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, password }),
@@ -86,6 +92,10 @@ export async function POST(req: NextRequest) {
                   nombre: usuario.nombre,
                   rol: usuario.rol,
                   empresaId: usuario.empresaId || null,
+                },
+                tokens: {
+                  accessToken: tokens.accessToken,
+                  refreshToken: tokens.refreshToken,
                 },
               };
               return NextResponse.json({ success: true, ...result });

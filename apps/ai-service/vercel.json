@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "echo 'No build needed - @vercel/node compiles api/index.ts'",
+  "buildCommand": "tsc --noEmit",
   "outputDirectory": ".",
   "functions": {
     "api/index.ts": {

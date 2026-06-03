@@ -25,10 +25,14 @@ export async function POST(req: NextRequest) {
     }
 
     const aiServiceUrl = process.env.AI_SERVICE_URL ?? "https://ruteai-ai-service.vercel.app";
+    const aiSecret = process.env.AI_SERVICE_SECRET || "";
 
     const response = await fetch(`${aiServiceUrl}/api/score`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": aiSecret
+      },
       body: JSON.stringify(parsed.data),
     });
 

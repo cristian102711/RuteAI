@@ -1,71 +1,55 @@
 import { NextRequest, NextResponse } from "next/server";
-import prisma from "@ruteai/database";
 import { createClient } from "@/lib/supabaseServer";
 
-// POST /api/ubicacion — El móvil llama este endpoint cada N segundos
-// Body: { lat: number, lng: number }
-export async function POST(req: NextRequest) {
+async function proxyToCore(req: NextRequest, endpoint: string) {
+  const supabase = await createClient();
+  const { data: { session }, error: authError } = await supabase.auth.getSession();
+
+  if (authError || !session) {
+    return NextResponse.json({ success: false, error: "No autorizado" }, { status: 401 });
+  }
+
+  const coreUrl = process.env.CORE_SERVICE_URL;
+  if (!coreUrl && process.env.NODE_ENV === "production") {
+    throw new Error("[CONFIG] CORE_SERVICE_URL no está definido");
+  }
+
+  const url = new URL(`${coreUrl || 'http://localhost:3003'}${endpoint}`);
+  req.nextUrl.searchParams.forEach((val, key) => url.searchParams.append(key, val));
+
+  const headers: Record<string, string> = {
+    "Authorization": `Bearer ${session.access_token}`,
+  };
+
+  let body = undefined;
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    headers["Content-Type"] = "application/json";
+    body = await req.text();
+  }
+
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ success: false, error: "No autenticado" }, { status: 401 });
-    }
-
-    const body = await req.json() as { lat: unknown; lng: unknown };
-    const lat = typeof body.lat === "number" ? body.lat : null;
-    const lng = typeof body.lng === "number" ? body.lng : null;
-
-    if (lat === null || lng === null) {
-      return NextResponse.json({ success: false, error: "lat y lng son requeridos" }, { status: 400 });
-    }
-
-    const usuarioDB = await prisma.usuario.findUnique({
-      where: { id: user.id },
-      select: { empresaId: true, rol: true },
+    const response = await fetch(url.toString(), {
+      method: req.method,
+      headers,
+      body,
     });
-
-    if (!usuarioDB) {
-      return NextResponse.json({ success: false, error: "Usuario no encontrado" }, { status: 404 });
-    }
-
-    // Guardar ping GPS en la tabla Ubicacion
-    const ubicacion = await prisma.ubicacion.create({
-      data: {
-        lat,
-        lng,
-        repartidorId: user.id,
-        empresaId:    usuarioDB.empresaId,
-      },
-    });
-
-    return NextResponse.json({ success: true, data: ubicacion });
+    
+    const data = await response.json();
+    return NextResponse.json(data, { status: response.status });
   } catch (error) {
-    console.error("[API/ubicacion] Error:", error);
+    console.error(`[Proxy] Error conectando a ${url.toString()}:`, error);
     return NextResponse.json({ success: false, error: "Error interno del servidor" }, { status: 500 });
   }
 }
 
-// GET /api/ubicacion?repartidorId=xxx — Última ubicación conocida de un repartidor
 export async function GET(req: NextRequest) {
-  try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ success: false, error: "No autenticado" }, { status: 401 });
-    }
-
-    const repartidorId = req.nextUrl.searchParams.get("repartidorId") ?? user.id;
-
-    const ultima = await prisma.ubicacion.findFirst({
-      where: { repartidorId },
-      orderBy: { timestamp: "desc" },
-    });
-
-    return NextResponse.json({ success: true, data: ultima });
-  } catch (error) {
-    console.error("[API/ubicacion] Error:", error);
-    return NextResponse.json({ success: false, error: "Error interno del servidor" }, { status: 500 });
+  const repartidorId = req.nextUrl.searchParams.get("repartidorId");
+  if (repartidorId) {
+    return proxyToCore(req, `/api/v1/locations/repartidor/${repartidorId}`);
   }
+  return proxyToCore(req, "/api/v1/locations");
+}
+
+export async function POST(req: NextRequest) {
+  return proxyToCore(req, "/api/v1/locations");
 }
