@@ -1,5 +1,5 @@
 import React from 'react';
-import MapView, { Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
+import MapView, { Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { StyleSheet } from 'react-native';
 import { Colors } from '../../design/tokens';
 import { MapMarker } from './MapMarker';
@@ -7,7 +7,9 @@ import { MapMarker } from './MapMarker';
 export function MapRenderer({ location, stops, coordinates }: any) {
   return (
     <MapView
-      provider={PROVIDER_DEFAULT}
+      // Fuerza Google Maps en Android e iOS (en iOS, sin esto usaría Apple Maps).
+      // Requiere la API Key configurada en app.config.js (ver apps/mobile/.env).
+      provider={PROVIDER_GOOGLE}
       style={styles.map}
       initialRegion={{
         latitude: location.coords.latitude,

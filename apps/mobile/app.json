@@ -5,10 +5,6 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.ruteai.mobile"
-    },
     "android": {
       "package": "com.ruteai.mobile",
       "permissions": [
