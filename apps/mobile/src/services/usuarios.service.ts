@@ -1,21 +1,34 @@
+import { authApi } from '../lib/apiClient';
 import type { IUsuario } from '@ruteai/shared-types';
 
-export const loginUsuario = async (email: string, password: string): Promise<IUsuario> => {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (email === 'repartidor@ruteai.cl' && password === '123456') {
-        resolve({
-          id: 'user-1',
-          nombre: 'Juan Pérez',
-          email: 'repartidor@ruteai.cl',
-          rol: 'repartidor',
-          telefono: '+56912345678',
-          empresaId: 'empresa-1',
-          createdAt: new Date(),
-        });
-      } else {
-        reject(new Error('Credenciales inválidas'));
-      }
-    }, 1000);
-  });
-};
+// Respuesta exacta que devuelve POST /api/v1/auth/login del auth-service
+export interface LoginResponse {
+  usuario: {
+    id: string;
+    email: string;
+    nombre: string;
+    rol: string;
+    empresaId: string;
+  };
+  tokens: {
+    accessToken: string;
+    refreshToken: string;
+    expiresIn: number;
+  };
+}
+
+export const loginUsuario = (
+  email: string,
+  password: string,
+): Promise<LoginResponse> =>
+  authApi.post<LoginResponse>('/api/v1/auth/login', { email, password });
+
+// Convertir la respuesta del auth-service al tipo IUsuario de shared-types
+export const mapToIUsuario = (data: LoginResponse['usuario']): IUsuario => ({
+  id: data.id,
+  email: data.email,
+  nombre: data.nombre,
+  rol: data.rol as IUsuario['rol'],
+  empresaId: data.empresaId,
+  createdAt: new Date(),
+});

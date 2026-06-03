@@ -6,8 +6,8 @@ export const useRutas = () => {
   const user = useAuthStore((state) => state.user);
 
   return useQuery({
-    queryKey: ['rutaActiva', user?.id],
-    queryFn: () => getRutaActiva(user?.id || ''),
-    enabled: !!user?.id,
+    queryKey: ['rutaActiva', user?.empresaId, user?.id],
+    queryFn: () => getRutaActiva(user!.empresaId, user!.id),
+    enabled: !!user?.id && !!user?.empresaId,
   });
 };

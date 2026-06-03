@@ -1,23 +1,37 @@
-import type { IRuta } from '@ruteai/shared-types';
+import { coreApi } from '../lib/apiClient';
+import type { IRuta, EstadoRuta } from '@ruteai/shared-types';
 
-export const getRutaActiva = async (repartidorId: string): Promise<IRuta | null> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        id: 'ruta-1',
-        fecha: new Date(),
-        estado: 'activa',
-        empresaId: 'empresa-1',
-        repartidorId,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        rutaOptimizada: {
-          stops: [
-            { id: 'ped-1', lat: -33.4285, lng: -70.6120 },
-            { id: 'ped-2', lat: -33.4350, lng: -70.6866 },
-          ]
-        }
-      });
-    }, 1200);
-  });
+// GET /api/v1/routes?empresaId=xxx
+// El endpoint de rutas filtra por empresa. Filtramos por repartidor en el cliente
+// porque el core no expone un endpoint /routes?repartidorId=xxx.
+export const getRutas = (empresaId: string): Promise<IRuta[]> =>
+  coreApi.get<IRuta[]>(`/api/v1/routes?empresaId=${encodeURIComponent(empresaId)}`);
+
+// Devuelve la primera ruta activa o pendiente del repartidor para el día de hoy.
+export const getRutaActiva = async (
+  empresaId: string,
+  repartidorId: string,
+): Promise<IRuta | null> => {
+  const rutas = await getRutas(empresaId);
+  const hoy = new Date().toDateString();
+
+  return (
+    rutas.find(
+      (r) =>
+        r.repartidorId === repartidorId &&
+        (r.estado === 'activa' || r.estado === 'pendiente') &&
+        new Date(r.fecha).toDateString() === hoy,
+    ) ?? null
+  );
 };
+
+// GET /api/v1/routes/:id
+export const getRutaById = (id: string): Promise<IRuta> =>
+  coreApi.get<IRuta>(`/api/v1/routes/${id}`);
+
+// PATCH /api/v1/routes/:id/estado
+export const updateEstadoRuta = (
+  id: string,
+  estado: EstadoRuta,
+): Promise<IRuta> =>
+  coreApi.patch<IRuta>(`/api/v1/routes/${id}/estado`, { estado });
