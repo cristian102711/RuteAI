@@ -1,7 +1,8 @@
 import prisma from "@ruteai/database";
 import { createClient } from "@/lib/supabaseServer";
 import { redirect } from "next/navigation";
-import { Fuel, Clock, TrendingUp, Leaf, Sparkles, Download } from "lucide-react";
+import { Fuel, Clock, TrendingUp, Leaf, Sparkles } from "lucide-react";
+import ExportarReportePDF from "./ExportarReportePDF";
 
 // Calcula el ahorro estimado por mes (basado en pedidos entregados)
 // Cada entrega exitosa ≈ ahorra 1.2 L de combustible vs ruta no optimizada
@@ -37,6 +38,7 @@ export default async function ReportesPage() {
       createdAt: { gte: seisMesesAtras },
     },
     select: {
+      id: true,
       estado: true,
       motivoFallo: true,
       createdAt: true,
@@ -166,9 +168,19 @@ export default async function ReportesPage() {
             {mesCapitalizado} · {usuarioDB.empresa.nombre} · Últimos 6 meses
           </p>
         </div>
-        <button className="inline-flex items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.06] transition-colors px-4 py-2 text-sm text-zinc-300">
-          <Download className="h-4 w-4" /> Exportar PDF
-        </button>
+        <ExportarReportePDF
+          empresaNombre={usuarioDB.empresa.nombre}
+          mes={mesCapitalizado}
+          kpis={{
+            combustible: litrosAhorrados,
+            ahorroClp,
+            tiempo: horasRecuperadas,
+            tasaExito: tasaExito6m,
+            co2: co2Evitado,
+            pedidosTotal: pedidosSeisMeses.length,
+            pedidosEntregados: totalEntregados6m,
+          }}
+        />
       </div>
 
       {/* Grid 4 KPIs — 100% calculados desde pedidos reales */}
