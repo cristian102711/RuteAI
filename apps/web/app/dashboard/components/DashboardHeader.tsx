@@ -1,6 +1,7 @@
 "use client";
 
 import { Search, Bell } from "lucide-react";
+import OptimizarRutasModal from "./OptimizarRutasModal";
 
 export function DashboardHeader() {
   return (
@@ -23,11 +24,7 @@ export function DashboardHeader() {
         <Bell className="h-4 w-4" />
       </button>
 
-      {/* Action Button */}
-      <button className="hidden items-center gap-2 rounded-md bg-gradient-to-r from-amber-500 to-amber-400 px-3 py-2 text-xs font-semibold text-black shadow-[0_0_15px_rgba(245,158,11,0.3)] hover:opacity-90 sm:inline-flex transition-opacity">
-        <span className="h-1.5 w-1.5 rounded-full bg-purple-600 animate-pulse" />
-        Optimizar con IA
-      </button>
+      <OptimizarRutasModal />
 
     </header>
   );
