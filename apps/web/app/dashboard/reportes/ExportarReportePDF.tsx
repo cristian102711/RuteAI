@@ -3,7 +3,7 @@
 import { Download } from "lucide-react";
 import { useState } from "react";
 import { jsPDF } from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 
 interface ExportarReportePDFProps {
   empresaNombre: string;
@@ -34,10 +34,10 @@ export default function ExportarReportePDF({ empresaNombre, mes, kpis }: Exporta
       });
 
       // ── COLORES CORPORATIVOS ──
-      const primaryColor = [139, 92, 246]; // Morado (#8b5cf6)
-      const accentColor = [245, 158, 11];  // Ámbar/Naranja (#f59e0b)
-      const darkText = [31, 41, 55];       // Gris oscuro (#1f2937)
-      const lightText = [107, 114, 128];   // Gris claro (#6b7280)
+      const primaryColor: [number, number, number] = [139, 92, 246]; // Morado (#8b5cf6)
+      const accentColor: [number, number, number] = [245, 158, 11];  // Ámbar/Naranja (#f59e0b)
+      const darkText: [number, number, number] = [31, 41, 55];       // Gris oscuro (#1f2937)
+      const lightText: [number, number, number] = [107, 114, 128];   // Gris claro (#6b7280)
 
       // ── CABECERA / HEADER ──
       // Fondo morado sutil para el banner superior
@@ -103,7 +103,7 @@ export default function ExportarReportePDF({ empresaNombre, mes, kpis }: Exporta
         ]
       ];
 
-      (doc as any).autoTable({
+      autoTable(doc, {
         startY: 64,
         head: [["Métrica", "Valor Real", "Impacto Estimado"]],
         body: kpiData,
