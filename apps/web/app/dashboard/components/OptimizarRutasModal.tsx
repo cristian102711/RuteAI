@@ -35,6 +35,8 @@ export default function OptimizarRutasModal() {
   const [resultado, setResultado] = useState<ResultadoOptimizacion | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [paso, setPaso] = useState<"idle" | "analizando" | "calculando" | "listo">("idle");
+  const [aplicando, setAplicando] = useState(false);
+  const [aplicado, setAplicado] = useState(false);
 
   const optimizar = useCallback(async () => {
     setCargando(true);
@@ -71,12 +73,45 @@ export default function OptimizarRutasModal() {
     setResultado(null);
     setError(null);
     setPaso("idle");
+    setAplicado(false);
     optimizar();
   };
 
   const cerrar = () => {
     setAbierto(false);
     setPaso("idle");
+    setAplicado(false);
+  };
+
+  const handleAplicar = async () => {
+    if (!resultado) return;
+    try {
+      setAplicando(true);
+      const res = await fetch("/api/rutas/aplicar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rutaOptimizada: resultado.rutaOptimizada.map((p) => ({
+            id: p.id,
+            score: p.score,
+            nivel: p.nivel,
+          })),
+          ahorroEstimadoMin: resultado.ahorroEstimadoMin,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAplicado(true);
+        // Cerrar automáticamente después de 2 segundos
+        setTimeout(() => cerrar(), 2000);
+      } else {
+        setError(data.error ?? "Error al aplicar la ruta");
+      }
+    } catch {
+      setError("Error de conexión al guardar la ruta.");
+    } finally {
+      setAplicando(false);
+    }
   };
 
   return (
@@ -306,13 +341,31 @@ export default function OptimizarRutasModal() {
               {/* Footer */}
               {!cargando && resultado && resultado.totalPedidos > 0 && (
                 <div className="border-t border-white/[0.05] px-6 py-4 flex items-center justify-between gap-3">
-                  <p className="text-xs text-zinc-500">El orden fue calculado priorizando mayor riesgo de fallo primero.</p>
-                  <button
-                    onClick={cerrar}
-                    className="shrink-0 rounded-lg bg-gradient-to-r from-purple-500 to-purple-400 px-4 py-2 text-xs font-semibold text-white hover:opacity-90 active:scale-[0.98] transition-all"
-                  >
-                    Aplicar ruta
-                  </button>
+                  {aplicado ? (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="flex w-full items-center justify-center gap-2 text-emerald-400"
+                    >
+                      <CheckCircle className="h-5 w-5" />
+                      <span className="text-sm font-semibold">¡Ruta guardada! Cerrando...</span>
+                    </motion.div>
+                  ) : (
+                    <>
+                      <p className="text-xs text-zinc-500">El orden fue calculado priorizando mayor riesgo de fallo primero.</p>
+                      <button
+                        onClick={handleAplicar}
+                        disabled={aplicando}
+                        className="shrink-0 inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-purple-500 to-purple-400 px-4 py-2 text-xs font-semibold text-white hover:opacity-90 active:scale-[0.98] disabled:opacity-60 transition-all"
+                      >
+                        {aplicando ? (
+                          <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Guardando...</>
+                        ) : (
+                          <>Aplicar ruta</>
+                        )}
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </motion.div>
