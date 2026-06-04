@@ -1,6 +1,7 @@
 import prisma from "@ruteai/database";
 import { FormCrearPedido } from "./components/FormCrearPedido";
 import { FilaPedido } from "./components/FilaPedido";
+import { MiniMapaDashboard } from "./components/MiniMapaDashboard";
 import { createClient } from "@/lib/supabaseServer";
 import { crearEmpresaYUsuario } from "./actions";
 import { 
@@ -346,81 +347,10 @@ export default async function DashboardPage() {
 
           <div className="relative overflow-hidden rounded-2xl m-5 aspect-[16/9] bg-zinc-950/85 border border-white/[0.04]">
             
-            {/* Grilla técnica en CSS */}
-            <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.01)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.01)_1px,transparent_1px)] bg-[size:24px_24px]" />
-            
-            {/* Efectos de luces radiales */}
-            <div className="absolute -left-16 -top-16 h-64 w-64 rounded-full bg-purple-500/5 blur-[80px]" />
-            <div className="absolute -bottom-20 -right-10 h-72 w-72 rounded-full bg-amber-500/5 blur-[95px]" />
-
-            {/* Líneas de red */}
-            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full opacity-10">
-              <path d="M0,82 L100,82" stroke="white" strokeWidth="0.2" />
-              <path d="M0,46 L100,46" stroke="white" strokeWidth="0.2" />
-              <path d="M22,0 L22,100" stroke="white" strokeWidth="0.2" />
-              <path d="M58,0 L58,100" stroke="white" strokeWidth="0.2" />
-              <path d="M84,0 L84,100" stroke="white" strokeWidth="0.2" />
-            </svg>
-
-            {/* SVG Ruta animada conectando los despachos reales */}
-            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
-              <defs>
-                <linearGradient id="routeGrad" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="#f59e0b" />
-                  <stop offset="100%" stopColor="#a78bfa" />
-                </linearGradient>
-                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="0.8" result="blur" />
-                  <feMerge>
-                    <feMergeNode in="blur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-              </defs>
-              
-              {mapPoints.length > 1 && (
-                <>
-                  <path 
-                    d={routePathD} 
-                    fill="none" 
-                    stroke="url(#routeGrad)" 
-                    strokeWidth="0.6" 
-                    filter="url(#glow)" 
-                    opacity="0.8" 
-                  />
-                  <path 
-                    d={routePathD} 
-                    fill="none" 
-                    stroke="url(#routeGrad)" 
-                    strokeWidth="0.4" 
-                    strokeDasharray="1.2 1" 
-                  />
-                  {/* Círculo animado que viaja por la ruta real */}
-                  <circle r="1.2" fill="#f59e0b" filter="url(#glow)">
-                    <animateMotion dur="8s" repeatCount="indefinite" path={routePathD} />
-                  </circle>
-                </>
-              )}
-            </svg>
-
-            {/* Puntos y etiquetas flotantes en el mapa */}
-            {mapPoints.map((pt, idx) => (
-              <div key={idx} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: pt.x, top: pt.y }}>
-                <div className="relative h-2 w-2 rounded-full" style={{ backgroundColor: pt.color, boxShadow: `0 0 0 2px ${pt.color}40` }}>
-                  <span className="absolute inset-0 rounded-full animate-ping opacity-60" style={{ backgroundColor: pt.color }} />
-                </div>
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-md bg-zinc-950/85 px-1.5 py-0.5 text-[9px] font-medium text-zinc-300 border border-white/[0.04] backdrop-blur">
-                  {pt.name}
-                </div>
-              </div>
-            ))}
-
-            {mapPoints.length === 0 && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
-                <span className="text-xl mb-1">🗺️</span>
-                <p className="text-zinc-500 text-xs tracking-wider">No hay despachos activos hoy en el mapa.</p>
-              </div>
-            )}
+            {/* Google Map real interactivo y dinámico */}
+            <div className="absolute inset-0 w-full h-full">
+              <MiniMapaDashboard pedidos={pedidos} empresaId={empresaActiva.id} />
+            </div>
 
           </div>
         </div>
