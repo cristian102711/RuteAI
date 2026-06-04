@@ -12,9 +12,10 @@ interface SidebarProps {
   empresaNombre: string;
   usuarioNombre: string;
   usuarioEmail: string;
+  pedidosPendientes: number;
 }
 
-export function Sidebar({ empresaNombre, usuarioNombre, usuarioEmail }: SidebarProps) {
+export function Sidebar({ empresaNombre, usuarioNombre, usuarioEmail, pedidosPendientes }: SidebarProps) {
   const pathname = usePathname();
 
   const isActive = (path: string) => pathname === path || pathname?.startsWith(`${path}/`);
@@ -69,7 +70,11 @@ export function Sidebar({ empresaNombre, usuarioNombre, usuarioEmail }: SidebarP
             <Package className={`h-4 w-4 ${isActive('/dashboard/pedidos') ? 'text-amber-500' : ''}`} />
             Pedidos
           </span>
-          <span className="rounded bg-purple-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-purple-400">24</span>
+          {pedidosPendientes > 0 && (
+            <span className="rounded bg-purple-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-purple-400">
+              {pedidosPendientes}
+            </span>
+          )}
         </Link>
 
         <Link 

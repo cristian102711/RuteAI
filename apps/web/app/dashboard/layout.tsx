@@ -43,6 +43,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         usuarioEmail={user.email ?? ""}
         usuarioNombre={usuarioDB?.nombre ?? "Usuario"}
         empresaNombre={empresaNombre}
+        pedidosPendientes={pedidosPendientes}
       />
 
       {/* Área principal */}
