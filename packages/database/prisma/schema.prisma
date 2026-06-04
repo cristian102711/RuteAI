@@ -43,6 +43,7 @@ model Usuario {
   email    String  @unique
   rol      String  @default("repartidor") // "encargado" | "repartidor"
   telefono String? // Para notificaciones Twilio
+  vehiculo String? // Ej: "Moto · Honda CB 190R"
 
   empresaId String
   empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
