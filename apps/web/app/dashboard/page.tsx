@@ -4,6 +4,7 @@ import { FilaPedido } from "./components/FilaPedido";
 import { MiniMapaDashboard } from "./components/MiniMapaDashboard";
 import { createClient } from "@/lib/supabaseServer";
 import { crearEmpresaYUsuario } from "./actions";
+import OptimizarRutasModal from "./components/OptimizarRutasModal";
 import { 
   Package, CheckSquare, Users, AlertTriangle, 
   Sparkles, ArrowRight, Zap
@@ -194,11 +195,7 @@ export default async function DashboardPage() {
           </p>
         </div>
         
-        <button className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-[0_0_15px_rgba(167,139,250,0.15)] hover:opacity-90 transition active:scale-[0.98]"
-          style={{ background: "linear-gradient(135deg, hsl(271 81% 66%), hsl(300 74% 40%))" }}>
-          <Sparkles className="h-4 w-4" />
-          Optimizar Flota
-        </button>
+        <OptimizarRutasModal />
       </div>
 
       {/* KPI Cards Grid */}
