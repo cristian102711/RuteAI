@@ -413,3 +413,78 @@ export async function actualizarConfiguracionIA(data: {
   revalidatePath("/dashboard/configuracion");
   return { success: true };
 }
+
+export async function actualizarPlanEmpresa(planId: string) {
+  if (!["starter", "pro", "business"].includes(planId)) {
+    return { error: "Plan inválido" };
+  }
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+
+  const usuarioDB = await prisma.usuario.findUnique({
+    where: { id: user.id },
+    select: { empresaId: true }
+  });
+  if (!usuarioDB) return { error: "Usuario sin empresa" };
+
+  await prisma.empresa.update({
+    where: { id: usuarioDB.empresaId },
+    data: { plan: planId }
+  });
+
+  revalidatePath("/dashboard/planes");
+  return { success: true };
+}
+
+export async function procesarPagoSimulado(planId: string, cardNumber: string, expiry: string, cvc: string) {
+  if (!["starter", "pro", "business"].includes(planId)) {
+    return { error: "Plan inválido" };
+  }
+
+  // Simular un pequeño retraso de red
+  await new Promise(resolve => setTimeout(resolve, 2000));
+
+  // Validaciones súper básicas para la simulación
+  if (cardNumber.replace(/\s/g, '').length < 15) return { error: "Número de tarjeta inválido" };
+  if (!expiry) return { error: "Fecha de expiración requerida" };
+  if (!cvc) return { error: "CVC requerido" };
+
+  // Tarjeta rechazada de prueba (ej. empieza con 4000 0000 0000 0000)
+  if (cardNumber.startsWith("4000 0000")) {
+    return { error: "Tarjeta rechazada por el banco" };
+  }
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+
+  const usuarioDB = await prisma.usuario.findUnique({
+    where: { id: user.id },
+    select: { empresaId: true }
+  });
+  if (!usuarioDB) return { error: "Usuario sin empresa" };
+
+  // Guardar solo los últimos 4 dígitos y tipo de tarjeta para seguridad
+  const ultimos4 = cardNumber.slice(-4);
+  const tipo = cardNumber.startsWith("4") ? "visa" : cardNumber.startsWith("5") ? "mastercard" : "other";
+
+  const metodoPagoOfuscado = {
+    ultimos4,
+    tipo,
+    expiracion: expiry,
+  };
+
+  await prisma.empresa.update({
+    where: { id: usuarioDB.empresaId },
+    data: {
+      plan: planId,
+      metodoPago: metodoPagoOfuscado,
+    },
+  });
+
+  revalidatePath("/dashboard/planes");
+  return { success: true };
+}
+

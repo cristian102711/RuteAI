@@ -24,6 +24,7 @@ model Empresa {
   planActivo     Boolean  @default(false)
   activa         Boolean  @default(true)
   configuracion  Json?    // RUT, país, dirección, notificaciones, ajustes IA
+  metodoPago     Json?    // Datos enmascarados: { tipo, ultimos4, expira, titular } — sin número completo
   createdAt      DateTime @default(now())
 
   usuarios      Usuario[]

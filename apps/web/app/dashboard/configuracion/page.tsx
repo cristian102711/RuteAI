@@ -10,6 +10,7 @@ type ConfigJson = {
   pais?: string;
   zonaHoraria?: string;
   direccion?: string;
+  logoUrl?: string;
   notificaciones?: {
     notifFallo?: boolean;
     notifRiesgo?: boolean;
@@ -61,6 +62,7 @@ export default async function ConfiguracionPage() {
         pais: config.pais ?? "",
         zonaHoraria: config.zonaHoraria ?? "",
         direccion: config.direccion ?? "",
+        logoUrl: config.logoUrl ?? "",
       }}
       initialUsuario={{
         id: usuarioDB.id,

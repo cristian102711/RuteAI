@@ -35,6 +35,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   }
 
   const empresaNombre = usuarioDB.empresa?.nombre ?? "Mi Empresa";
+  const planActual = usuarioDB.empresa?.plan ?? "starter";
 
   // Contar pedidos pendientes para el badge del sidebar
   const pedidosPendientes = usuarioDB?.empresa
@@ -53,6 +54,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         usuarioEmail={user.email ?? ""}
         usuarioNombre={usuarioDB?.nombre ?? "Usuario"}
         empresaNombre={empresaNombre}
+        planActual={planActual}
       />
 
       {/* Área principal */}

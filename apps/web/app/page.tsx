@@ -286,11 +286,11 @@ export default function LandingPage() {
           </div>
           <div className="mt-14 grid gap-4 md:grid-cols-3">
             
-            <div className="relative rounded-2xl border p-7 border-zinc-800 bg-zinc-900/20">
+            <div className="relative rounded-2xl border p-7 border-zinc-800 bg-zinc-900/20 hover:border-zinc-600 transition-colors">
               <h3 className="text-lg font-semibold text-white">Starter</h3>
               <div className="mt-4 flex items-baseline gap-1"><span className="text-5xl font-semibold tracking-tight text-white">$29</span><span className="text-sm text-zinc-400">/mes</span></div>
               <p className="mt-2 text-sm text-zinc-400">Para tiendas y restaurantes dando sus primeros envíos.</p>
-              <button className="mt-6 w-full rounded-lg px-4 py-2.5 text-sm font-semibold transition bg-zinc-800 text-white hover:bg-zinc-700">Empezar</button>
+              <Link href="/dashboard/planes" className="mt-6 w-full rounded-lg px-4 py-2.5 text-sm font-semibold transition bg-zinc-800 text-white hover:bg-zinc-700 flex items-center justify-center gap-2">Ver plan <ArrowRight className="h-3.5 w-3.5" /></Link>
               <ul className="mt-6 space-y-2.5 border-t border-zinc-800 pt-6 text-sm">
                 {["Hasta 1,000 entregas/mes", "5 repartidores", "Optimización de rutas básica", "Soporte por email"].map(f => (
                   <li key={f} className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" /><span className="text-zinc-400">{f}</span></li>
@@ -306,7 +306,7 @@ export default function LandingPage() {
               </div>
               <div className="mt-4 flex items-baseline gap-1"><span className="text-5xl font-semibold tracking-tight text-white">$99</span><span className="text-sm text-zinc-400">/mes</span></div>
               <p className="mt-2 text-sm text-zinc-400">Para operaciones en crecimiento que viven en la calle.</p>
-              <button className="mt-6 w-full rounded-lg px-4 py-2.5 text-sm font-semibold transition bg-gradient-to-r from-amber-500 to-amber-400 text-black hover:opacity-95">Solicitar demo</button>
+              <Link href="/dashboard/planes" className="mt-6 w-full rounded-lg px-4 py-2.5 text-sm font-semibold transition bg-gradient-to-r from-amber-500 to-amber-400 text-black hover:opacity-95 flex items-center justify-center gap-2">Ver este plan <ArrowRight className="h-3.5 w-3.5" /></Link>
               <ul className="mt-6 space-y-2.5 border-t border-zinc-800/50 pt-6 text-sm">
                 {["Hasta 10,000 entregas/mes", "50 repartidores", "Score de riesgo IA", "Webhooks + API REST", "Soporte prioritario"].map(f => (
                   <li key={f} className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" /><span className="text-zinc-400">{f}</span></li>
@@ -314,11 +314,11 @@ export default function LandingPage() {
               </ul>
             </div>
 
-            <div className="relative rounded-2xl border p-7 border-zinc-800 bg-zinc-900/20">
+            <div className="relative rounded-2xl border p-7 border-zinc-800 bg-zinc-900/20 hover:border-purple-500/30 transition-colors">
               <h3 className="text-lg font-semibold text-white">Business</h3>
               <div className="mt-4 flex items-baseline gap-1"><span className="text-4xl font-semibold tracking-tight text-white">A medida</span></div>
               <p className="mt-2 text-sm text-zinc-400">Multi-país, SLA y modelo de IA dedicado a tu vertical.</p>
-              <button className="mt-6 w-full rounded-lg px-4 py-2.5 text-sm font-semibold transition bg-zinc-800 text-white hover:bg-zinc-700">Hablar con ventas</button>
+              <Link href="/dashboard/planes" className="mt-6 w-full rounded-lg px-4 py-2.5 text-sm font-semibold transition bg-zinc-800 text-white hover:bg-zinc-700 flex items-center justify-center gap-2">Ver plan Enterprise <ArrowRight className="h-3.5 w-3.5" /></Link>
               <ul className="mt-6 space-y-2.5 border-t border-zinc-800 pt-6 text-sm">
                 {["Entregas ilimitadas", "Repartidores ilimitados", "Modelo IA fine-tuned", "SSO + SOC 2", "Customer Success dedicado"].map(f => (
                   <li key={f} className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" /><span className="text-zinc-400">{f}</span></li>
