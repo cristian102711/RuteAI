@@ -96,12 +96,14 @@ export async function POST(req: NextRequest) {
     const scores = await Promise.all(pedidosAEvaluar.map(scorePedido));
 
     // Crear mapa de score por ID
-    const scoreMap = new Map(scores.map((s) => [s.pedidoId, s]));
+    const scoreMap = new Map<string, { pedidoId: string; score: number; nivel: string }>(
+      scores.map((s) => [s.pedidoId, s])
+    );
 
     // Ordenar por score descendente (mayor riesgo = mayor prioridad de atención)
     const rutaOptimizada = pedidosConDias
       .map((p) => {
-        const scoreData = scoreMap.get(p.id) ?? { score: 50, nivel: "medio" };
+        const scoreData = scoreMap.get(p.id) ?? { pedidoId: p.id, score: 50, nivel: "medio" };
         return {
           id: p.id,
           nombreCliente: p.nombreCliente,
