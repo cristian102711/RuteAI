@@ -2,7 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "plugins": [{ "name": "next" }],
-    "types": ["@types/google.maps"],
+    "types": ["google.maps"],
     "noImplicitAny": false,
     "paths": {
       "@/*": ["./*"],
