@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { logAuthEvent } from "./actions";
+import { motion } from "framer-motion";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -178,7 +179,12 @@ export default function LoginPage() {
       <main className="relative z-10 mx-auto grid max-w-7xl gap-12 px-6 pb-16 pt-6 lg:grid-cols-2 lg:gap-16 lg:px-10 lg:pt-12">
 
         {/* ── COLUMNA IZQUIERDA: MARKETING ── */}
-        <section className="hidden flex-col justify-between lg:flex">
+        <motion.section
+          initial={{ opacity: 0, x: -40 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="hidden flex-col justify-between lg:flex"
+        >
           <div>
             {/* Badge */}
             <span className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground" style={{ background: "rgba(255,255,255,0.03)" }}>
@@ -237,10 +243,15 @@ export default function LoginPage() {
             </div>
             <p className="text-xs text-muted-foreground">+240 empresas en LATAM ya optimizan con RouteAI.</p>
           </div>
-        </section>
+        </motion.section>
 
         {/* ── COLUMNA DERECHA: FORMULARIO ── */}
-        <section className="flex items-center">
+        <motion.section
+          initial={{ opacity: 0, x: 40 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="flex items-center"
+        >
           <div className="w-full rounded-2xl border border-border p-7 shadow-2xl backdrop-blur-xl sm:p-8" style={{ background: "rgba(255,255,255,0.02)" }}>
 
             {/* Tabs con indicador deslizante */}
@@ -488,7 +499,7 @@ export default function LoginPage() {
               </p>
             </div>
           </div>
-        </section>
+        </motion.section>
       </main>
     </div>
   );
