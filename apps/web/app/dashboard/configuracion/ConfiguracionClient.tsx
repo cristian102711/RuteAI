@@ -11,6 +11,7 @@ import {
   actualizarConfiguracionNotificaciones,
   actualizarConfiguracionIA,
 } from "../actions";
+import { PageWrapper, AnimatedHeader, AnimatedSection, AnimatedGrid } from "@/components/motion/PageWrapper";
 
 type TabId = "empresa" | "perfil" | "notificaciones" | "ia";
 
@@ -251,19 +252,19 @@ export default function ConfiguracionClient({
   );
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500 pb-10">
+    <PageWrapper className="max-w-7xl mx-auto space-y-6 pb-10">
 
       {/* HEADER */}
-      <div>
+      <AnimatedHeader>
         <p className="text-[11px] font-bold text-amber-500 uppercase tracking-widest">Configuración</p>
         <h1 className="text-3xl font-black text-white mt-1 tracking-tight">Ajustes del workspace</h1>
         <p className="text-zinc-400 text-xs mt-1 font-medium">
           {nombreEmpresa} · Plan {initialEmpresa.plan.charAt(0).toUpperCase() + initialEmpresa.plan.slice(1)}
         </p>
-      </div>
+      </AnimatedHeader>
 
       {/* LAYOUT DOS COLUMNAS */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <AnimatedGrid className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
         {/* MENÚ LATERAL */}
         <aside className="lg:col-span-3 bg-zinc-900/40 backdrop-blur-md border border-zinc-800/80 rounded-3xl p-4 space-y-1">
@@ -595,7 +596,7 @@ export default function ConfiguracionClient({
           )}
 
         </main>
-      </div>
-    </div>
+      </AnimatedGrid>
+    </PageWrapper>
   );
 }
