@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { Search, Sparkles, Funnel, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
@@ -15,10 +15,14 @@ interface Pedido {
   scoreRiesgo: number | null;
 }
 
-export function PedidosTable({ pedidos }: { pedidos: Pedido[] }) {
-  const [query, setQuery] = useState("");
+export function PedidosTable({ pedidos, defaultQuery = "" }: { pedidos: Pedido[]; defaultQuery?: string }) {
+  const [query, setQuery] = useState(defaultQuery);
   const [filter, setFilter] = useState<string>("Todos");
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+
+  useEffect(() => {
+    setQuery(defaultQuery);
+  }, [defaultQuery]);
 
   const filters = ["Todos", "Pendientes", "En ruta", "Entregados", "Fallidos"];
 

@@ -7,7 +7,14 @@ import { PedidosTable } from "../components/PedidosTable";
 import OptimizarRutasModal from "../components/OptimizarRutasModal";
 import { PageWrapper, AnimatedHeader, AnimatedSection } from "@/components/motion/PageWrapper";
 
-export default async function PedidosPage() {
+interface PageProps {
+  searchParams: Promise<{ q?: string }>;
+}
+
+export default async function PedidosPage({ searchParams }: PageProps) {
+  const { q } = await searchParams;
+  const defaultQuery = q || "";
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -51,7 +58,7 @@ export default async function PedidosPage() {
 
       {/* Tabla integrada con Filtros */}
       <AnimatedSection delay={0.1}>
-        <PedidosTable pedidos={todosLosPedidos} />
+        <PedidosTable pedidos={todosLosPedidos} defaultQuery={defaultQuery} />
       </AnimatedSection>
 
     </PageWrapper>
