@@ -25,6 +25,9 @@ export async function GET(req: NextRequest) {
         repartidorId: user.id,
         estado: { in: ["pendiente", "activa"] },
       },
+      orderBy: {
+        fecha: "desc",
+      },
       include: {
         pedidos: {
           orderBy: { createdAt: "asc" },
