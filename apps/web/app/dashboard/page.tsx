@@ -5,6 +5,7 @@ import { MiniMapaDashboard } from "./components/MiniMapaDashboard";
 import { createClient } from "@/lib/supabaseServer";
 import { crearEmpresaYUsuario } from "./actions";
 import OptimizarRutasModal from "./components/OptimizarRutasModal";
+import { AnimatedGrid, AnimatedCard, AnimatedSection } from "@/components/motion/PageWrapper";
 import { 
   Package, CheckSquare, Users, AlertTriangle, 
   Sparkles, ArrowRight, Zap
@@ -198,11 +199,11 @@ export default async function DashboardPage() {
         <OptimizarRutasModal />
       </div>
 
-      {/* KPI Cards Grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* KPI Cards Grid — stagger + hover lift */}
+      <AnimatedGrid className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         
         {/* Card 1: Pedidos del día */}
-        <div className="rounded-xl border border-white/[0.04] bg-white/[0.02] p-5 shadow-lg backdrop-blur-xl">
+        <AnimatedCard className="rounded-xl border border-white/[0.04] bg-white/[0.02] p-5 shadow-lg backdrop-blur-xl cursor-default">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
               <Package className="h-3.5 w-3.5 text-amber-500" />
@@ -211,10 +212,10 @@ export default async function DashboardPage() {
           </div>
           <div className="mt-3 text-3xl font-semibold tabular-nums text-white">{pedidosDelDia}</div>
           <div className="mt-1 text-xs text-zinc-500">{enRuta} actualmente en ruta</div>
-        </div>
+        </AnimatedCard>
 
         {/* Card 2: Entregados */}
-        <div className="rounded-xl border border-white/[0.04] bg-white/[0.02] p-5 shadow-lg backdrop-blur-xl">
+        <AnimatedCard className="rounded-xl border border-white/[0.04] bg-white/[0.02] p-5 shadow-lg backdrop-blur-xl cursor-default">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
               <CheckSquare className="h-3.5 w-3.5 text-emerald-400" />
@@ -224,10 +225,10 @@ export default async function DashboardPage() {
           </div>
           <div className="mt-3 text-3xl font-semibold tabular-nums text-white">{entregados}</div>
           <div className="mt-1 text-xs text-zinc-500">{avancePorcentaje}% de avance</div>
-        </div>
+        </AnimatedCard>
 
         {/* Card 3: Fallidos */}
-        <div className="rounded-xl border border-white/[0.04] bg-white/[0.02] p-5 shadow-lg backdrop-blur-xl">
+        <AnimatedCard className="rounded-xl border border-white/[0.04] bg-white/[0.02] p-5 shadow-lg backdrop-blur-xl cursor-default">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
               <AlertTriangle className="h-3.5 w-3.5 text-rose-500" />
@@ -237,10 +238,10 @@ export default async function DashboardPage() {
           </div>
           <div className="mt-3 text-3xl font-semibold tabular-nums text-white">{fallidos}</div>
           <div className="mt-1 text-xs text-zinc-500">{fallidos === 0 ? "Sin incidencias hoy" : `${fallidos} entrega(s) fallida(s)`}</div>
-        </div>
+        </AnimatedCard>
 
         {/* Card 4: Repartidores */}
-        <div className="rounded-xl border border-white/[0.04] bg-white/[0.02] p-5 shadow-lg backdrop-blur-xl">
+        <AnimatedCard className="rounded-xl border border-white/[0.04] bg-white/[0.02] p-5 shadow-lg backdrop-blur-xl cursor-default">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
               <Users className="h-3.5 w-3.5 text-purple-400" />
@@ -249,12 +250,12 @@ export default async function DashboardPage() {
           </div>
           <div className="mt-3 text-3xl font-semibold tabular-nums text-white">{conductoresTotales}</div>
           <div className="mt-1 text-xs text-zinc-500">{conductoresTotales > 0 ? "Conductores activos" : "Sin conductores"}</div>
-        </div>
+        </AnimatedCard>
 
-      </div>
+      </AnimatedGrid>
 
       {/* Grid del medio: Reporte y Sugerencia IA */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <AnimatedSection delay={0.15} className="grid gap-4 lg:grid-cols-3">
         
         {/* Gráfico de barras de la semana */}
         <div className="rounded-xl border border-white/[0.04] bg-white/[0.02] p-5 lg:col-span-2 shadow-lg backdrop-blur-xl">
@@ -330,10 +331,10 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-      </div>
+      </AnimatedSection>
 
       {/* Grid inferior: Mapa y paradas */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <AnimatedSection delay={0.2} className="grid gap-4 lg:grid-cols-3">
         
         {/* Actividad en vivo con mapa animado */}
         <div className="rounded-xl border border-white/[0.04] bg-white/[0.02] lg:col-span-2 shadow-lg backdrop-blur-xl">
@@ -388,10 +389,10 @@ export default async function DashboardPage() {
           </ol>
         </div>
 
-      </div>
+      </AnimatedSection>
 
       {/* Zona Funcional Real: Formulario de Creación y Tabla de Pedidos DB */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 pt-2">
+      <AnimatedSection delay={0.25} className="grid grid-cols-1 xl:grid-cols-3 gap-6 pt-2">
         
         {/* Formulario Crear Pedido */}
         <div className="xl:col-span-1 bg-white/[0.02] border border-white/[0.04] rounded-3xl p-7 shadow-xl hover:border-zinc-750 transition-all duration-300 h-fit">
@@ -427,7 +428,7 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-      </div>
+      </AnimatedSection>
 
     </div>
   );

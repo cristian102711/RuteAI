@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import Link from "next/link";
 import { PedidosTable } from "../components/PedidosTable";
 import OptimizarRutasModal from "../components/OptimizarRutasModal";
+import { PageWrapper, AnimatedHeader, AnimatedSection } from "@/components/motion/PageWrapper";
 
 export default async function PedidosPage() {
   const supabase = await createClient();
@@ -25,10 +26,10 @@ export default async function PedidosPage() {
   const total = todosLosPedidos.length;
 
   return (
-    <div className="space-y-6 p-6 lg:p-8 max-w-7xl mx-auto text-zinc-100 selection:bg-amber-500/30">
-      
+    <PageWrapper className="space-y-6 p-6 lg:p-8 max-w-7xl mx-auto text-zinc-100 selection:bg-amber-500/30">
+
       {/* Header */}
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <AnimatedHeader className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="text-xs uppercase tracking-widest text-amber-500 font-bold">Operación</div>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight text-white">Pedidos</h1>
@@ -36,7 +37,7 @@ export default async function PedidosPage() {
             {total} pedido{total !== 1 ? "s" : ""} en cola hoy
           </p>
         </div>
-        
+
         <div className="flex flex-wrap items-center gap-2">
           <Link
             href="/dashboard/pedidos/crear"
@@ -46,11 +47,13 @@ export default async function PedidosPage() {
           </Link>
           <OptimizarRutasModal />
         </div>
-      </div>
+      </AnimatedHeader>
 
       {/* Tabla integrada con Filtros */}
-      <PedidosTable pedidos={todosLosPedidos} />
-      
-    </div>
+      <AnimatedSection delay={0.1}>
+        <PedidosTable pedidos={todosLosPedidos} />
+      </AnimatedSection>
+
+    </PageWrapper>
   );
 }
