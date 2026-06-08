@@ -1,9 +1,13 @@
 import { Router } from "express";
-import type { Request, Response } from "express";
+import type { Request, Response, RequestHandler } from "express";
 import { LocationsService } from "../modules/locations/services/locations.service";
+import { requireAuth } from "../middlewares/auth.middleware";
 import { z } from "zod";
 
 export const locationsRouter = Router();
+
+// Todas las rutas de ubicaciones requieren estar autenticado
+locationsRouter.use(requireAuth as RequestHandler);
 
 const RegisterLocationSchema = z.object({
   empresaId:    z.string().uuid(),
@@ -13,12 +17,12 @@ const RegisterLocationSchema = z.object({
   velocidad:    z.number().optional(),
 });
 
-// GET /api/v1/locations?empresaId=xxx
+// GET /api/v1/locations
 locationsRouter.get("/", async (req: Request, res: Response): Promise<void> => {
   try {
-    const empresaId = req.query["empresaId"];
-    if (!empresaId || typeof empresaId !== "string") {
-      res.status(400).json({ success: false, error: "empresaId requerido" });
+    const empresaId = req.user!.empresaId;
+    if (!empresaId) {
+      res.status(403).json({ success: false, error: "Usuario sin empresa asignada" });
       return;
     }
     const locations = await LocationsService.listar(empresaId);
@@ -31,10 +35,13 @@ locationsRouter.get("/", async (req: Request, res: Response): Promise<void> => {
 // GET /api/v1/locations/repartidor/:id
 locationsRouter.get("/repartidor/:id", async (req: Request, res: Response): Promise<void> => {
   try {
-    const ubicacion = await LocationsService.ultimaUbicacion(req.params["id"] ?? "");
+    const empresaId = req.user!.empresaId;
+    const ubicacion = await LocationsService.ultimaUbicacion(req.params["id"] ?? "", empresaId);
     res.json({ success: true, data: ubicacion });
   } catch (error) {
-    res.status(404).json({ success: false, error: error instanceof Error ? error.message : "Sin ubicación" });
+    const errMsg = error instanceof Error ? error.message : "Sin ubicación";
+    const status = errMsg.includes("No autorizado") ? 403 : 404;
+    res.status(status).json({ success: false, error: errMsg });
   }
 });
 
@@ -46,9 +53,12 @@ locationsRouter.post("/", async (req: Request, res: Response): Promise<void> => 
       res.status(400).json({ success: false, error: "Datos inválidos", details: parsed.error.flatten() });
       return;
     }
-    const location = await LocationsService.registrar(parsed.data);
+    const empresaId = req.user!.empresaId;
+    const location = await LocationsService.registrar(parsed.data, empresaId);
     res.status(201).json({ success: true, data: location });
   } catch (error) {
-    res.status(500).json({ success: false, error: error instanceof Error ? error.message : "Error interno" });
+    const errMsg = error instanceof Error ? error.message : "Error interno";
+    const status = errMsg.includes("No autorizado") ? 403 : 500;
+    res.status(status).json({ success: false, error: errMsg });
   }
 });

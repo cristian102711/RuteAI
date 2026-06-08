@@ -41,10 +41,13 @@ ordersRouter.get("/", async (req: Request, res: Response): Promise<void> => {
 // GET /api/v1/orders/:id
 ordersRouter.get("/:id", async (req: Request, res: Response): Promise<void> => {
   try {
-    const order = await OrdersService.obtener(req.params["id"] ?? "");
+    const empresaId = req.user!.empresaId;
+    const order = await OrdersService.obtener(req.params["id"] ?? "", empresaId);
     res.json({ success: true, data: order });
   } catch (error) {
-    res.status(404).json({ success: false, error: error instanceof Error ? error.message : "No encontrado" });
+    const errMsg = error instanceof Error ? error.message : "No encontrado";
+    const status = errMsg.includes("No autorizado") ? 403 : 404;
+    res.status(status).json({ success: false, error: errMsg });
   }
 });
 
@@ -74,19 +77,25 @@ ordersRouter.patch("/:id/estado", async (req: Request, res: Response): Promise<v
       res.status(400).json({ success: false, error: "Estado inválido" });
       return;
     }
-    const order = await OrdersService.actualizarEstado(req.params["id"] ?? "", parsed.data.estado);
+    const empresaId = req.user!.empresaId;
+    const order = await OrdersService.actualizarEstado(req.params["id"] ?? "", parsed.data.estado, empresaId);
     res.json({ success: true, data: order });
   } catch (error) {
-    res.status(400).json({ success: false, error: error instanceof Error ? error.message : "Error" });
+    const errMsg = error instanceof Error ? error.message : "Error";
+    const status = errMsg.includes("No autorizado") ? 403 : 400;
+    res.status(status).json({ success: false, error: errMsg });
   }
 });
 
 // DELETE /api/v1/orders/:id
 ordersRouter.delete("/:id", async (req: Request, res: Response): Promise<void> => {
   try {
-    await OrdersService.eliminar(req.params["id"] ?? "");
+    const empresaId = req.user!.empresaId;
+    await OrdersService.eliminar(req.params["id"] ?? "", empresaId);
     res.json({ success: true, message: "Pedido eliminado" });
   } catch (error) {
-    res.status(404).json({ success: false, error: error instanceof Error ? error.message : "No encontrado" });
+    const errMsg = error instanceof Error ? error.message : "No encontrado";
+    const status = errMsg.includes("No autorizado") ? 403 : 404;
+    res.status(status).json({ success: false, error: errMsg });
   }
 });
