@@ -1,11 +1,12 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
+import { useEffect, useState } from "react";
 import { pageTransition, staggerContainer, slideUp, scaleIn, slideDown } from "./variants";
 
 // ─── PageWrapper ─────────────────────────────────────────────────────────────
 // Wrapper de página completa con entrada suave + stagger de secciones.
-// Uso: envuelve el return de cualquier page.tsx (server o client).
+// Garantiza visibilidad aunque Framer Motion no hidrate (fallback CSS).
 export function PageWrapper({
   children,
   className = "",
@@ -13,12 +14,23 @@ export function PageWrapper({
   children: React.ReactNode;
   className?: string;
 }) {
+  const [mounted, setMounted] = useState(false);
+  const prefersReduced = useReducedMotion();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Si prefiere movimiento reducido o aún no monta → sin animación
+  if (!mounted || prefersReduced) {
+    return <div className={className}>{children}</div>;
+  }
+
   return (
     <motion.div
-      initial="hidden"
-      animate="visible"
-      exit="exit"
-      variants={pageTransition}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
       className={className}
     >
       {children}
@@ -27,7 +39,6 @@ export function PageWrapper({
 }
 
 // ─── AnimatedHeader ──────────────────────────────────────────────────────────
-// Anima el encabezado (título + subtítulo + botón) deslizando desde arriba.
 export function AnimatedHeader({
   children,
   className = "",
@@ -35,11 +46,16 @@ export function AnimatedHeader({
   children: React.ReactNode;
   className?: string;
 }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
+  if (!mounted) return <div className={className}>{children}</div>;
+
   return (
     <motion.div
-      initial="hidden"
-      animate="visible"
-      variants={slideDown}
+      initial={{ opacity: 0, y: -16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: "easeOut" }}
       className={className}
     >
       {children}
@@ -48,7 +64,6 @@ export function AnimatedHeader({
 }
 
 // ─── AnimatedGrid ─────────────────────────────────────────────────────────────
-// Grid de KPI cards que entran en cascada (stagger) al montar la página.
 export function AnimatedGrid({
   children,
   className = "",
@@ -56,6 +71,11 @@ export function AnimatedGrid({
   children: React.ReactNode;
   className?: string;
 }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
+  if (!mounted) return <div className={className}>{children}</div>;
+
   return (
     <motion.div
       initial="hidden"
@@ -69,7 +89,6 @@ export function AnimatedGrid({
 }
 
 // ─── AnimatedCard ─────────────────────────────────────────────────────────────
-// Tarjeta con entrada scaleIn + hover lift. Úsala como hijo de AnimatedGrid.
 export function AnimatedCard({
   children,
   className = "",
@@ -93,7 +112,6 @@ export function AnimatedCard({
 }
 
 // ─── AnimatedSection ──────────────────────────────────────────────────────────
-// Sección grande (tabla, gráfico) con slideUp cuando entra al viewport.
 export function AnimatedSection({
   children,
   className = "",
@@ -103,18 +121,16 @@ export function AnimatedSection({
   className?: string;
   delay?: number;
 }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
+  if (!mounted) return <div className={className}>{children}</div>;
+
   return (
     <motion.div
-      initial="hidden"
-      animate="visible"
-      variants={{
-        hidden: { opacity: 0, y: 28 },
-        visible: {
-          opacity: 1,
-          y: 0,
-          transition: { duration: 0.5, ease: "easeOut", delay },
-        },
-      }}
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, ease: "easeOut", delay }}
       className={className}
     >
       {children}
@@ -123,7 +139,6 @@ export function AnimatedSection({
 }
 
 // ─── AnimatedRow ──────────────────────────────────────────────────────────────
-// Fila de tabla que aparece deslizando desde abajo. Úsala como hijo de AnimatedGrid.
 export function AnimatedRow({
   children,
   className = "",
@@ -142,7 +157,6 @@ export function AnimatedRow({
 }
 
 // ─── AnimatedListItem ─────────────────────────────────────────────────────────
-// Ítem de lista (li / div) para listas tipo alertas, pedidos, etc.
 export function AnimatedListItem({
   children,
   className = "",
@@ -159,3 +173,4 @@ export function AnimatedListItem({
     </motion.div>
   );
 }
+

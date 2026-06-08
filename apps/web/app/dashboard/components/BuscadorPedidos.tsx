@@ -1,4 +1,5 @@
 // apps/web/app/dashboard/components/BuscadorPedidos.tsx
+
 "use client";
 
 import { Search } from "lucide-react";
