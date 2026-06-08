@@ -2,6 +2,7 @@ import { Router } from "express";
 import type { Request, Response, RequestHandler } from "express";
 import { OrdersService } from "../modules/orders/services/orders.service";
 import { requireAuth, requireRole } from "../middlewares/auth.middleware";
+import { logger } from "../lib/logger";
 import { z } from "zod";
 
 export const ordersRouter = Router();
@@ -34,6 +35,7 @@ ordersRouter.get("/", async (req: Request, res: Response): Promise<void> => {
     const orders = await OrdersService.listar(empresaId);
     res.json({ success: true, data: orders, total: orders.length });
   } catch (error) {
+    logger.error("Error al listar pedidos", error, { empresaId: req.user?.empresaId });
     res.status(500).json({ success: false, error: error instanceof Error ? error.message : "Error interno" });
   }
 });
@@ -47,6 +49,7 @@ ordersRouter.get("/:id", async (req: Request, res: Response): Promise<void> => {
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : "No encontrado";
     const status = errMsg.includes("No autorizado") ? 403 : 404;
+    logger.warn("Fallo al obtener pedido", { orderId: req.params["id"], error: errMsg, empresaId: req.user?.empresaId });
     res.status(status).json({ success: false, error: errMsg });
   }
 });
@@ -63,8 +66,10 @@ ordersRouter.post("/", async (req: Request, res: Response): Promise<void> => {
       ...parsed.data,
       empresaId: req.user!.empresaId,
     });
+    logger.info("Pedido creado", { orderId: order.id, empresaId: req.user!.empresaId, usuario: req.user?.email });
     res.status(201).json({ success: true, data: order });
   } catch (error) {
+    logger.error("Error al crear pedido", error, { empresaId: req.user?.empresaId });
     res.status(500).json({ success: false, error: error instanceof Error ? error.message : "Error interno" });
   }
 });
@@ -79,10 +84,12 @@ ordersRouter.patch("/:id/estado", async (req: Request, res: Response): Promise<v
     }
     const empresaId = req.user!.empresaId;
     const order = await OrdersService.actualizarEstado(req.params["id"] ?? "", parsed.data.estado, empresaId);
+    logger.info("Estado de pedido actualizado", { orderId: req.params["id"], estado: parsed.data.estado, empresaId, usuario: req.user?.email });
     res.json({ success: true, data: order });
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : "Error";
     const status = errMsg.includes("No autorizado") ? 403 : 400;
+    logger.error("Error al actualizar estado del pedido", error, { orderId: req.params["id"], empresaId: req.user?.empresaId });
     res.status(status).json({ success: false, error: errMsg });
   }
 });
@@ -92,10 +99,12 @@ ordersRouter.delete("/:id", async (req: Request, res: Response): Promise<void> =
   try {
     const empresaId = req.user!.empresaId;
     await OrdersService.eliminar(req.params["id"] ?? "", empresaId);
+    logger.info("Pedido eliminado", { orderId: req.params["id"], empresaId, usuario: req.user?.email });
     res.json({ success: true, message: "Pedido eliminado" });
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : "No encontrado";
     const status = errMsg.includes("No autorizado") ? 403 : 404;
+    logger.error("Error al eliminar pedido", error, { orderId: req.params["id"], empresaId: req.user?.empresaId });
     res.status(status).json({ success: false, error: errMsg });
   }
 });

@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
+import { logger } from "../lib/logger";
 
 // Tipo para extender el Request de Express con el usuario
 declare global {
@@ -39,6 +40,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      logger.warn("Intento de acceso sin token Bearer");
       res.status(401).json({ success: false, error: "No autorizado. Token requerido." });
       return;
     }
@@ -53,20 +55,31 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     });
 
     if (!response.ok) {
+      logger.warn("Fallo de autenticación con el servicio de auth");
       res.status(401).json({ success: false, error: "Token inválido o expirado" });
       return;
     }
 
     const data = await response.json() as AuthMeResponse;
     if (!data.success || !data.data?.usuario) {
+      logger.warn("Servicio de auth no retornó datos de usuario válidos");
       res.status(401).json({ success: false, error: "Token inválido" });
       return;
     }
 
     // Inyectar el usuario validado en la Request
     req.user = data.data.usuario;
+    
+    logger.info("Usuario autenticado en Core", {
+      userId: req.user.id,
+      email: req.user.email,
+      rol: req.user.rol,
+      empresaId: req.user.empresaId,
+    });
+
     next();
   } catch (error) {
+    logger.error("Excepción en requireAuth middleware", error);
     res.status(500).json({ success: false, error: "Error validando la sesión" });
   }
 }
