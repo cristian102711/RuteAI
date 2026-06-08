@@ -7,12 +7,14 @@ import { ordersRouter }    from "./routes/orders.route";
 import { routesRouter }    from "./routes/routes.route";
 import { locationsRouter } from "./routes/locations.route";
 import { empresasRouter }  from "./routes/empresas.route";
+import { rateLimiter }     from "./middlewares/rate-limit.middleware";
 
 const app  = express();
 const PORT = process.env.PORT ?? 3003;
 
 app.use(cors());
 app.use(express.json());
+app.use(rateLimiter);
 
 // ── Swagger spec JSON (para Postman, herramientas externas, etc.) ──────────
 app.get("/api/v1/docs.json", (_req, res) => {
