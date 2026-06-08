@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ data: ruta, error: null }, { status: 200 });
+    return NextResponse.json({ data: ruta, email: user.email, error: null }, { status: 200 });
   } catch (err) {
     console.error("[GET /api/repartidor/ruta-activa]", err);
     return NextResponse.json({ data: null, error: "Error interno del servidor" }, { status: 500 });

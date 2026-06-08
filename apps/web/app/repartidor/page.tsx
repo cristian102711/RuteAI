@@ -12,6 +12,7 @@ export default function RepartidorView() {
   const [ruta, setRuta] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string>("");
   
   // Estado para la simulación GPS
   const [simulacionActiva, setSimulacionActiva] = useState(false);
@@ -32,6 +33,7 @@ export default function RepartidorView() {
           setError(resData.error);
         } else {
           setRuta(resData.data);
+          setUserEmail(resData.email || "desconocido");
           // Si hay pedidos en la ruta, inicializar la posición de simulación
           const primerPedido = resData.data?.pedidos?.find((p: any) => p.estado !== "entregado");
           if (primerPedido && primerPedido.lat && primerPedido.lng) {
@@ -205,14 +207,14 @@ export default function RepartidorView() {
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-zinc-800 bg-zinc-950/80 px-4 py-3 backdrop-blur-xl">
           <div className="flex items-center gap-2">
             <div className={`w-2.5 h-2.5 rounded-full ${simulacionActiva ? "bg-emerald-500 animate-pulse" : "bg-zinc-600"}`} />
-            <span className="text-xs text-zinc-400">{simulacionActiva ? "Transmitiendo GPS" : "GPS Detenido"}</span>
+            <span className="text-xs text-zinc-400">{simulacionActiva ? "GPS" : "GPS Off"}</span>
+          </div>
+          <div className="text-xs max-w-[150px] truncate text-zinc-400 font-mono">
+            {userEmail}
           </div>
           <div className="text-xs">
-            <span className="text-zinc-500">Ruta de hoy · </span>
+            <span className="text-zinc-500">Ruta: </span>
             <span className="font-mono text-white">{completadas}/{totalParadas}</span>
-          </div>
-          <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-purple-600 to-amber-500 text-xs font-bold text-white shadow-sm">
-            RP
           </div>
         </header>
 
