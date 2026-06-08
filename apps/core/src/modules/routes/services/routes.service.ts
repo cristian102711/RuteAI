@@ -5,9 +5,12 @@ export const RoutesService = {
     return RoutesRepository.findAll(empresaId);
   },
 
-  async obtener(id: string) {
+  async obtener(id: string, empresaId: string) {
     const ruta = await RoutesRepository.findById(id);
     if (!ruta) throw new Error(`Ruta ${id} no encontrada.`);
+    if (ruta.empresaId !== empresaId) {
+      throw new Error("No autorizado. La ruta pertenece a otra empresa.");
+    }
     return ruta;
   },
 
@@ -16,10 +19,15 @@ export const RoutesService = {
     return RoutesRepository.create(data);
   },
 
-  async actualizarEstado(id: string, estado: string) {
+  async actualizarEstado(id: string, estado: string, empresaId: string) {
     const validos = ["planificada", "en_curso", "completada", "cancelada"];
     if (!validos.includes(estado)) {
       throw new Error(`Estado inválido. Válidos: ${validos.join(", ")}`);
+    }
+    const ruta = await RoutesRepository.findById(id);
+    if (!ruta) throw new Error(`Ruta ${id} no encontrada.`);
+    if (ruta.empresaId !== empresaId) {
+      throw new Error("No autorizado. La ruta pertenece a otra empresa.");
     }
     return RoutesRepository.updateEstado(id, estado);
   },
