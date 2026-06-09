@@ -18,10 +18,16 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     include: { empresa: true },
   });
 
-  // Si el usuario no existe en Prisma, significa que es nuevo y viene de Google/Registro.
-  // Lo enviamos al onboarding para crear su Empresa.
+  // Si el usuario no existe en Prisma, es nuevo → onboarding.
   if (!usuarioDB) {
     redirect("/onboarding");
+  }
+
+  // Un repartidor no tiene acceso al dashboard de encargados.
+  // Redirigirlo a su portal evita que la sesión mezclada de otro repartidor
+  // (por ejemplo si se probó el registro en el mismo navegador) acabe aquí.
+  if (usuarioDB.rol === "repartidor") {
+    redirect("/repartidor/dashboard");
   }
 
   const empresaNombre = usuarioDB.empresa?.nombre ?? "Mi Empresa";

@@ -17,16 +17,27 @@ export default async function PedidosPage() {
   });
   if (!usuarioDB?.empresa) redirect("/dashboard");
 
-  const todosLosPedidos = await prisma.pedido.findMany({
-    where: { empresaId: usuarioDB.empresa.id },
-    orderBy: { createdAt: "desc" },
-  });
+  const [todosLosPedidos, repartidores] = await Promise.all([
+    prisma.pedido.findMany({
+      where: { empresaId: usuarioDB.empresa.id },
+      select: {
+        id: true, producto: true, nombreCliente: true, direccion: true,
+        estado: true, scoreRiesgo: true, repartidorId: true,
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.usuario.findMany({
+      where: { empresaId: usuarioDB.empresa.id, rol: "repartidor" },
+      select: { id: true, nombre: true },
+      orderBy: { nombre: "asc" },
+    }),
+  ]);
 
   const total = todosLosPedidos.length;
 
   return (
     <div className="space-y-6 p-6 lg:p-8 max-w-7xl mx-auto text-zinc-100 selection:bg-amber-500/30">
-      
+
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -36,7 +47,7 @@ export default async function PedidosPage() {
             {total} pedido{total !== 1 ? "s" : ""} en cola hoy
           </p>
         </div>
-        
+
         <div className="flex flex-wrap items-center gap-2">
           <Link
             href="/dashboard/pedidos/crear"
@@ -49,7 +60,7 @@ export default async function PedidosPage() {
       </div>
 
       {/* Tabla integrada con Filtros */}
-      <PedidosTable pedidos={todosLosPedidos} />
+      <PedidosTable pedidos={todosLosPedidos} repartidores={repartidores} />
       
     </div>
   );

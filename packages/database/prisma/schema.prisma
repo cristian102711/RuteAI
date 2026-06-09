@@ -26,11 +26,12 @@ model Empresa {
   configuracion  Json?    // RUT, país, dirección, notificaciones, ajustes IA
   createdAt      DateTime @default(now())
 
-  usuarios      Usuario[]
-  pedidos       Pedido[]
-  rutas         Ruta[]
-  alertas       Alerta[]
-  reportesCache ReporteCache[]
+  usuarios            Usuario[]
+  pedidos             Pedido[]
+  rutas               Ruta[]
+  alertas             Alerta[]
+  reportesCache       ReporteCache[]
+  invitaciones        InvitacionRepartidor[]
 }
 
 // -------------------------------------------------------------
@@ -177,7 +178,26 @@ model ReporteCache {
 }
 
 // -------------------------------------------------------------
-// 8. LOG ACCESO (Auditoría de Inicios de Sesión)
+// 8. INVITACION REPARTIDOR
+// Token de invitación generado por el encargado para que un
+// repartidor pueda crear su cuenta vinculada a la empresa.
+// -------------------------------------------------------------
+model InvitacionRepartidor {
+  id        String   @id @default(uuid())
+  token     String   @unique @default(cuid())
+  email     String?  // Email pre-asignado (opcional)
+  nombre    String?  // Nombre pre-asignado (opcional)
+  usada     Boolean  @default(false)
+  expiresAt DateTime
+
+  empresaId String
+  empresa   Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+// -------------------------------------------------------------
+// 9. LOG ACCESO (Auditoría de Inicios de Sesión)
 // -------------------------------------------------------------
 model LogAcceso {
   id        String   @id @default(uuid())

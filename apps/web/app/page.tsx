@@ -367,7 +367,7 @@ export default function LandingPage() {
               <Link href="/login" className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-amber-500 to-amber-400 px-5 py-3 text-sm font-semibold text-black shadow-[0_0_15px_rgba(245,158,11,0.4)]">
                 Empezar ahora <ArrowRight className="h-4 w-4" />
               </Link>
-              <Link href="/repartidor" className="inline-flex items-center gap-2 rounded-lg border border-zinc-700 bg-white/5 px-5 py-3 text-sm font-medium hover:bg-white/10 text-white">
+              <Link href="/repartidor/login" className="inline-flex items-center gap-2 rounded-lg border border-zinc-700 bg-white/5 px-5 py-3 text-sm font-medium hover:bg-white/10 text-white">
                 Ver app del repartidor
               </Link>
             </div>
