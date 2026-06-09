@@ -1,9 +1,19 @@
+/// <reference types="google.maps" />
 "use client";
 
-import { useState, useMemo } from "react";
-import { Layers, Maximize2, Navigation, Sparkles, Wifi, WifiOff } from "lucide-react";
+import { useState, useMemo, useRef, useEffect } from "react";
+import { Layers, Maximize2, Navigation, Plus, Minus, Sparkles, Wifi, WifiOff } from "lucide-react";
 import { useRealtimeGPS } from "../components/RealtimeGPSPin";
-import { APIProvider, Map, Marker, InfoWindow } from "@vis.gl/react-google-maps";
+import {
+  APIProvider,
+  Map,
+  Marker,
+  InfoWindow,
+  useMap,
+  useMapsLibrary,
+} from "@vis.gl/react-google-maps";
+
+const MAP_ID = "rutas-map";
 
 interface Pedido {
   id: string;
@@ -51,6 +61,201 @@ const DARK_MAP_STYLE = [
   { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#3f3f46" }] }
 ];
 
+// ── Línea de ruta (Polyline) ──────────────────────────────────
+// @vis.gl/react-google-maps v1 no exporta <Polyline>, así que la
+// creamos imperativamente sobre la instancia del mapa.
+function RutaPolyline({ path }: { path: google.maps.LatLngLiteral[] }) {
+  const map = useMap(MAP_ID);
+  const mapsLib = useMapsLibrary("maps");
+  const polyRef = useRef<google.maps.Polyline | null>(null);
+
+  useEffect(() => {
+    if (!map || !mapsLib) return;
+
+    if (!polyRef.current) {
+      polyRef.current = new mapsLib.Polyline({
+        geodesic: true,
+        strokeColor: "#3b82f6",
+        strokeOpacity: 0.85,
+        strokeWeight: 3,
+        // Flechas animadas a lo largo de la ruta
+        icons: [
+          {
+            icon: {
+              path: "M 0,-1 0,1",
+              strokeOpacity: 1,
+              strokeColor: "#60a5fa",
+              scale: 3,
+            },
+            offset: "0",
+            repeat: "16px",
+          },
+        ],
+      });
+    }
+
+    const poly = polyRef.current;
+    poly.setPath(path);
+    poly.setMap(path.length >= 2 ? map : null);
+
+    return () => {
+      poly.setMap(null);
+    };
+  }, [map, mapsLib, path]);
+
+  return null;
+}
+
+// ── Ajuste automático de encuadre (fit bounds) ────────────────
+function FitBounds({ points }: { points: google.maps.LatLngLiteral[] }) {
+  const map = useMap(MAP_ID);
+  const yaAjustado = useRef(false);
+
+  useEffect(() => {
+    if (!map || points.length === 0 || yaAjustado.current) return;
+    if (points.length === 1) {
+      map.setCenter(points[0]);
+      map.setZoom(14);
+    } else {
+      const bounds = new google.maps.LatLngBounds();
+      points.forEach((p) => bounds.extend(p));
+      map.fitBounds(bounds, 64);
+    }
+    yaAjustado.current = true;
+  }, [map, points]);
+
+  return null;
+}
+
+// ── Botones de control conectados a la instancia del mapa ─────
+function MapControls({ points }: { points: google.maps.LatLngLiteral[] }) {
+  const map = useMap(MAP_ID);
+  const [tipoSatelite, setTipoSatelite] = useState(false);
+
+  const zoomIn = () => map?.setZoom((map.getZoom() ?? 12) + 1);
+  const zoomOut = () => map?.setZoom((map.getZoom() ?? 12) - 1);
+
+  const centrarRuta = () => {
+    if (!map || points.length === 0) return;
+    if (points.length === 1) {
+      map.setCenter(points[0]);
+      map.setZoom(14);
+      return;
+    }
+    const bounds = new google.maps.LatLngBounds();
+    points.forEach((p) => bounds.extend(p));
+    map.fitBounds(bounds, 64);
+  };
+
+  const toggleCapa = () => {
+    if (!map) return;
+    const nuevo = !tipoSatelite;
+    setTipoSatelite(nuevo);
+    map.setMapTypeId(nuevo ? "hybrid" : "roadmap");
+  };
+
+  const pantallaCompleta = () => {
+    const el = map?.getDiv()?.parentElement ?? map?.getDiv();
+    if (!el) return;
+    if (document.fullscreenElement) {
+      void document.exitFullscreen();
+    } else {
+      void el.requestFullscreen?.();
+    }
+  };
+
+  const botones = [
+    { Icon: Plus, fn: zoomIn, title: "Acercar" },
+    { Icon: Minus, fn: zoomOut, title: "Alejar" },
+    { Icon: Navigation, fn: centrarRuta, title: "Centrar ruta" },
+    { Icon: Layers, fn: toggleCapa, title: "Cambiar capa" },
+    { Icon: Maximize2, fn: pantallaCompleta, title: "Pantalla completa" },
+  ];
+
+  return (
+    <div className="absolute left-4 top-4 flex flex-col gap-2 z-10">
+      {botones.map(({ Icon, fn, title }) => (
+        <button
+          key={title}
+          onClick={fn}
+          title={title}
+          className="grid h-9 w-9 place-items-center rounded-md bg-white/5 backdrop-blur-md text-white hover:bg-white/10 active:scale-95 transition-all border border-white/[0.04]"
+        >
+          <Icon className="h-4 w-4" />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── Marcadores de pedidos ─────────────────────────────────────
+// Se extrae en un componente propio para que useMapsLibrary('core')
+// actúe de guard: google.maps.Point solo se instancia cuando la API
+// está cargada, evitando "google is not defined" en el primer render.
+function PedidoMarkersLayer({
+  pedidos,
+  selectedPedido,
+  setSelectedPedido,
+}: {
+  pedidos: Pedido[];
+  selectedPedido: string | null;
+  setSelectedPedido: (id: string | null) => void;
+}) {
+  const coreLib = useMapsLibrary("core");
+  if (!coreLib) return null;
+
+  return (
+    <>
+      {pedidos.map((pedido, index) => {
+        if (!pedido.lat || !pedido.lng) return null;
+        const isEnRuta = pedido.estado === "en_ruta";
+        const isSelected = selectedPedido === pedido.id;
+
+        return (
+          <div key={pedido.id}>
+            <Marker
+              position={{ lat: pedido.lat, lng: pedido.lng }}
+              onClick={() => setSelectedPedido(isSelected ? null : pedido.id)}
+              label={{
+                text: String(index + 1),
+                color: "#ffffff",
+                fontSize: "11px",
+                fontWeight: "700",
+              }}
+              icon={{
+                path: "M 0,0 C -2,-20 -10,-22 -10,-30 A 10,10 0 1,1 10,-30 C 10,-22 2,-20 0,0 z",
+                fillColor: isEnRuta ? "#f59e0b" : "#10b981",
+                fillOpacity: 1,
+                strokeColor: "#ffffff",
+                strokeWeight: 1.5,
+                scale: 1,
+                labelOrigin: new google.maps.Point(0, -28),
+              }}
+            />
+            {isSelected && (
+              <InfoWindow
+                position={{ lat: pedido.lat, lng: pedido.lng }}
+                onCloseClick={() => setSelectedPedido(null)}
+              >
+                <div className="text-zinc-950 p-1 font-sans">
+                  <div className="font-bold text-xs">{pedido.nombreCliente}</div>
+                  <div className="text-[10px] text-zinc-600 truncate max-w-[150px]">{pedido.direccion}</div>
+                  <div className="mt-1 text-[9px] font-semibold text-zinc-500 uppercase">
+                    Estado:{" "}
+                    <span className={isEnRuta ? "text-amber-600" : "text-emerald-600"}>
+                      {pedido.estado}
+                    </span>
+                  </div>
+                </div>
+              </InfoWindow>
+            )}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbicaciones }: Props) {
   const { pinPos, ubicacion, conectado } = useRealtimeGPS(empresaId);
   const [selectedPedido, setSelectedPedido] = useState<string | null>(null);
@@ -58,24 +263,26 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
   const enRuta = pedidos.filter(p => p.estado === "en_ruta");
   const pendientes = pedidos.filter(p => p.estado === "pendiente");
 
-  // Calcular el centro del mapa en base a los pedidos o por defecto Santiago de Chile
+  // Pedidos con coordenadas válidas (orden = orden de la ruta)
+  const paradas = useMemo(
+    () =>
+      pedidos
+        .filter((p): p is Pedido & { lat: number; lng: number } => p.lat != null && p.lng != null)
+        .map((p) => ({ lat: p.lat, lng: p.lng })),
+    [pedidos]
+  );
+
+  // Centro inicial: promedio de paradas, GPS en vivo o Santiago
   const mapCenter = useMemo(() => {
-    const validPedidos = pedidos.filter(p => p.lat && p.lng);
-    if (validPedidos.length > 0) {
-      const latSum = validPedidos.reduce((sum, p) => sum + p.lat!, 0);
-      const lngSum = validPedidos.reduce((sum, p) => sum + p.lng!, 0);
+    if (paradas.length > 0) {
       return {
-        lat: latSum / validPedidos.length,
-        lng: lngSum / validPedidos.length
+        lat: paradas.reduce((s, p) => s + p.lat, 0) / paradas.length,
+        lng: paradas.reduce((s, p) => s + p.lng, 0) / paradas.length,
       };
     }
-    // Coordenadas en vivo si hay señal GPS
-    if (ubicacion) {
-      return { lat: ubicacion.lat, lng: ubicacion.lng };
-    }
-    // Por defecto Santiago de Chile
+    if (ubicacion) return { lat: ubicacion.lat, lng: ubicacion.lng };
     return { lat: -33.4489, lng: -70.6693 };
-  }, [pedidos, ubicacion]);
+  }, [paradas, ubicacion]);
 
   const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || "";
 
@@ -88,6 +295,7 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
           {googleMapsApiKey ? (
             <APIProvider apiKey={googleMapsApiKey}>
               <Map
+                id={MAP_ID}
                 defaultCenter={mapCenter}
                 defaultZoom={12}
                 gestureHandling={"greedy"}
@@ -95,59 +303,29 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
                 styles={DARK_MAP_STYLE}
                 className="h-full w-full"
               >
-                {/* Marcadores de Pedidos */}
-                {pedidos.map((pedido) => {
-                  if (!pedido.lat || !pedido.lng) return null;
-                  const isEnRuta = pedido.estado === "en_ruta";
-                  const isSelected = selectedPedido === pedido.id;
+                {/* Línea de la ruta entre paradas */}
+                <RutaPolyline path={paradas} />
+                <FitBounds points={paradas} />
 
-                  return (
-                    <div key={pedido.id}>
-                      <Marker
-                        position={{ lat: pedido.lat, lng: pedido.lng }}
-                        onClick={() => setSelectedPedido(isSelected ? null : pedido.id)}
-                        options={{
-                          icon: {
-                            path: "M 0,0 C -2,-20 -10,-22 -10,-30 A 10,10 0 1,1 10,-30 C 10,-22 2,-20 0,0 z",
-                            fillColor: isEnRuta ? "#f59e0b" : "#10b981",
-                            fillOpacity: 1,
-                            strokeColor: "#ffffff",
-                            strokeWeight: 1.5,
-                            scale: 1
-                          }
-                        }}
-                      />
-                      {isSelected && (
-                        <InfoWindow
-                          position={{ lat: pedido.lat, lng: pedido.lng }}
-                          onCloseClick={() => setSelectedPedido(null)}
-                        >
-                          <div className="text-zinc-950 p-1 font-sans">
-                            <div className="font-bold text-xs">{pedido.nombreCliente}</div>
-                            <div className="text-[10px] text-zinc-600 truncate max-w-[150px]">{pedido.direccion}</div>
-                            <div className="mt-1 text-[9px] font-semibold text-zinc-500 uppercase">
-                              Estado: <span className={isEnRuta ? "text-amber-600" : "text-emerald-600"}>{pedido.estado}</span>
-                            </div>
-                          </div>
-                        </InfoWindow>
-                      )}
-                    </div>
-                  );
-                })}
+                {/* Marcadores de Pedidos — en componente hijo para que
+                    google.maps.Point solo se llame cuando la API esté lista */}
+                <PedidoMarkersLayer
+                  pedidos={pedidos}
+                  selectedPedido={selectedPedido}
+                  setSelectedPedido={setSelectedPedido}
+                />
 
                 {/* Pin GPS en Vivo del Repartidor (Realtime) */}
                 {ubicacion && (
                   <Marker
                     position={{ lat: ubicacion.lat, lng: ubicacion.lng }}
-                    options={{
-                      icon: {
-                        path: "M 0,0 C -2,-20 -10,-22 -10,-30 A 10,10 0 1,1 10,-30 C 10,-22 2,-20 0,0 z",
-                        fillColor: "#3b82f6",
-                        fillOpacity: 1,
-                        strokeColor: "#ffffff",
-                        strokeWeight: 2,
-                        scale: 1.2
-                      }
+                    icon={{
+                      path: "M 0,0 C -2,-20 -10,-22 -10,-30 A 10,10 0 1,1 10,-30 C 10,-22 2,-20 0,0 z",
+                      fillColor: "#3b82f6",
+                      fillOpacity: 1,
+                      strokeColor: "#ffffff",
+                      strokeWeight: 2,
+                      scale: 1.2
                     }}
                   />
                 )}
@@ -157,24 +335,25 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
                   <Marker
                     key={ub.id}
                     position={{ lat: ub.lat, lng: ub.lng }}
-                    options={{
-                      label: {
-                        text: ub.repartidor.nombre.split(" ")[0],
-                        color: "#ffffff",
-                        fontSize: "9px"
-                      },
-                      icon: {
-                        path: 0, // SymbolPath.CIRCLE
-                        fillColor: "#3b82f6",
-                        fillOpacity: 0.7,
-                        strokeColor: "#ffffff",
-                        strokeWeight: 1,
-                        scale: 8
-                      }
+                    label={{
+                      text: ub.repartidor.nombre.split(" ")[0],
+                      color: "#ffffff",
+                      fontSize: "9px"
+                    }}
+                    icon={{
+                      path: 0, // SymbolPath.CIRCLE
+                      fillColor: "#3b82f6",
+                      fillOpacity: 0.7,
+                      strokeColor: "#ffffff",
+                      strokeWeight: 1,
+                      scale: 8
                     }}
                   />
                 ))}
               </Map>
+
+              {/* Botones de Control (conectados a la instancia del mapa) */}
+              <MapControls points={paradas} />
             </APIProvider>
           ) : (
             <div className="flex h-full w-full flex-col items-center justify-center bg-zinc-900 text-zinc-400 p-6 text-center">
@@ -186,18 +365,6 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
               </p>
             </div>
           )}
-
-          {/* Botones de Control */}
-          <div className="absolute left-4 top-4 flex flex-col gap-2 z-10">
-            {[Layers, Maximize2, Navigation].map((Icon, i) => (
-              <button
-                key={i}
-                className="grid h-9 w-9 place-items-center rounded-md bg-white/5 backdrop-blur-md text-white hover:bg-white/10 transition-colors border border-white/[0.04]"
-              >
-                <Icon className="h-4 w-4" />
-              </button>
-            ))}
-          </div>
 
           {/* Indicador Realtime */}
           <div className="absolute top-4 right-4 z-10">

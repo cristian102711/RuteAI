@@ -12,7 +12,7 @@ export async function agregarPedidoNuevo(formData: FormData) {
   const direccion = formData.get("direccion") as string;
   const producto  = formData.get("producto")  as string;
   const clienteTelefono = formData.get("clienteTelefono") as string;
-  
+
   if (!cliente || !direccion || !producto) return { error: "Faltan datos" };
 
   const supabase = await createClient();
@@ -25,11 +25,16 @@ export async function agregarPedidoNuevo(formData: FormData) {
   });
   if (!usuarioDB) return { error: "Usuario sin empresa asignada" };
 
-  // RF-02: Geocodificar la dirección + RF-03: Score IA — en paralelo para minimizar latencia
+  // Usar coordenadas del mapa si el usuario las seleccionó; si no, geocodificar
+  const latParam = formData.get("lat") as string | null;
+  const lngParam = formData.get("lng") as string | null;
+  const preCoords =
+    latParam && lngParam && !isNaN(parseFloat(latParam))
+      ? { lat: parseFloat(latParam), lng: parseFloat(lngParam) }
+      : null;
+
   const horaActual = new Date().getHours();
-  const [coords] = await Promise.all([
-    geocodificarDireccion(direccion),
-  ]);
+  const coords = preCoords ?? (await geocodificarDireccion(direccion));
 
   const lat = coords?.lat ?? -33.45; // Fallback: Santiago centro
   const lng = coords?.lng ?? -70.66;
@@ -137,8 +142,14 @@ export async function editarPedido(formData: FormData) {
 
   if (!id || !cliente || !direccion || !producto) return { error: "Faltan datos para editar" };
 
-  // RF-02: Re-geocodificar si cambia la dirección
-  const coords = await geocodificarDireccion(direccion);
+  const latParam = formData.get("lat") as string | null;
+  const lngParam = formData.get("lng") as string | null;
+  const preCoords =
+    latParam && lngParam && !isNaN(parseFloat(latParam))
+      ? { lat: parseFloat(latParam), lng: parseFloat(lngParam) }
+      : null;
+
+  const coords = preCoords ?? (await geocodificarDireccion(direccion));
 
   await prisma.pedido.update({
     where: { id },
@@ -347,6 +358,35 @@ export async function actualizarConfiguracionNotificaciones(data: {
 // ──────────────────────────────────────────────────────────────
 // Guardar ajustes de IA & Optimización en el campo JSON
 // ──────────────────────────────────────────────────────────────
+export async function asignarRepartidor(pedidoId: string, repartidorId: string | null) {
+  if (!pedidoId) return { error: "ID de pedido requerido" };
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+
+  const usuarioDB = await prisma.usuario.findUnique({
+    where: { id: user.id },
+    select: { empresaId: true, rol: true },
+  });
+  if (!usuarioDB || usuarioDB.rol !== "encargado") return { error: "Sin permisos" };
+
+  // Verificar que el pedido pertenece a la misma empresa
+  const pedido = await prisma.pedido.findFirst({
+    where: { id: pedidoId, empresaId: usuarioDB.empresaId },
+    select: { id: true },
+  });
+  if (!pedido) return { error: "Pedido no encontrado" };
+
+  await prisma.pedido.update({
+    where: { id: pedidoId },
+    data: { repartidorId: repartidorId ?? null },
+  });
+
+  revalidatePath("/dashboard/pedidos");
+  return { success: true };
+}
+
 export async function actualizarConfiguracionIA(data: {
   agresividad: number;
   modeloActivo: string;

@@ -5,16 +5,8 @@ import { Plus } from "lucide-react";
 import Link from "next/link";
 import { PedidosTable } from "../components/PedidosTable";
 import OptimizarRutasModal from "../components/OptimizarRutasModal";
-import { PageWrapper, AnimatedHeader, AnimatedSection } from "@/components/motion/PageWrapper";
 
-interface PageProps {
-  searchParams: Promise<{ q?: string }>;
-}
-
-export default async function PedidosPage({ searchParams }: PageProps) {
-  const { q } = await searchParams;
-  const defaultQuery = q || "";
-
+export default async function PedidosPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -25,18 +17,29 @@ export default async function PedidosPage({ searchParams }: PageProps) {
   });
   if (!usuarioDB?.empresa) redirect("/dashboard");
 
-  const todosLosPedidos = await prisma.pedido.findMany({
-    where: { empresaId: usuarioDB.empresa.id },
-    orderBy: { createdAt: "desc" },
-  });
+  const [todosLosPedidos, repartidores] = await Promise.all([
+    prisma.pedido.findMany({
+      where: { empresaId: usuarioDB.empresa.id },
+      select: {
+        id: true, producto: true, nombreCliente: true, direccion: true,
+        estado: true, scoreRiesgo: true, repartidorId: true,
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.usuario.findMany({
+      where: { empresaId: usuarioDB.empresa.id, rol: "repartidor" },
+      select: { id: true, nombre: true },
+      orderBy: { nombre: "asc" },
+    }),
+  ]);
 
   const total = todosLosPedidos.length;
 
   return (
-    <PageWrapper className="space-y-6 p-6 lg:p-8 max-w-7xl mx-auto text-zinc-100 selection:bg-amber-500/30">
+    <div className="space-y-6 p-6 lg:p-8 max-w-7xl mx-auto text-zinc-100 selection:bg-amber-500/30">
 
       {/* Header */}
-      <AnimatedHeader className="flex flex-wrap items-end justify-between gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="text-xs uppercase tracking-widest text-amber-500 font-bold">Operación</div>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight text-white">Pedidos</h1>
@@ -54,13 +57,11 @@ export default async function PedidosPage({ searchParams }: PageProps) {
           </Link>
           <OptimizarRutasModal />
         </div>
-      </AnimatedHeader>
+      </div>
 
       {/* Tabla integrada con Filtros */}
-      <AnimatedSection delay={0.1}>
-        <PedidosTable pedidos={todosLosPedidos} defaultQuery={defaultQuery} />
-      </AnimatedSection>
-
-    </PageWrapper>
+      <PedidosTable pedidos={todosLosPedidos} repartidores={repartidores} />
+      
+    </div>
   );
 }

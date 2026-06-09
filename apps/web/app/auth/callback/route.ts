@@ -155,7 +155,7 @@ export async function GET(request: Request) {
       usuarioDB.rol === 'super_admin'
         ? '/admin'
         : usuarioDB.rol === 'repartidor'
-        ? '/dashboard/pedidos'
+        ? '/repartidor/dashboard'
         : '/dashboard';
 
     console.log(

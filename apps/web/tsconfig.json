@@ -2,6 +2,8 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "plugins": [{ "name": "next" }],
+    "types": ["google.maps"],
+    "noImplicitAny": false,
     "paths": {
       "@/*": ["./*"],
       "@ruteai/database": ["../../packages/database/src/index.ts"],

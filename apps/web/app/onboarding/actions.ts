@@ -29,7 +29,8 @@ export async function createCompany(formData: FormData) {
   }
 
   // Transacción: Crear Empresa y Usuario
-  await prisma.$transaction(async (tx) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await prisma.$transaction(async (tx: any) => {
     const nuevaEmpresa = await tx.empresa.create({
       data: {
         nombre: nombreEmpresa,
