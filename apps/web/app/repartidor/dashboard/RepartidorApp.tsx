@@ -309,6 +309,13 @@ function MapaTab({ pedidos, onRefresh, lastUpdated, isRefreshing }: {
   // ─ Fix hydration: time string solo se popula en el cliente ─
   const [timeStr, setTimeStr] = useState("—");
 
+  // Estados del Simulador GPS
+  const [simulatedPos, setSimulatedPos] = useState<google.maps.LatLngLiteral | null>(null);
+  const [isSimulating, setIsSimulating] = useState<boolean>(false);
+  const [simulationSpeed, setSimulationSpeed] = useState<number>(2); // 1, 2, 5
+  const [showSimPanel, setShowSimPanel] = useState<boolean>(false);
+  const [lastPostedPos, setLastPostedPos] = useState<string>( "");
+
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? "";
 
   useEffect(() => {
@@ -332,11 +339,13 @@ function MapaTab({ pedidos, onRefresh, lastUpdated, isRefreshing }: {
     [pedidos]
   );
 
+  const effectivePos = isSimulating && simulatedPos ? simulatedPos : userPos;
+
   const mapCenter = useMemo(() => {
-    if (userPos) return userPos;
+    if (effectivePos) return effectivePos;
     if (paradas.length === 0) return { lat: -33.4489, lng: -70.6693 };
     return { lat: paradas.reduce((s, p) => s + p.lat, 0) / paradas.length, lng: paradas.reduce((s, p) => s + p.lng, 0) / paradas.length };
-  }, [userPos, paradas]);
+  }, [effectivePos, paradas]);
 
   const stats = useMemo(() => ({
     pendiente: pedidos.filter(p => p.estado === "pendiente").length,
@@ -344,6 +353,85 @@ function MapaTab({ pedidos, onRefresh, lastUpdated, isRefreshing }: {
     entregado: pedidos.filter(p => p.estado === "entregado").length,
     fallido:   pedidos.filter(p => p.estado === "fallido").length,
   }), [pedidos]);
+
+  // Encontrar el siguiente pedido activo para el simulador
+  const nextTarget = useMemo(() => {
+    const active = pedidos.filter(p => (p.estado === "pendiente" || p.estado === "en_ruta") && p.lat != null && p.lng != null);
+    if (active.length === 0) return null;
+    
+    // Greedy nearest neighbor para saber cuál es el siguiente
+    const start = effectivePos ?? { lat: active[0].lat!, lng: active[0].lng! };
+    const ordered = greedyOrder(start, active.map(p => ({ id: p.id, lat: p.lat!, lng: p.lng!, nombreCliente: p.nombreCliente })));
+    return ordered[0];
+  }, [pedidos, effectivePos]);
+
+  // Loop de simulación de movimiento GPS
+  useEffect(() => {
+    if (!isSimulating) return;
+
+    if (!simulatedPos) {
+      if (userPos) {
+        setSimulatedPos(userPos);
+      } else if (paradas.length > 0) {
+        setSimulatedPos(paradas[0]);
+      } else {
+        setSimulatedPos({ lat: -33.4489, lng: -70.6693 }); // Santiago Centro
+      }
+      return;
+    }
+
+    if (!nextTarget) return;
+
+    const interval = setInterval(() => {
+      setSimulatedPos(prev => {
+        if (!prev) return null;
+
+        const latDiff = nextTarget.lat - prev.lat;
+        const lngDiff = nextTarget.lng - prev.lng;
+        const distance = Math.sqrt(latDiff ** 2 + lngDiff ** 2);
+
+        // Aprox ~15-20 metros por paso básico en grados
+        const baseStep = 0.00018;
+        const step = baseStep * simulationSpeed;
+
+        if (distance <= step) {
+          return { lat: nextTarget.lat, lng: nextTarget.lng };
+        } else {
+          const ratio = step / distance;
+          return {
+            lat: prev.lat + latDiff * ratio,
+            lng: prev.lng + lngDiff * ratio
+          };
+        }
+      });
+    }, 1500);
+
+    return () => clearInterval(interval);
+  }, [isSimulating, simulatedPos, nextTarget, userPos, paradas, simulationSpeed]);
+
+  // Sincronizar ubicación simulada con el servidor
+  useEffect(() => {
+    if (!isSimulating || !simulatedPos) return;
+
+    const key = `${simulatedPos.lat.toFixed(5)},${simulatedPos.lng.toFixed(5)}`;
+    if (key === lastPostedPos) return;
+    setLastPostedPos(key);
+
+    const postSimulatedLocation = async () => {
+      try {
+        await fetch("/api/ubicacion", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lat: simulatedPos.lat, lng: simulatedPos.lng }),
+        });
+      } catch (err) {
+        console.error("Error al reportar ubicación simulada:", err);
+      }
+    };
+
+    const t = setTimeout(postSimulatedLocation, 400);
+    return () => clearTimeout(t);
+  }, [simulatedPos, isSimulating, lastPostedPos]);
 
   if (!apiKey) {
     return (
@@ -363,8 +451,8 @@ function MapaTab({ pedidos, onRefresh, lastUpdated, isRefreshing }: {
         <Map id={MAP_ID} defaultCenter={mapCenter} defaultZoom={12}
           gestureHandling="greedy" disableDefaultUI={true} styles={DARK_MAP_STYLE} className="h-full w-full">
           <FitBounds points={paradas} />
-          <RoutePolyline pedidos={pedidos} userPos={userPos} />
-          {userPos && <TruckMarker pos={userPos} />}
+          <RoutePolyline pedidos={pedidos} userPos={effectivePos} />
+          {effectivePos && <TruckMarker pos={effectivePos} />}
           <PedidoMarkers pedidos={pedidos} selected={selected} onSelect={setSelected} />
         </Map>
         <MapControls points={paradas} />
@@ -381,12 +469,137 @@ function MapaTab({ pedidos, onRefresh, lastUpdated, isRefreshing }: {
 
         {/* GPS indicator */}
         {gpsOk !== null && (
-          <div className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-medium backdrop-blur-md border bg-zinc-900/80 ${gpsOk ? "border-sky-500/30 text-sky-400" : "border-zinc-700 text-zinc-500"}`}>
-            <span className={`h-1.5 w-1.5 rounded-full ${gpsOk ? "bg-sky-400 animate-pulse" : "bg-zinc-600"}`} />
-            {gpsOk ? "GPS activo" : "Sin GPS"}
+          <div className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-medium backdrop-blur-md border bg-zinc-900/80 ${isSimulating ? "border-amber-500/30 text-amber-400" : gpsOk ? "border-sky-500/30 text-sky-400" : "border-zinc-700 text-zinc-500"}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${isSimulating ? "bg-amber-400 animate-pulse" : gpsOk ? "bg-sky-400 animate-pulse" : "bg-zinc-600"}`} />
+            {isSimulating ? "GPS Simulado" : gpsOk ? "GPS activo" : "Sin GPS"}
           </div>
         )}
+
+        {/* Botón para abrir Simulador */}
+        <button 
+          onClick={() => setShowSimPanel(!showSimPanel)}
+          className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold border transition-all shadow-md ${
+            showSimPanel 
+              ? "bg-purple-600 border-purple-500 text-white" 
+              : "bg-zinc-900/90 border-white/[0.06] text-purple-400 hover:text-purple-300"
+          }`}
+        >
+          🛠️ Simulador GPS
+        </button>
       </div>
+
+      {/* Floating GPS Simulator Panel */}
+      {showSimPanel && (
+        <div className="absolute top-16 left-3 right-3 sm:left-auto sm:right-3 sm:w-85 z-20 rounded-2xl border border-purple-500/20 bg-zinc-950/95 backdrop-blur-xl p-4 shadow-xl space-y-3 animate-fade-in text-xs text-zinc-300" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between">
+            <span className="font-bold text-white flex items-center gap-1.5 text-xs">
+              <span className="h-2 w-2 rounded-full bg-purple-500 animate-ping" />
+              SIMULADOR DE GPS
+            </span>
+            <button 
+              onClick={() => setShowSimPanel(false)}
+              className="text-zinc-500 hover:text-white"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="space-y-1">
+            <div className="flex justify-between text-zinc-400">
+              <span>Estado:</span>
+              <span className={`font-semibold ${isSimulating ? "text-emerald-400" : "text-zinc-500"}`}>
+                {isSimulating ? "Simulando movimiento" : "Detenido"}
+              </span>
+            </div>
+            {effectivePos && (
+              <div className="flex justify-between text-zinc-500 font-mono text-[10px]">
+                <span>Coords:</span>
+                <span>{effectivePos.lat.toFixed(5)}, {effectivePos.lng.toFixed(5)}</span>
+              </div>
+            )}
+            {nextTarget && (
+              <div className="text-[10px] text-purple-400 truncate mt-1">
+                📍 Próximo objetivo: {nextTarget.nombreCliente}
+              </div>
+            )}
+          </div>
+
+          {/* Controls */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                if (!isSimulating && !simulatedPos) {
+                  // Iniciar en la posición real o en la primera parada
+                  setSimulatedPos(userPos ?? paradas[0] ?? { lat: -33.4489, lng: -70.6693 });
+                }
+                setIsSimulating(!isSimulating);
+              }}
+              className={`flex-1 py-2 rounded-xl font-bold transition text-xs ${
+                isSimulating 
+                  ? "bg-red-950/60 border border-red-500/25 text-red-400" 
+                  : "bg-purple-600 hover:bg-purple-500 text-white"
+              }`}
+            >
+              {isSimulating ? "Pausar" : "Iniciar Movimiento"}
+            </button>
+
+            {isSimulating && (
+              <button
+                onClick={() => setSimulationSpeed(prev => prev === 1 ? 2 : prev === 2 ? 5 : 1)}
+                className="px-3 rounded-xl bg-zinc-900 border border-white/5 font-semibold text-zinc-300"
+                title="Cambiar velocidad"
+              >
+                Speed x{simulationSpeed}
+              </button>
+            )}
+          </div>
+
+          {/* Teleport / Actions */}
+          <div className="grid grid-cols-2 gap-2 pt-1">
+            <button
+              disabled={!nextTarget}
+              onClick={() => {
+                if (nextTarget) {
+                  setSimulatedPos({ lat: nextTarget.lat, lng: nextTarget.lng });
+                }
+              }}
+              className="py-1.5 rounded-lg bg-zinc-900 border border-white/5 hover:border-white/10 text-zinc-300 disabled:opacity-40 transition-colors"
+            >
+              🎯 Saltar a Parada
+            </button>
+            <button
+              disabled={!effectivePos}
+              onClick={() => {
+                if (effectivePos) {
+                  // Moverse 1.5 km al norte y oeste
+                  setSimulatedPos({
+                    lat: effectivePos.lat + 0.015,
+                    lng: effectivePos.lng - 0.015
+                  });
+                }
+              }}
+              className="py-1.5 rounded-lg bg-zinc-900 border border-white/5 hover:border-white/10 text-zinc-300 disabled:opacity-40 transition-colors"
+              title="Simula que el repartidor se sale de la ruta óptima"
+            >
+              🚨 Simular Desvío
+            </button>
+          </div>
+
+          {/* Reset */}
+          {(isSimulating || simulatedPos) && (
+            <button
+              onClick={() => {
+                setIsSimulating(false);
+                setSimulatedPos(null);
+                setSimulationSpeed(2);
+              }}
+              className="w-full py-1.5 rounded-lg bg-zinc-900/50 hover:bg-zinc-900 text-zinc-500 hover:text-zinc-300 text-[10px] transition-colors"
+            >
+              Restaurar GPS Real / Limpiar Simulación
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Bottom status bar */}
       <div className="absolute bottom-3 left-3 right-3 z-10 flex items-center justify-between gap-2 rounded-2xl bg-zinc-900/85 backdrop-blur-xl border border-white/[0.05] px-4 py-2.5">
@@ -422,6 +635,10 @@ function PedidosTab({ pedidos, onRefresh, isRefreshing }: {
   isRefreshing: boolean;
 }) {
   const [filtro, setFiltro] = useState<FiltroEstado>("todos");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [motivoFalloInput, setMotivoFalloInput] = useState<string>("");
+  const [showFalloForm, setShowFalloForm] = useState<boolean>(false);
 
   const filtros: { id: FiltroEstado; label: string }[] = [
     { id: "todos",     label: "Todos" },
@@ -435,6 +652,30 @@ function PedidosTab({ pedidos, onRefresh, isRefreshing }: {
     filtro === "todos" ? pedidos : pedidos.filter(p => p.estado === filtro),
     [pedidos, filtro]
   );
+
+  const handleUpdateStatus = async (pedidoId: string, nuevoEstado: string, motivo?: string) => {
+    setUpdatingId(pedidoId);
+    try {
+      const res = await fetch(`/api/pedidos/${pedidoId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ estado: nuevoEstado, motivoFallo: motivo }),
+      });
+      if (res.ok) {
+        setShowFalloForm(false);
+        setMotivoFalloInput("");
+        onRefresh();
+      } else {
+        const data = await res.json();
+        alert(data.error || "Error al actualizar el estado");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error de red");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -454,7 +695,7 @@ function PedidosTab({ pedidos, onRefresh, isRefreshing }: {
             const isActive = filtro === f.id;
             const cfg = f.id !== "todos" ? ESTADO_CONFIG[f.id] : null;
             return (
-              <button key={f.id} onClick={() => setFiltro(f.id)}
+              <button key={f.id} onClick={() => { setFiltro(f.id); setExpandedId(null); }}
                 className="shrink-0 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all"
                 style={isActive
                   ? { background: cfg ? `${cfg.color}25` : "rgba(255,255,255,0.1)", color: cfg ? cfg.color : "#fff", border: `1px solid ${cfg ? cfg.color + "40" : "rgba(255,255,255,0.15)"}` }
@@ -480,68 +721,180 @@ function PedidosTab({ pedidos, onRefresh, isRefreshing }: {
           pedidosFiltrados.map((pedido, i) => {
             const cfg = ESTADO_CONFIG[pedido.estado] ?? ESTADO_CONFIG.pendiente;
             const { Icon } = cfg;
+            const isExpanded = expandedId === pedido.id;
+            const isUpdating = updatingId === pedido.id;
+
             return (
               <li key={pedido.id}>
-                <div className="flex items-start gap-3 rounded-2xl border border-white/[0.04] bg-white/[0.02] p-4 active:bg-white/[0.04] transition-colors">
-                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-bold text-white"
-                    style={{ background: cfg.color }}>
-                    {i + 1}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="text-sm font-semibold text-zinc-100 leading-tight">{pedido.nombreCliente}</span>
-                      <span className="shrink-0 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold"
-                        style={{ background: `${cfg.color}22`, color: cfg.color, border: `1px solid ${cfg.color}35` }}>
-                        <Icon className="h-2.5 w-2.5" />
-                        {cfg.label.toUpperCase()}
-                      </span>
+                <div 
+                  onClick={() => {
+                    if (!isExpanded) {
+                      setExpandedId(pedido.id);
+                      setShowFalloForm(false);
+                    } else {
+                      setExpandedId(null);
+                    }
+                  }}
+                  className={`flex flex-col gap-2 rounded-2xl border border-white/[0.04] p-4 cursor-pointer transition-all ${
+                    isExpanded ? "bg-white/[0.06] border-purple-500/25 shadow-lg" : "bg-white/[0.02] hover:bg-white/[0.04]"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-bold text-white"
+                      style={{ background: cfg.color }}>
+                      {i + 1}
                     </div>
-                    <div className="flex items-start gap-1 mt-1.5">
-                      <MapPin className="h-3 w-3 text-zinc-600 mt-0.5 shrink-0" />
-                      <span className="text-xs text-zinc-400 leading-tight">{pedido.direccion}</span>
-                    </div>
-                    {pedido.producto && (
-                      <div className="flex items-center gap-1 mt-1">
-                        <Package className="h-3 w-3 text-zinc-600" />
-                        <span className="text-xs text-zinc-500">{pedido.producto}</span>
-                      </div>
-                    )}
-                    {pedido.horarioPreferido && (
-                      <div className="flex items-center gap-1 mt-1">
-                        <Clock className="h-3 w-3 text-zinc-600" />
-                        <span className="text-xs text-zinc-500">{pedido.horarioPreferido}</span>
-                      </div>
-                    )}
-                    {/* Risk score badge (solo si existe) */}
-                    {pedido.scoreRiesgo != null && (
-                      <div className="flex items-center gap-1.5 mt-2">
-                        <AlertTriangle className="h-3 w-3 shrink-0" style={{ color: riskColor(pedido.scoreRiesgo) }} />
-                        <div className="flex-1 h-1.5 rounded-full bg-white/[0.05] overflow-hidden">
-                          <div className="h-full rounded-full" style={{ width: `${Math.round(pedido.scoreRiesgo * 100)}%`, background: riskColor(pedido.scoreRiesgo) }} />
-                        </div>
-                        <span className="text-[10px] font-bold" style={{ color: riskColor(pedido.scoreRiesgo) }}>
-                          {riskLabel(pedido.scoreRiesgo)}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-sm font-semibold text-zinc-100 leading-tight truncate">{pedido.nombreCliente}</span>
+                        <span className="shrink-0 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold animate-fade-in"
+                          style={{ background: `${cfg.color}22`, color: cfg.color, border: `1px solid ${cfg.color}35` }}>
+                          <Icon className="h-2.5 w-2.5" />
+                          {cfg.label.toUpperCase()}
                         </span>
                       </div>
-                    )}
-                    <div className="flex gap-3 mt-2">
-                      {pedido.clienteTelefono && (
-                        <a href={`tel:${pedido.clienteTelefono}`}
-                          className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-400 hover:text-blue-300 transition-colors">
-                          <Phone className="h-3 w-3" />
-                          {pedido.clienteTelefono}
-                        </a>
-                      )}
-                      {pedido.lat && pedido.lng && (
-                        <a href={`https://maps.google.com/?q=${pedido.lat},${pedido.lng}`}
-                          target="_blank" rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-[11px] font-medium text-purple-400 hover:text-purple-300 transition-colors">
-                          <Navigation className="h-3 w-3" />
-                          Navegar
-                        </a>
-                      )}
+                      <div className="flex items-start gap-1 mt-1.5">
+                        <MapPin className="h-3 w-3 text-zinc-600 mt-0.5 shrink-0" />
+                        <span className="text-xs text-zinc-400 leading-tight">{pedido.direccion}</span>
+                      </div>
                     </div>
                   </div>
+
+                  {/* Expanded Actions & Details */}
+                  {isExpanded && (
+                    <div className="mt-3 pt-3 border-t border-white/[0.06] space-y-3" onClick={(e) => e.stopPropagation()}>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                        {pedido.producto && (
+                          <div className="flex items-center gap-1.5 text-zinc-400">
+                            <Package className="h-3.5 w-3.5 text-zinc-500" />
+                            <span className="truncate">📦 {pedido.producto}</span>
+                          </div>
+                        )}
+                        {pedido.horarioPreferido && (
+                          <div className="flex items-center gap-1.5 text-zinc-400">
+                            <Clock className="h-3.5 w-3.5 text-zinc-500" />
+                            <span className="truncate">🕒 {pedido.horarioPreferido}</span>
+                          </div>
+                        )}
+                        {pedido.clienteTelefono && (
+                          <a href={`tel:${pedido.clienteTelefono}`}
+                            className="flex items-center gap-1.5 text-blue-400 hover:underline">
+                            <Phone className="h-3.5 w-3.5" />
+                            <span>📞 {pedido.clienteTelefono}</span>
+                          </a>
+                        )}
+                        {pedido.lat && pedido.lng && (
+                          <a href={`https://maps.google.com/?q=${pedido.lat},${pedido.lng}`}
+                            target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 text-purple-400 hover:underline">
+                            <Navigation className="h-3.5 w-3.5" />
+                            <span>🗺️ Navegar</span>
+                          </a>
+                        )}
+                      </div>
+
+                      {/* Score Riesgo IA */}
+                      {pedido.scoreRiesgo != null && (
+                        <div className="rounded-xl border border-white/[0.04] bg-white/[0.01] px-3 py-2">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Riesgo de Entrega IA</span>
+                            <span className="text-[11px] font-bold" style={{ color: riskColor(pedido.scoreRiesgo) }}>
+                              {riskLabel(pedido.scoreRiesgo)} · {Math.round(pedido.scoreRiesgo * 100)}%
+                            </span>
+                          </div>
+                          <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                            <div className="h-full rounded-full transition-all"
+                              style={{ width: `${Math.round(pedido.scoreRiesgo * 100)}%`, background: riskColor(pedido.scoreRiesgo) }} />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Interactive Actions Buttons */}
+                      <div className="mt-3 flex flex-col gap-2">
+                        {isUpdating ? (
+                          <div className="flex items-center justify-center gap-2 py-2 text-zinc-400 text-xs">
+                            <RefreshCw className="h-4 w-4 animate-spin text-purple-400" />
+                            Actualizando estado...
+                          </div>
+                        ) : (
+                          <>
+                            {pedido.estado === "pendiente" && (
+                              <button
+                                onClick={() => handleUpdateStatus(pedido.id, "en_ruta")}
+                                className="w-full flex items-center justify-center gap-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold py-2.5 text-xs transition active:scale-98"
+                              >
+                                <Navigation className="h-4 w-4" />
+                                Iniciar Entrega (En Ruta)
+                              </button>
+                            )}
+
+                            {pedido.estado === "en_ruta" && (
+                              <div className="flex flex-col gap-2">
+                                <div className="grid grid-cols-2 gap-2">
+                                  <button
+                                    onClick={() => handleUpdateStatus(pedido.id, "entregado")}
+                                    className="flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 text-xs transition active:scale-98"
+                                  >
+                                    <CheckCircle2 className="h-4 w-4" />
+                                    Entregado
+                                  </button>
+                                  <button
+                                    onClick={() => setShowFalloForm(!showFalloForm)}
+                                    className="flex items-center justify-center gap-1.5 rounded-xl bg-red-950/40 hover:bg-red-950/60 border border-red-500/20 text-red-400 font-semibold py-2.5 text-xs transition active:scale-98"
+                                  >
+                                    <XCircle className="h-4 w-4" />
+                                    Fallo / Rechazo
+                                  </button>
+                                </div>
+
+                                {showFalloForm && (
+                                  <div className="mt-2 space-y-2 p-3 rounded-xl bg-red-500/[0.02] border border-red-500/10">
+                                    <label className="text-[10px] text-zinc-400 font-medium uppercase">Motivo del Fallo</label>
+                                    <textarea
+                                      value={motivoFalloInput}
+                                      onChange={(e) => setMotivoFalloInput(e.target.value)}
+                                      placeholder="Ej: Cliente ausente, portón cerrado..."
+                                      className="w-full rounded-lg bg-zinc-900 border border-white/10 p-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-red-500/50"
+                                      rows={2}
+                                    />
+                                    <button
+                                      onClick={() => {
+                                        if (!motivoFalloInput.trim()) {
+                                          alert("Ingresa un motivo");
+                                          return;
+                                        }
+                                        handleUpdateStatus(pedido.id, "fallido", motivoFalloInput);
+                                      }}
+                                      className="w-full rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-semibold py-2"
+                                    >
+                                      Confirmar Fallo de Entrega
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {(pedido.estado === "entregado" || pedido.estado === "fallido") && (
+                              <div className="space-y-2">
+                                <p className="text-center text-[11px] text-zinc-500">
+                                  {pedido.estado === "entregado" 
+                                    ? "🎉 Pedido completado con éxito." 
+                                    : `❌ Entrega fallida.`}
+                                </p>
+                                <button
+                                  onClick={() => handleUpdateStatus(pedido.id, "pendiente")}
+                                  className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-400 py-2 text-xs transition active:scale-98"
+                                >
+                                  <RefreshCw className="h-3 w-3" />
+                                  Revertir a Pendiente
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </li>
             );
