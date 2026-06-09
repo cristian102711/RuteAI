@@ -7,7 +7,9 @@
     "dev": "ts-node-dev --respawn src/index.ts",
     "build": "prisma generate --schema=../../packages/database/prisma/schema.prisma && tsc",
     "start": "node dist/index.js",
-    "db:generate": "prisma generate --schema=../../packages/database/prisma/schema.prisma"
+    "db:generate": "prisma generate --schema=../../packages/database/prisma/schema.prisma",
+    "test": "jest",
+    "test:coverage": "jest --coverage"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
@@ -20,7 +22,10 @@
   "devDependencies": {
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
+    "@types/jest": "^29.5.12",
     "@types/node": "^20.0.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.4.5"
   }
