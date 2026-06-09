@@ -188,6 +188,74 @@ function MapControls({ points }: { points: google.maps.LatLngLiteral[] }) {
   );
 }
 
+// ── Marcadores de pedidos ─────────────────────────────────────
+// Se extrae en un componente propio para que useMapsLibrary('core')
+// actúe de guard: google.maps.Point solo se instancia cuando la API
+// está cargada, evitando "google is not defined" en el primer render.
+function PedidoMarkersLayer({
+  pedidos,
+  selectedPedido,
+  setSelectedPedido,
+}: {
+  pedidos: Pedido[];
+  selectedPedido: string | null;
+  setSelectedPedido: (id: string | null) => void;
+}) {
+  const coreLib = useMapsLibrary("core");
+  if (!coreLib) return null;
+
+  return (
+    <>
+      {pedidos.map((pedido, index) => {
+        if (!pedido.lat || !pedido.lng) return null;
+        const isEnRuta = pedido.estado === "en_ruta";
+        const isSelected = selectedPedido === pedido.id;
+
+        return (
+          <div key={pedido.id}>
+            <Marker
+              position={{ lat: pedido.lat, lng: pedido.lng }}
+              onClick={() => setSelectedPedido(isSelected ? null : pedido.id)}
+              label={{
+                text: String(index + 1),
+                color: "#ffffff",
+                fontSize: "11px",
+                fontWeight: "700",
+              }}
+              icon={{
+                path: "M 0,0 C -2,-20 -10,-22 -10,-30 A 10,10 0 1,1 10,-30 C 10,-22 2,-20 0,0 z",
+                fillColor: isEnRuta ? "#f59e0b" : "#10b981",
+                fillOpacity: 1,
+                strokeColor: "#ffffff",
+                strokeWeight: 1.5,
+                scale: 1,
+                labelOrigin: new google.maps.Point(0, -28),
+              }}
+            />
+            {isSelected && (
+              <InfoWindow
+                position={{ lat: pedido.lat, lng: pedido.lng }}
+                onCloseClick={() => setSelectedPedido(null)}
+              >
+                <div className="text-zinc-950 p-1 font-sans">
+                  <div className="font-bold text-xs">{pedido.nombreCliente}</div>
+                  <div className="text-[10px] text-zinc-600 truncate max-w-[150px]">{pedido.direccion}</div>
+                  <div className="mt-1 text-[9px] font-semibold text-zinc-500 uppercase">
+                    Estado:{" "}
+                    <span className={isEnRuta ? "text-amber-600" : "text-emerald-600"}>
+                      {pedido.estado}
+                    </span>
+                  </div>
+                </div>
+              </InfoWindow>
+            )}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbicaciones }: Props) {
   const { pinPos, ubicacion, conectado } = useRealtimeGPS(empresaId);
   const [selectedPedido, setSelectedPedido] = useState<string | null>(null);
@@ -239,50 +307,13 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
                 <RutaPolyline path={paradas} />
                 <FitBounds points={paradas} />
 
-                {/* Marcadores de Pedidos */}
-                {pedidos.map((pedido, index) => {
-                  if (!pedido.lat || !pedido.lng) return null;
-                  const isEnRuta = pedido.estado === "en_ruta";
-                  const isSelected = selectedPedido === pedido.id;
-
-                  return (
-                    <div key={pedido.id}>
-                      <Marker
-                        position={{ lat: pedido.lat, lng: pedido.lng }}
-                        onClick={() => setSelectedPedido(isSelected ? null : pedido.id)}
-                        label={{
-                          text: String(index + 1),
-                          color: "#ffffff",
-                          fontSize: "11px",
-                          fontWeight: "700",
-                        }}
-                        icon={{
-                          path: "M 0,0 C -2,-20 -10,-22 -10,-30 A 10,10 0 1,1 10,-30 C 10,-22 2,-20 0,0 z",
-                          fillColor: isEnRuta ? "#f59e0b" : "#10b981",
-                          fillOpacity: 1,
-                          strokeColor: "#ffffff",
-                          strokeWeight: 1.5,
-                          scale: 1,
-                          labelOrigin: new google.maps.Point(0, -28),
-                        }}
-                      />
-                      {isSelected && (
-                        <InfoWindow
-                          position={{ lat: pedido.lat, lng: pedido.lng }}
-                          onCloseClick={() => setSelectedPedido(null)}
-                        >
-                          <div className="text-zinc-950 p-1 font-sans">
-                            <div className="font-bold text-xs">{pedido.nombreCliente}</div>
-                            <div className="text-[10px] text-zinc-600 truncate max-w-[150px]">{pedido.direccion}</div>
-                            <div className="mt-1 text-[9px] font-semibold text-zinc-500 uppercase">
-                              Estado: <span className={isEnRuta ? "text-amber-600" : "text-emerald-600"}>{pedido.estado}</span>
-                            </div>
-                          </div>
-                        </InfoWindow>
-                      )}
-                    </div>
-                  );
-                })}
+                {/* Marcadores de Pedidos — en componente hijo para que
+                    google.maps.Point solo se llame cuando la API esté lista */}
+                <PedidoMarkersLayer
+                  pedidos={pedidos}
+                  selectedPedido={selectedPedido}
+                  setSelectedPedido={setSelectedPedido}
+                />
 
                 {/* Pin GPS en Vivo del Repartidor (Realtime) */}
                 {ubicacion && (
