@@ -3,13 +3,15 @@ import { createClient } from "@/lib/supabaseServer";
 import { redirect } from "next/navigation";
 import { EditarPedidoForm } from "./EditarPedidoForm";
 
-export default async function EditarPedidoPage({ params }: { params: { id: string } }) {
+export default async function EditarPedidoPage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  const { id } = await params;
+
   const pedido = await prisma.pedido.findUnique({
-    where: { id: params.id },
+    where: { id },
   });
 
   if (!pedido) {
