@@ -201,12 +201,17 @@ export default async function DashboardPage() {
             {hoyCapitalized} · {conductoresTotales} repartidores registrados · {pedidosDelDia} pedidos totales
           </p>
         </div>
-        
-        <button className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-[0_0_15px_rgba(167,139,250,0.15)] hover:opacity-90 transition active:scale-[0.98]"
-          style={{ background: "linear-gradient(135deg, hsl(271 81% 66%), hsl(300 74% 40%))" }}>
-          <Sparkles className="h-4 w-4" />
-          Optimizar Flota
-        </button>
+        <div className="flex flex-col items-end gap-2">
+          <div className="inline-flex items-center gap-2 rounded-lg border border-white/[0.04] bg-white/[0.02] px-4 py-2 text-sm text-zinc-300">
+            <span className={`h-2 w-2 rounded-full ${empresaActiva.planEstado === 'activo' ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
+            Plan <strong>{empresaActiva.plan?.toUpperCase()}</strong> · Vence: {empresaActiva.planFechaVencimiento ? new Date(empresaActiva.planFechaVencimiento).toLocaleDateString() : 'N/A'}
+          </div>
+          <button className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-[0_0_15px_rgba(167,139,250,0.15)] hover:opacity-90 transition active:scale-[0.98]"
+            style={{ background: "linear-gradient(135deg, hsl(271 81% 66%), hsl(300 74% 40%))" }}>
+            <Sparkles className="h-4 w-4" />
+            Optimizar Flota
+          </button>
+        </div>
       </div>
 
       {/* KPI Cards Grid */}

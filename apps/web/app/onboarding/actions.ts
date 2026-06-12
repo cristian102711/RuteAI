@@ -36,28 +36,50 @@ export async function createCompany(formData: FormData) {
     }
   }
 
-  // Transacción: Crear Empresa y Usuario
-  try {
-    await prisma.$transaction(async (tx) => {
-      const nuevaEmpresa = await tx.empresa.create({
-        data: {
-          nombre: nombreEmpresa,
-          email: user.email || `company_${user.id}@ruteai.app`,
-          plan: "starter",
-          planActivo: true,
-        },
-      });
+  // Buscar si la empresa ya fue creada (por ejemplo, al comprar un plan previamente)
+  let empresaExistente = null;
+  if (user.email) {
+    empresaExistente = await prisma.empresa.findUnique({
+      where: { email: user.email },
+    });
+  }
 
-      await tx.usuario.create({
+  try {
+    if (empresaExistente) {
+      // La empresa ya existe (probablemente por Flow), solo creamos el usuario
+      await prisma.usuario.create({
         data: {
           id: user.id,
           nombre: nombreUsuario,
           email: user.email || `user_${user.id}@ruteai.app`,
           rol: "encargado",
-          empresaId: nuevaEmpresa.id,
+          empresaId: empresaExistente.id,
         },
       });
-    });
+    } else {
+      // La empresa no existe, creamos ambas en transacción
+      await prisma.$transaction(async (tx) => {
+        const nuevaEmpresa = await tx.empresa.create({
+          data: {
+            nombre: nombreEmpresa,
+            email: user.email || `company_${user.id}@ruteai.app`,
+            plan: "starter",
+            planActivo: true,
+            planEstado: "activo",
+          },
+        });
+
+        await tx.usuario.create({
+          data: {
+            id: user.id,
+            nombre: nombreUsuario,
+            email: user.email || `user_${user.id}@ruteai.app`,
+            rol: "encargado",
+            empresaId: nuevaEmpresa.id,
+          },
+        });
+      });
+    }
 
     return { success: true };
   } catch (error: any) {

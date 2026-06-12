@@ -2,10 +2,15 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function main() {
-  const empresas = await prisma.empresa.findMany({
-    select: { id: true, email: true, plan: true, planActivo: true, planEstado: true }
+  const result = await prisma.empresa.updateMany({
+    where: {
+      planActivo: true
+    },
+    data: {
+      planEstado: "activo"
+    }
   });
-  console.log(JSON.stringify(empresas, null, 2));
+  console.log('Update result:', result);
 }
 
 main()

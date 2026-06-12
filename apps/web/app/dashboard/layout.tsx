@@ -34,6 +34,32 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     redirect("/onboarding");
   }
 
+  // Validación de plan activo y vencimientos
+  if (usuarioDB.empresa) {
+    const { planActivo, planEstado, planFechaVencimiento, plan, id: empresaId } = usuarioDB.empresa;
+
+    // Verificar si el plan de pago (pro/business) ya expiró
+    if (plan !== "starter" && planFechaVencimiento && new Date() > new Date(planFechaVencimiento)) {
+      console.log(`[Suscripción] El plan de la empresa ${empresaId} expiró. Volviendo a plan starter.`);
+      
+      await prisma.empresa.update({
+        where: { id: empresaId },
+        data: {
+          plan: "starter",
+          planFechaInicio: null,
+          planFechaVencimiento: null,
+        }
+      });
+      
+      // Actualizamos la memoria actual para que el layout cargue con "starter"
+      usuarioDB.empresa.plan = "starter";
+    }
+
+    if (!planActivo || planEstado !== "activo") {
+      redirect("/#pricing");
+    }
+  }
+
   const empresaNombre = usuarioDB.empresa?.nombre ?? "Mi Empresa";
   const planActual = usuarioDB.empresa?.plan ?? "starter";
 

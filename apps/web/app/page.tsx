@@ -1,9 +1,44 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Route, ArrowRight, Sparkles, Fuel, Clock, Zap, Check, Github, Twitter, Linkedin, Building2, Radio, Shield } from "lucide-react";
 
 export default function LandingPage() {
+  const router = useRouter();
+  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleComprar = (planId: string) => {
+    setSelectedPlan(planId);
+  };
+
+  const procederAlPago = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !email.includes("@") || !selectedPlan) return;
+    
+    setLoading(true);
+    try {
+      const res = await fetch("/api/flow/crear", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planId: selectedPlan, email })
+      });
+      const data = await res.json();
+      if (data.urlPago) {
+        window.location.href = data.urlPago;
+      } else {
+        alert(data.error || "Error al crear el pago");
+        setLoading(false);
+      }
+    } catch (error) {
+      alert("Error de conexión");
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-50 selection:bg-amber-500/30">
       
@@ -290,7 +325,7 @@ export default function LandingPage() {
               <h3 className="text-lg font-semibold text-white">Starter</h3>
               <div className="mt-4 flex items-baseline gap-1"><span className="text-5xl font-semibold tracking-tight text-white">$29</span><span className="text-sm text-zinc-400">/mes</span></div>
               <p className="mt-2 text-sm text-zinc-400">Para tiendas y restaurantes dando sus primeros envíos.</p>
-              <Link href="/dashboard/planes" className="mt-6 w-full rounded-lg px-4 py-2.5 text-sm font-semibold transition bg-zinc-800 text-white hover:bg-zinc-700 flex items-center justify-center gap-2">Ver plan <ArrowRight className="h-3.5 w-3.5" /></Link>
+              <button onClick={() => handleComprar('starter')} className="mt-6 w-full rounded-lg px-4 py-2.5 text-sm font-semibold transition bg-zinc-800 text-white hover:bg-zinc-700 flex items-center justify-center gap-2">Ver plan <ArrowRight className="h-3.5 w-3.5" /></button>
               <ul className="mt-6 space-y-2.5 border-t border-zinc-800 pt-6 text-sm">
                 {["Hasta 1,000 entregas/mes", "5 repartidores", "Optimización de rutas básica", "Soporte por email"].map(f => (
                   <li key={f} className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" /><span className="text-zinc-400">{f}</span></li>
@@ -306,7 +341,7 @@ export default function LandingPage() {
               </div>
               <div className="mt-4 flex items-baseline gap-1"><span className="text-5xl font-semibold tracking-tight text-white">$99</span><span className="text-sm text-zinc-400">/mes</span></div>
               <p className="mt-2 text-sm text-zinc-400">Para operaciones en crecimiento que viven en la calle.</p>
-              <Link href="/dashboard/planes" className="mt-6 w-full rounded-lg px-4 py-2.5 text-sm font-semibold transition bg-gradient-to-r from-amber-500 to-amber-400 text-black hover:opacity-95 flex items-center justify-center gap-2">Ver este plan <ArrowRight className="h-3.5 w-3.5" /></Link>
+              <button onClick={() => handleComprar('pro')} className="mt-6 w-full rounded-lg px-4 py-2.5 text-sm font-semibold transition bg-gradient-to-r from-amber-500 to-amber-400 text-black hover:opacity-95 flex items-center justify-center gap-2">Ver este plan <ArrowRight className="h-3.5 w-3.5" /></button>
               <ul className="mt-6 space-y-2.5 border-t border-zinc-800/50 pt-6 text-sm">
                 {["Hasta 10,000 entregas/mes", "50 repartidores", "Score de riesgo IA", "Webhooks + API REST", "Soporte prioritario"].map(f => (
                   <li key={f} className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" /><span className="text-zinc-400">{f}</span></li>
@@ -318,7 +353,7 @@ export default function LandingPage() {
               <h3 className="text-lg font-semibold text-white">Business</h3>
               <div className="mt-4 flex items-baseline gap-1"><span className="text-4xl font-semibold tracking-tight text-white">A medida</span></div>
               <p className="mt-2 text-sm text-zinc-400">Multi-país, SLA y modelo de IA dedicado a tu vertical.</p>
-              <Link href="/dashboard/planes" className="mt-6 w-full rounded-lg px-4 py-2.5 text-sm font-semibold transition bg-zinc-800 text-white hover:bg-zinc-700 flex items-center justify-center gap-2">Ver plan Enterprise <ArrowRight className="h-3.5 w-3.5" /></Link>
+              <button onClick={() => handleComprar('business')} className="mt-6 w-full rounded-lg px-4 py-2.5 text-sm font-semibold transition bg-zinc-800 text-white hover:bg-zinc-700 flex items-center justify-center gap-2">Ver plan Enterprise <ArrowRight className="h-3.5 w-3.5" /></button>
               <ul className="mt-6 space-y-2.5 border-t border-zinc-800 pt-6 text-sm">
                 {["Entregas ilimitadas", "Repartidores ilimitados", "Modelo IA fine-tuned", "SSO + SOC 2", "Customer Success dedicado"].map(f => (
                   <li key={f} className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" /><span className="text-zinc-400">{f}</span></li>
@@ -401,6 +436,42 @@ export default function LandingPage() {
         </div>
       </footer>
 
+      {selectedPlan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl">
+            <h3 className="text-xl font-semibold text-white">Ingresa tu email</h3>
+            <p className="mt-2 text-sm text-zinc-400">
+              ¿A qué correo te enviaremos el acceso y la factura?
+            </p>
+            <form onSubmit={procederAlPago} className="mt-6">
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="tu@empresa.com"
+                className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-white placeholder:text-zinc-600 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+              />
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSelectedPlan(null)}
+                  className="rounded-lg px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex items-center justify-center rounded-lg bg-gradient-to-r from-amber-500 to-amber-400 px-6 py-2 text-sm font-semibold text-black hover:opacity-95 disabled:opacity-50"
+                >
+                  {loading ? "Cargando..." : "Ir a pagar"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

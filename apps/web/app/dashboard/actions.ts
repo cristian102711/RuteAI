@@ -2,6 +2,7 @@
 
 import prisma from "@ruteai/database";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabaseServer";
 import { obtenerScoreRiesgo } from "@/lib/aiServiceClient";
 import { notificarPedidoEnRuta, notificarPedidoEntregado } from "@/lib/twilioService";
@@ -172,49 +173,44 @@ export async function crearEmpresaYUsuario(formData: FormData) {
       where: { id: userId },
     });
 
-    if (existingUser) {
-      revalidatePath("/dashboard");
-      return { success: true, alreadyExists: true };
-    }
+    if (!existingUser) {
+      // 2. Buscar si ya existe una empresa con este email
+      let empresa = await prisma.empresa.findUnique({
+        where: { email: userEmail }
+      });
 
-    // 2. Buscar si ya existe una empresa con este email
-    let empresa = await prisma.empresa.findUnique({
-      where: { email: userEmail }
-    });
+      // 3. Si no existe, crear la empresa
+      if (!empresa) {
+        empresa = await prisma.empresa.create({
+          data: {
+            nombre: nombreEmpresa,
+            email: userEmail,
+          }
+        });
+      }
 
-    // 3. Si no existe, crear la empresa
-    if (!empresa) {
-      empresa = await prisma.empresa.create({
+      // 4. Crear el usuario asociado a esa empresa
+      await prisma.usuario.create({
         data: {
-          nombre: nombreEmpresa,
+          id: userId,
+          nombre: "Administrador Principal",
           email: userEmail,
+          rol: "encargado",
+          empresaId: empresa.id
         }
       });
     }
 
-    // 4. Crear el usuario asociado a esa empresa
-    await prisma.usuario.create({
-      data: {
-        id: userId,
-        nombre: "Administrador Principal",
-        email: userEmail,
-        rol: "encargado",
-        empresaId: empresa.id
-      }
-    });
-
   } catch (error: any) {
     console.error("Error en crearEmpresaYUsuario:", error);
-    // Si aún así hay P2002, asumimos que se creó concurrentemente
-    if (error?.code === "P2002") {
-      revalidatePath("/dashboard");
-      return { success: true, alreadyExists: true };
+    // Si hay P2002, asumimos que se creó concurrentemente — igualmente redirigir
+    if (error?.code !== "P2002") {
+      throw error;
     }
-    throw error;
   }
 
   revalidatePath("/dashboard");
-  return { success: true };
+  redirect("/dashboard");
 }
 
 
