@@ -323,11 +323,11 @@ export default function LandingPage() {
             
             <div className="relative rounded-2xl border p-7 border-zinc-800 bg-zinc-900/20 hover:border-zinc-600 transition-colors">
               <h3 className="text-lg font-semibold text-white">Starter</h3>
-              <div className="mt-4 flex items-baseline gap-1"><span className="text-5xl font-semibold tracking-tight text-white">$29</span><span className="text-sm text-zinc-400">/mes</span></div>
+              <div className="mt-4 flex items-baseline gap-1"><span className="text-5xl font-semibold tracking-tight text-white">Gratis</span></div>
               <p className="mt-2 text-sm text-zinc-400">Para tiendas y restaurantes dando sus primeros envíos.</p>
-              <button onClick={() => handleComprar('starter')} className="mt-6 w-full rounded-lg px-4 py-2.5 text-sm font-semibold transition bg-zinc-800 text-white hover:bg-zinc-700 flex items-center justify-center gap-2">Ver plan <ArrowRight className="h-3.5 w-3.5" /></button>
+              <Link href="/login" className="mt-6 w-full rounded-lg px-4 py-2.5 text-sm font-semibold transition bg-zinc-800 text-white hover:bg-zinc-700 flex items-center justify-center gap-2">Comenzar gratis <ArrowRight className="h-3.5 w-3.5" /></Link>
               <ul className="mt-6 space-y-2.5 border-t border-zinc-800 pt-6 text-sm">
-                {["Hasta 1,000 entregas/mes", "5 repartidores", "Optimización de rutas básica", "Soporte por email"].map(f => (
+                {["Hasta 1.000 entregas/mes", "5 repartidores", "Optimización de rutas básica", "Soporte por email"].map(f => (
                   <li key={f} className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" /><span className="text-zinc-400">{f}</span></li>
                 ))}
               </ul>
@@ -339,11 +339,11 @@ export default function LandingPage() {
                 <h3 className="text-lg font-semibold text-white">Pro</h3>
                 <span className="rounded bg-purple-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-purple-300">IA incluida</span>
               </div>
-              <div className="mt-4 flex items-baseline gap-1"><span className="text-5xl font-semibold tracking-tight text-white">$99</span><span className="text-sm text-zinc-400">/mes</span></div>
+              <div className="mt-4 flex items-baseline gap-1"><span className="text-5xl font-semibold tracking-tight text-white">$99.000</span><span className="text-sm text-zinc-400">&nbsp;CLP/mes</span></div>
               <p className="mt-2 text-sm text-zinc-400">Para operaciones en crecimiento que viven en la calle.</p>
               <button onClick={() => handleComprar('pro')} className="mt-6 w-full rounded-lg px-4 py-2.5 text-sm font-semibold transition bg-gradient-to-r from-amber-500 to-amber-400 text-black hover:opacity-95 flex items-center justify-center gap-2">Ver este plan <ArrowRight className="h-3.5 w-3.5" /></button>
               <ul className="mt-6 space-y-2.5 border-t border-zinc-800/50 pt-6 text-sm">
-                {["Hasta 10,000 entregas/mes", "50 repartidores", "Score de riesgo IA", "Webhooks + API REST", "Soporte prioritario"].map(f => (
+                {["Hasta 10.000 entregas/mes", "50 repartidores", "Score de riesgo IA", "Webhooks + API REST", "Soporte prioritario"].map(f => (
                   <li key={f} className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" /><span className="text-zinc-400">{f}</span></li>
                 ))}
               </ul>
@@ -351,7 +351,7 @@ export default function LandingPage() {
 
             <div className="relative rounded-2xl border p-7 border-zinc-800 bg-zinc-900/20 hover:border-purple-500/30 transition-colors">
               <h3 className="text-lg font-semibold text-white">Business</h3>
-              <div className="mt-4 flex items-baseline gap-1"><span className="text-4xl font-semibold tracking-tight text-white">A medida</span></div>
+              <div className="mt-4 flex items-baseline gap-1"><span className="text-5xl font-semibold tracking-tight text-white">$199.000</span><span className="text-sm text-zinc-400">&nbsp;CLP/mes</span></div>
               <p className="mt-2 text-sm text-zinc-400">Multi-país, SLA y modelo de IA dedicado a tu vertical.</p>
               <button onClick={() => handleComprar('business')} className="mt-6 w-full rounded-lg px-4 py-2.5 text-sm font-semibold transition bg-zinc-800 text-white hover:bg-zinc-700 flex items-center justify-center gap-2">Ver plan Enterprise <ArrowRight className="h-3.5 w-3.5" /></button>
               <ul className="mt-6 space-y-2.5 border-t border-zinc-800 pt-6 text-sm">
@@ -430,7 +430,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="mt-12 flex flex-wrap items-center justify-between gap-4 border-t border-zinc-800 pt-6 text-xs text-zinc-500">
-            <div>© 2026 RouteAI Labs S.A.S. — Bogotá · CDMX · Buenos Aires</div>
+            <div>© 2026 RouteAI Labs SpA — Santiago · Viña del Mar · Concepción</div>
             <div className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /> Todos los sistemas operativos</div>
           </div>
         </div>

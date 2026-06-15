@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
   LayoutDashboard, Package, Users, Map, 
-  ChartColumn, Sparkles, Settings, ChevronDown, Route, CreditCard
+  ChartColumn, Settings, ChevronDown, Route, CreditCard
 } from "lucide-react";
 import { LogoutButton } from "./LogoutButton";
 
@@ -13,6 +13,7 @@ interface SidebarProps {
   usuarioNombre: string;
   usuarioEmail: string;
   planActual: string;
+  pedidosPendientes?: number;
 }
 
 const PLAN_LABELS: Record<string, string> = {
@@ -21,7 +22,7 @@ const PLAN_LABELS: Record<string, string> = {
   business: "Business",
 };
 
-export function Sidebar({ empresaNombre, usuarioNombre, usuarioEmail, planActual }: SidebarProps) {
+export function Sidebar({ empresaNombre, usuarioNombre, usuarioEmail, planActual, pedidosPendientes = 0 }: SidebarProps) {
   const pathname = usePathname();
 
   const isActive = (path: string) => pathname === path || pathname?.startsWith(`${path}/`);
@@ -76,7 +77,9 @@ export function Sidebar({ empresaNombre, usuarioNombre, usuarioEmail, planActual
             <Package className={`h-4 w-4 ${isActive('/dashboard/pedidos') ? 'text-amber-500' : ''}`} />
             Pedidos
           </span>
-          <span className="rounded bg-purple-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-purple-400">24</span>
+          {pedidosPendientes > 0 && (
+            <span className="rounded bg-purple-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-purple-400">{pedidosPendientes}</span>
+          )}
         </Link>
 
         <Link 
@@ -109,15 +112,6 @@ export function Sidebar({ empresaNombre, usuarioNombre, usuarioEmail, planActual
           </span>
         </Link>
 
-        <Link 
-          href="/dashboard/asistente" 
-          className={`group flex items-center justify-between rounded-md px-2.5 py-1.5 text-sm transition-colors ${isActive('/dashboard/asistente') ? 'bg-white/[0.06] text-white ring-1 ring-inset ring-white/10' : 'text-zinc-400 hover:bg-white/[0.04] hover:text-white'}`}
-        >
-          <span className="flex items-center gap-2.5">
-            <Sparkles className={`h-4 w-4 ${isActive('/dashboard/asistente') ? 'text-amber-500' : ''}`} />
-            Asistente IA
-          </span>
-        </Link>
 
         <Link 
           href="/dashboard/configuracion" 

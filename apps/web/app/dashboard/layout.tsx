@@ -55,7 +55,10 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       usuarioDB.empresa.plan = "starter";
     }
 
-    if (!planActivo || planEstado !== "activo") {
+    // Starter siempre tiene acceso libre (freemium)
+    // Solo bloqueamos Pro/Business si el pago no está activo
+    const esPlanPago = plan === "pro" || plan === "business";
+    if (esPlanPago && (!planActivo || planEstado !== "activo")) {
       redirect("/#pricing");
     }
   }
@@ -81,6 +84,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         usuarioNombre={usuarioDB?.nombre ?? "Usuario"}
         empresaNombre={empresaNombre}
         planActual={planActual}
+        pedidosPendientes={pedidosPendientes}
       />
 
       {/* Área principal */}
