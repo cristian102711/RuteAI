@@ -4,8 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
   LayoutDashboard, Package, Users, Map, 
-  ChartColumn, Sparkles, Settings, ChevronDown, Route,
-  AlertTriangle
+  ChartColumn, Sparkles, Settings, ChevronDown, Route, CreditCard
 } from "lucide-react";
 import { LogoutButton } from "./LogoutButton";
 
@@ -13,9 +12,16 @@ interface SidebarProps {
   empresaNombre: string;
   usuarioNombre: string;
   usuarioEmail: string;
+  planActual: string;
 }
 
-export function Sidebar({ empresaNombre, usuarioNombre, usuarioEmail }: SidebarProps) {
+const PLAN_LABELS: Record<string, string> = {
+  starter: "Starter",
+  pro: "Pro",
+  business: "Business",
+};
+
+export function Sidebar({ empresaNombre, usuarioNombre, usuarioEmail, planActual }: SidebarProps) {
   const pathname = usePathname();
 
   const isActive = (path: string) => pathname === path || pathname?.startsWith(`${path}/`);
@@ -43,7 +49,7 @@ export function Sidebar({ empresaNombre, usuarioNombre, usuarioEmail }: SidebarP
             </div>
             <div className="min-w-0">
               <div className="truncate text-sm font-medium text-white">{empresaNombre}</div>
-              <div className="truncate text-[11px] text-zinc-400">Plan Pro · Global</div>
+              <div className="truncate text-[11px] text-zinc-400">Plan {PLAN_LABELS[planActual] ?? planActual} · Global</div>
             </div>
           </div>
           <ChevronDown className="h-3.5 w-3.5 text-zinc-400" />
@@ -104,12 +110,12 @@ export function Sidebar({ empresaNombre, usuarioNombre, usuarioEmail }: SidebarP
         </Link>
 
         <Link 
-          href="/dashboard/incidencias" 
-          className={`group flex items-center justify-between rounded-md px-2.5 py-1.5 text-sm transition-colors ${isActive('/dashboard/incidencias') ? 'bg-white/[0.06] text-white ring-1 ring-inset ring-white/10' : 'text-zinc-400 hover:bg-white/[0.04] hover:text-white'}`}
+          href="/dashboard/asistente" 
+          className={`group flex items-center justify-between rounded-md px-2.5 py-1.5 text-sm transition-colors ${isActive('/dashboard/asistente') ? 'bg-white/[0.06] text-white ring-1 ring-inset ring-white/10' : 'text-zinc-400 hover:bg-white/[0.04] hover:text-white'}`}
         >
           <span className="flex items-center gap-2.5">
-            <AlertTriangle className={`h-4 w-4 ${isActive('/dashboard/incidencias') ? 'text-amber-500' : ''}`} />
-            Incidencias
+            <Sparkles className={`h-4 w-4 ${isActive('/dashboard/asistente') ? 'text-amber-500' : ''}`} />
+            Asistente IA
           </span>
         </Link>
 

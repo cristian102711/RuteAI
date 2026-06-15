@@ -31,7 +31,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+    <html lang="es" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`} data-scroll-behavior="smooth">
       <body suppressHydrationWarning className="min-h-full flex flex-col bg-zinc-950 text-white">
         {/* Toaster global: funciona en /login, /dashboard y cualquier otra página */}
         <Toaster theme="dark" richColors expand={true} position="top-right" />

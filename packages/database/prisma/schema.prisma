@@ -17,21 +17,25 @@ datasource db {
 // planActivo controla si la suscripción está vigente.
 // -------------------------------------------------------------
 model Empresa {
-  id             String   @id @default(uuid())
-  nombre         String
-  email          String   @unique
-  plan           String   @default("starter") // starter | pro | business
-  planActivo     Boolean  @default(false)
-  activa         Boolean  @default(true)
-  configuracion  Json?    // RUT, país, dirección, notificaciones, ajustes IA
-  createdAt      DateTime @default(now())
+  id               String   @id @default(uuid())
+  nombre           String
+  email            String   @unique
+  plan             String   @default("starter") // starter | pro | business
+  planActivo       Boolean  @default(false)
+  planFechaInicio  DateTime?
+  planFechaVencimiento DateTime?
+  planEstado       String   @default("inactivo") // "activo" | "inactivo" | "vencido"
+  activa           Boolean  @default(true)
+  configuracion    Json?    // RUT, país, dirección, notificaciones, ajustes IA
+  metodoPago       Json?    // Datos enmascarados: { tipo, ultimos4, expira, titular } — sin número completo
+  createdAt        DateTime @default(now())
 
-  usuarios            Usuario[]
-  pedidos             Pedido[]
-  rutas               Ruta[]
-  alertas             Alerta[]
-  reportesCache       ReporteCache[]
-  invitaciones        InvitacionRepartidor[]
+  usuarios      Usuario[]
+  pedidos       Pedido[]
+  rutas         Ruta[]
+  alertas       Alerta[]
+  reportesCache ReporteCache[]
+  pagos         Pago[]
 }
 
 // -------------------------------------------------------------
@@ -44,7 +48,8 @@ model Usuario {
   email    String  @unique
   rol      String  @default("repartidor") // "encargado" | "repartidor"
   telefono String? // Para notificaciones Twilio
-  vehiculo String? // Ej: "Moto · Honda CB 190R"
+  vehiculo String? // Ej: Moto, Auto, Furgón
+  patente  String? // Ej: AB-CD-12
 
   empresaId String
   empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
@@ -178,26 +183,7 @@ model ReporteCache {
 }
 
 // -------------------------------------------------------------
-// 8. INVITACION REPARTIDOR
-// Token de invitación generado por el encargado para que un
-// repartidor pueda crear su cuenta vinculada a la empresa.
-// -------------------------------------------------------------
-model InvitacionRepartidor {
-  id        String   @id @default(uuid())
-  token     String   @unique @default(cuid())
-  email     String?  // Email pre-asignado (opcional)
-  nombre    String?  // Nombre pre-asignado (opcional)
-  usada     Boolean  @default(false)
-  expiresAt DateTime
-
-  empresaId String
-  empresa   Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-}
-
-// -------------------------------------------------------------
-// 9. LOG ACCESO (Auditoría de Inicios de Sesión)
+// 8. LOG ACCESO (Auditoría de Inicios de Sesión)
 // -------------------------------------------------------------
 model LogAcceso {
   id        String   @id @default(uuid())
@@ -208,3 +194,27 @@ model LogAcceso {
   timestamp DateTime @default(now())
 }
 
+// -------------------------------------------------------------
+// 9. PAGO (Integración con Flow)
+// Registra cada transacción de pago de planes
+// -------------------------------------------------------------
+model Pago {
+  id            String   @id @default(cuid())
+  commerceOrder String   @unique  // Ej: ruteai-abc123-1734567890
+  flowOrder     String?            // ID de Flow (viene después del pago)
+  empresaId     String?
+  empresa       Empresa?  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  planId        String            // starter | pro | business
+  monto         Int               // Monto en CLP (29000, 99000, 199000)
+  estado        String   @default("pendiente") // pendiente | pagado | rechazado | anulado
+  token         String?           // Token de Flow para consultas
+  pagadoEn      DateTime?
+  fechaVencimiento DateTime?      // Solo si es suscripción recurrente
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([commerceOrder])
+  @@index([empresaId])
+  @@index([estado])
+  @@index([createdAt])
+}

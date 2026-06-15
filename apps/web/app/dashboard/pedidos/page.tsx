@@ -1,10 +1,9 @@
 import prisma from "@ruteai/database";
 import { createClient } from "@/lib/supabaseServer";
 import { redirect } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Sparkles, Plus } from "lucide-react";
 import Link from "next/link";
 import { PedidosTable } from "../components/PedidosTable";
-import OptimizarRutasModal from "../components/OptimizarRutasModal";
 
 export default async function PedidosPage() {
   const supabase = await createClient();
@@ -17,27 +16,16 @@ export default async function PedidosPage() {
   });
   if (!usuarioDB?.empresa) redirect("/dashboard");
 
-  const [todosLosPedidos, repartidores] = await Promise.all([
-    prisma.pedido.findMany({
-      where: { empresaId: usuarioDB.empresa.id },
-      select: {
-        id: true, producto: true, nombreCliente: true, direccion: true,
-        estado: true, scoreRiesgo: true, repartidorId: true,
-      },
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.usuario.findMany({
-      where: { empresaId: usuarioDB.empresa.id, rol: "repartidor" },
-      select: { id: true, nombre: true },
-      orderBy: { nombre: "asc" },
-    }),
-  ]);
+  const todosLosPedidos = await prisma.pedido.findMany({
+    where: { empresaId: usuarioDB.empresa.id },
+    orderBy: { createdAt: "desc" },
+  });
 
   const total = todosLosPedidos.length;
 
   return (
     <div className="space-y-6 p-6 lg:p-8 max-w-7xl mx-auto text-zinc-100 selection:bg-amber-500/30">
-
+      
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -47,7 +35,7 @@ export default async function PedidosPage() {
             {total} pedido{total !== 1 ? "s" : ""} en cola hoy
           </p>
         </div>
-
+        
         <div className="flex flex-wrap items-center gap-2">
           <Link
             href="/dashboard/pedidos/crear"
@@ -55,12 +43,14 @@ export default async function PedidosPage() {
           >
             <Plus className="h-4 w-4" /> Nuevo pedido
           </Link>
-          <OptimizarRutasModal />
+          <button className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-purple-500 to-purple-400 px-4 py-2 text-sm font-semibold text-white shadow-[0_0_15px_rgba(168,85,247,0.4)] hover:opacity-90 transition-opacity">
+            <Sparkles className="h-4 w-4" /> Optimizar Rutas con IA
+          </button>
         </div>
       </div>
 
       {/* Tabla integrada con Filtros */}
-      <PedidosTable pedidos={todosLosPedidos} repartidores={repartidores} />
+      <PedidosTable pedidos={todosLosPedidos} />
       
     </div>
   );

@@ -136,13 +136,15 @@ export default function TrackingClient({ pedido: initialPedido, apiKey }: Tracki
                   <Marker
                     position={{ lat: pedido.lat, lng: pedido.lng }}
                     title="Tu domicilio"
-                    icon={{
-                      path: "M 0,0 C -2,-20 -10,-22 -10,-30 A 10,10 0 1,1 10,-30 C 10,-22 2,-20 0,0 z",
-                      fillColor: "#10b981",
-                      fillOpacity: 1,
-                      strokeColor: "#ffffff",
-                      strokeWeight: 2,
-                      scale: 1.1
+                    options={{
+                      icon: {
+                        path: "M 0,0 C -2,-20 -10,-22 -10,-30 A 10,10 0 1,1 10,-30 C 10,-22 2,-20 0,0 z",
+                        fillColor: "#10b981", // Emerald-500
+                        fillOpacity: 1,
+                        strokeColor: "#ffffff",
+                        strokeWeight: 2,
+                        scale: 1.1
+                      }
                     }}
                   />
                 )}
@@ -153,13 +155,15 @@ export default function TrackingClient({ pedido: initialPedido, apiKey }: Tracki
                     position={driverLocation}
                     title="Repartidor"
                     onClick={() => setShowDriverInfo(!showDriverInfo)}
-                    icon={{
-                      path: "M 0,0 C -2,-20 -10,-22 -10,-30 A 10,10 0 1,1 10,-30 C 10,-22 2,-20 0,0 z",
-                      fillColor: "#3b82f6",
-                      fillOpacity: 1,
-                      strokeColor: "#ffffff",
-                      strokeWeight: 2,
-                      scale: 1.3
+                    options={{
+                      icon: {
+                        path: "M 0,0 C -2,-20 -10,-22 -10,-30 A 10,10 0 1,1 10,-30 C 10,-22 2,-20 0,0 z",
+                        fillColor: "#3b82f6", // Blue-500
+                        fillOpacity: 1,
+                        strokeColor: "#ffffff",
+                        strokeWeight: 2,
+                        scale: 1.3
+                      }
                     }}
                   />
                 )}

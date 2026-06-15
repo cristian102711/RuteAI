@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { logAuthEvent } from "./actions";
-import { motion } from "framer-motion";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -85,7 +84,7 @@ export default function LoginPage() {
         await logAuthEvent({ userId: resData.usuario.id, email: resData.usuario.email, provider: "email", status: "success" });
         const rol = resData.usuario.rol;
         if (rol === "super_admin") router.push("/admin");
-        else if (rol === "repartidor") router.push("/repartidor/dashboard");
+        else if (rol === "repartidor") router.push("/dashboard/pedidos");
         else router.push("/dashboard");
         router.refresh();
       } else {
@@ -179,12 +178,7 @@ export default function LoginPage() {
       <main className="relative z-10 mx-auto grid max-w-7xl gap-12 px-6 pb-16 pt-6 lg:grid-cols-2 lg:gap-16 lg:px-10 lg:pt-12">
 
         {/* ── COLUMNA IZQUIERDA: MARKETING ── */}
-        <motion.section
-          initial={{ opacity: 0, x: -40 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-          className="hidden flex-col justify-between lg:flex"
-        >
+        <section className="hidden flex-col justify-between lg:flex">
           <div>
             {/* Badge */}
             <span className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground" style={{ background: "rgba(255,255,255,0.03)" }}>
@@ -227,7 +221,7 @@ export default function LoginPage() {
                 </div>
                 <div>
                   <div className="text-sm font-medium">Multi-país LATAM</div>
-                  <div className="text-xs text-muted-foreground">MX · CO · CL · AR · PE · PA · EC · UY.</div>
+                  <div className="text-xs text-muted-foreground">MX · CO · CL · AR · PE · PA · EC · UY</div>
                 </div>
               </li>
             </ul>
@@ -243,15 +237,10 @@ export default function LoginPage() {
             </div>
             <p className="text-xs text-muted-foreground">+240 empresas en LATAM ya optimizan con RouteAI.</p>
           </div>
-        </motion.section>
+        </section>
 
         {/* ── COLUMNA DERECHA: FORMULARIO ── */}
-        <motion.section
-          initial={{ opacity: 0, x: 40 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-          className="flex items-center"
-        >
+        <section className="flex items-center">
           <div className="w-full rounded-2xl border border-border p-7 shadow-2xl backdrop-blur-xl sm:p-8" style={{ background: "rgba(255,255,255,0.02)" }}>
 
             {/* Tabs con indicador deslizante */}
@@ -499,7 +488,7 @@ export default function LoginPage() {
               </p>
             </div>
           </div>
-        </motion.section>
+        </section>
       </main>
     </div>
   );

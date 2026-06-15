@@ -7,12 +7,9 @@ export const OrdersService = {
     return OrdersRepository.findAll(empresaId);
   },
 
-  async obtener(id: string, empresaId: string) {
+  async obtener(id: string) {
     const pedido = await OrdersRepository.findById(id);
     if (!pedido) throw new Error(`Pedido ${id} no encontrado.`);
-    if (pedido.empresaId !== empresaId) {
-      throw new Error("No autorizado. El pedido pertenece a otra empresa.");
-    }
     return pedido;
   },
 
@@ -31,25 +28,16 @@ export const OrdersService = {
     return OrdersRepository.create(data);
   },
 
-  async actualizarEstado(id: string, estado: string, empresaId: string) {
+  async actualizarEstado(id: string, estado: string) {
     const validEstados = ["pendiente", "en_ruta", "entregado", "fallido"];
     if (!validEstados.includes(estado)) {
       throw new Error(`Estado inválido. Válidos: ${validEstados.join(", ")}`);
     }
-    const pedido = await OrdersRepository.findById(id);
-    if (!pedido) throw new Error(`Pedido ${id} no encontrado.`);
-    if (pedido.empresaId !== empresaId) {
-      throw new Error("No autorizado. El pedido pertenece a otra empresa.");
-    }
     return OrdersRepository.updateEstado(id, estado);
   },
 
-  async eliminar(id: string, empresaId: string) {
-    const pedido = await OrdersRepository.findById(id); // verifica que existe
-    if (!pedido) throw new Error(`Pedido ${id} no encontrado.`);
-    if (pedido.empresaId !== empresaId) {
-      throw new Error("No autorizado. El pedido pertenece a otra empresa.");
-    }
+  async eliminar(id: string) {
+    await OrdersRepository.findById(id); // verifica que existe
     return OrdersRepository.delete(id);
   },
 };

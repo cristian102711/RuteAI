@@ -2,10 +2,9 @@
 import prisma from "@ruteai/database";
 import { createClient } from "@/lib/supabaseServer";
 import { redirect } from "next/navigation";
-import { AlertTriangle, Clock, MapPin, TrendingUp } from "lucide-react";
+import { AlertTriangle, CheckCheck, Clock, MapPin, TrendingUp } from "lucide-react";
 import { AlertasLista } from "./AlertasLista";
 import type { Alerta } from "@ruteai/database";
-import { PageWrapper, AnimatedHeader, AnimatedGrid, AnimatedCard, AnimatedSection } from "@/components/motion/PageWrapper";
 
 type AlertaConRepartidor = Alerta & {
   repartidor: { id: string; nombre: string } | null;
@@ -62,20 +61,19 @@ export default async function AlertasPage() {
   };
 
   return (
-    <PageWrapper className="px-2 pb-10">
-      <div className="max-w-5xl mx-auto space-y-8">
-
+    <div className="px-2 pb-10">
+      <div className="max-w-5xl mx-auto">
         {/* Header */}
-        <AnimatedHeader className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-zinc-800 pb-8 pt-2">
+        <header className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-end border-b border-border-ui pb-8">
           <div>
-            <span className="text-amber-500 text-xs font-bold tracking-[0.2em] uppercase mb-1 flex items-center gap-2">
+            <span className="text-amber-600 dark:text-amber-500 text-xs font-bold tracking-[0.2em] uppercase mb-1 flex items-center gap-2">
               <AlertTriangle className="w-4 h-4" />
               Sistema de Monitoreo
             </span>
-            <h1 className="text-4xl md:text-5xl font-black tracking-tight text-white mb-2">
-              Centro de <span className="text-amber-500">Alertas</span>
+            <h1 className="text-4xl md:text-5xl font-black tracking-tight text-foreground mb-2">
+              Centro de <span className="text-amber-600 dark:text-amber-500">Alertas</span>
             </h1>
-            <p className="text-zinc-400 text-sm font-medium">
+            <p className="text-muted-foreground text-sm font-medium">
               {noLeidas > 0
                 ? `${noLeidas} alerta${noLeidas > 1 ? "s" : ""} sin leer`
                 : "Todas las alertas están al día"}
@@ -83,54 +81,55 @@ export default async function AlertasPage() {
           </div>
 
           {noLeidas > 0 && (
-            <div className="mt-4 md:mt-0 flex items-center gap-2 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-bold px-4 py-2.5 rounded-2xl animate-pulse shadow-sm">
+            <div className="mt-4 md:mt-0 flex items-center gap-2 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-bold px-4 py-2.5 rounded-2xl animate-pulse shadow-sm">
               <span className="w-2 h-2 bg-rose-500 rounded-full" />
               {noLeidas} sin leer
             </div>
           )}
-        </AnimatedHeader>
+        </header>
 
-        {/* Tarjetas resumen — con hover lift */}
-        <AnimatedGrid className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Tarjetas de resumen */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
           {(["desvio", "retraso", "riesgo_alto"] as const).map((tipo) => {
             const cfg = TIPO_CONFIG[tipo];
             const Icono = cfg.icono;
+            
+            // Map colors to semantic classes
             const colorMap: Record<string, string> = {
               "text-amber-400": "text-amber-500",
               "text-blue-400": "text-blue-500",
-              "text-rose-400": "text-rose-500",
+              "text-rose-400": "text-rose-500"
             };
             const semanticColor = colorMap[cfg.color] || cfg.color;
             const semanticBg = semanticColor.replace("text-", "bg-") + "/10";
             const semanticBorder = semanticColor.replace("text-", "border-") + "/20";
 
             return (
-              <AnimatedCard
+              <div
                 key={tipo}
-                className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 flex items-center gap-4 shadow-sm cursor-default"
+                className={`bg-card border border-border-ui rounded-3xl p-5 flex items-center gap-4 shadow-sm hover:shadow-md transition-all duration-300`}
               >
-                <div className={`w-12 h-12 rounded-2xl ${semanticBg} border ${semanticBorder} flex items-center justify-center shrink-0`}>
+                <div className={`w-12 h-12 rounded-2xl ${semanticBg} border ${semanticBorder} flex items-center justify-center`}>
                   <Icono className={`w-6 h-6 ${semanticColor}`} />
                 </div>
                 <div>
-                  <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-0.5">{cfg.label}</p>
+                  <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mb-0.5">{cfg.label}</p>
                   <p className={`text-2xl font-black ${semanticColor}`}>{porTipo[tipo]}</p>
                 </div>
-              </AnimatedCard>
+              </div>
             );
           })}
-        </AnimatedGrid>
+        </div>
 
         {/* Lista de alertas con Realtime */}
-        <AnimatedSection delay={0.15}>
+        <div className="bg-card border border-border-ui rounded-3xl p-2 shadow-sm">
           <AlertasLista
             alertasIniciales={alertas}
             empresaId={usuarioDB.empresa.id}
             tipoConfig={TIPO_CONFIG}
           />
-        </AnimatedSection>
-
+        </div>
       </div>
-    </PageWrapper>
+    </div>
   );
 }

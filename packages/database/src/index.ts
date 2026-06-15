@@ -17,6 +17,7 @@ export type {
   Alerta,
   ReporteCache,
   LogAcceso,
+  Pago,
 } from '@prisma/client';
 
 export { Prisma } from '@prisma/client';
