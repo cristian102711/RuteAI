@@ -859,4 +859,8 @@ export default function ConfiguracionClient({
             );
           })()}
 
-
+        </main>
+      </div>
+    </div>
+  );
+}
