@@ -7,6 +7,7 @@ import {
   LogOut, Loader2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { ModalEvidencia } from "../dashboard/components/ModalEvidencia";
 
 interface Pedido {
   id:              string;
@@ -46,6 +47,7 @@ export function RepartidorClient({
   const [total]                     = useState(totalInicial);
   const [confirmando, setConfirmando] = useState<"entregado" | "fallido" | null>(null);
   const [menuOpen, setMenuOpen]     = useState(false);
+  const [modalEvidencia, setModalEvidencia] = useState<string | null>(null); // pedidoId cuando abierto
 
   const totalConEntregados = total;
   const progreso = totalConEntregados === 0
@@ -260,15 +262,13 @@ export function RepartidorClient({
 
               {/* ── Acciones de entrega ────────────────── */}
               <div className="mt-3 grid grid-cols-2 gap-2">
+                {/* Entregado → abre modal de evidencia */}
                 <button
-                  onClick={() => actualizarEstado(proxima.id, "entregado")}
+                  onClick={() => setModalEvidencia(proxima.id)}
                   disabled={!!confirmando}
                   className="flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 py-3 text-sm font-bold text-emerald-400 hover:bg-emerald-500/30 transition-colors disabled:opacity-60"
                 >
-                  {confirmando === "entregado"
-                    ? <Loader2 className="h-4 w-4 animate-spin" />
-                    : <CheckCircle2 className="h-4 w-4" />
-                  }
+                  <CheckCircle2 className="h-4 w-4" />
                   Entregado
                 </button>
                 <button
@@ -340,6 +340,23 @@ export function RepartidorClient({
 
         </div>
       </div>
+
+      {/* ── Modal de Evidencia de Entrega ── */}
+      {modalEvidencia && proxima && (
+        <ModalEvidencia
+          pedidoId={modalEvidencia}
+          nombreCliente={proxima.nombreCliente}
+          onClose={() => setModalEvidencia(null)}
+          onSuccess={() => {
+            setModalEvidencia(null);
+            // Avanzar al siguiente pedido igual que al marcar entregado
+            setEntregados((e) => e + 1);
+            const [siguiente, ...resto] = restantes;
+            setProxima(siguiente ?? null);
+            setRestantes(resto);
+          }}
+        />
+      )}
     </div>
   );
 }

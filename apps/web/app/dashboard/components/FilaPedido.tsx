@@ -87,7 +87,7 @@ export function FilaPedido({ pedido }: { pedido: Pedido }) {
            </button>
         )}
 
-        <BotonesTabla pedidoId={pedido.id} estado={pedido.estado} />
+        <BotonesTabla pedidoId={pedido.id} estado={pedido.estado} nombreCliente={pedido.nombreCliente} />
       </div>
     </div>
   );

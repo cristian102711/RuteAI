@@ -7,7 +7,7 @@ import { Trash2, CheckCircle, Send } from "lucide-react";
 import Swal from "sweetalert2";
 import { ModalEvidencia } from "./ModalEvidencia";
 
-export function BotonesTabla({ pedidoId, estado }: { pedidoId: string, estado: string }) {
+export function BotonesTabla({ pedidoId, estado, nombreCliente = "Cliente" }: { pedidoId: string, estado: string, nombreCliente?: string }) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
 
@@ -121,7 +121,8 @@ export function BotonesTabla({ pedidoId, estado }: { pedidoId: string, estado: s
 
       {showModal && (
         <ModalEvidencia 
-          pedidoId={pedidoId} 
+          pedidoId={pedidoId}
+          nombreCliente={nombreCliente}
           onClose={() => setShowModal(false)}
           onSuccess={() => setShowModal(false)}
         />
