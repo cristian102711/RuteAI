@@ -35,6 +35,8 @@
     "zod": "^3.24.0"
   },
   "devDependencies": {
+    "@babel/preset-env": "^7.29.7",
+    "@babel/preset-react": "^7.29.7",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -42,6 +44,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "babel-jest": "^30.4.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.1",
     "identity-obj-proxy": "^3.0.0",
