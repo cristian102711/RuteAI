@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
   LayoutDashboard, Package, Users, Map, 
-  ChartColumn, Sparkles, Settings, ChevronDown, Route
+  ChartColumn, Sparkles, Settings, ChevronDown, Route,
+  AlertTriangle
 } from "lucide-react";
 import { LogoutButton } from "./LogoutButton";
 
@@ -102,6 +103,15 @@ export function Sidebar({ empresaNombre, usuarioNombre, usuarioEmail }: SidebarP
           </span>
         </Link>
 
+        <Link 
+          href="/dashboard/incidencias" 
+          className={`group flex items-center justify-between rounded-md px-2.5 py-1.5 text-sm transition-colors ${isActive('/dashboard/incidencias') ? 'bg-white/[0.06] text-white ring-1 ring-inset ring-white/10' : 'text-zinc-400 hover:bg-white/[0.04] hover:text-white'}`}
+        >
+          <span className="flex items-center gap-2.5">
+            <AlertTriangle className={`h-4 w-4 ${isActive('/dashboard/incidencias') ? 'text-amber-500' : ''}`} />
+            Incidencias
+          </span>
+        </Link>
 
         <Link 
           href="/dashboard/configuracion" 

@@ -420,3 +420,29 @@ export async function actualizarConfiguracionIA(data: {
   revalidatePath("/dashboard/configuracion");
   return { success: true };
 }
+
+export async function reprogramarPedido(pedidoId: string) {
+  if (!pedidoId) return { error: "ID de pedido requerido" };
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+
+  const usuarioDB = await prisma.usuario.findUnique({
+    where: { id: user.id },
+    select: { empresaId: true, rol: true },
+  });
+  if (!usuarioDB || usuarioDB.rol !== "encargado") return { error: "Sin permisos" };
+
+  await prisma.pedido.update({
+    where: { id: pedidoId, empresaId: usuarioDB.empresaId },
+    data: {
+      estado: "pendiente",
+      motivoFallo: null,
+    },
+  });
+
+  revalidatePath("/dashboard/pedidos");
+  revalidatePath("/dashboard/incidencias");
+  return { success: true };
+}
