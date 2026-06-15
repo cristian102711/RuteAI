@@ -36,10 +36,19 @@ export default async function ConfiguracionPage() {
     return <div className="p-10 text-xl font-bold text-red-400 bg-zinc-950 h-screen">🚨 Error: Sesión no válida.</div>;
   }
 
-  // 2. Datos del usuario + empresa (incluyendo el JSON de configuración)
+  // 2. Datos del usuario + empresa + últimos pagos (billing)
   const usuarioDB = await prisma.usuario.findUnique({
     where: { id: user.id },
-    include: { empresa: true }
+    include: {
+      empresa: {
+        include: {
+          pagos: {
+            orderBy: { createdAt: "desc" },
+            take: 10,
+          },
+        },
+      },
+    },
   });
 
   if (!usuarioDB || !usuarioDB.empresa) {
@@ -84,6 +93,20 @@ export default async function ConfiguracionPage() {
         prediccionFallo: ia.prediccionFallo ?? true,
         reasignacionAuto: ia.reasignacionAuto ?? false,
         validacionDireccion: ia.validacionDireccion ?? true,
+      }}
+      initialBilling={{
+        planEstado: usuarioDB.empresa.planEstado ?? "inactivo",
+        planFechaInicio: usuarioDB.empresa.planFechaInicio?.toISOString() ?? null,
+        planFechaVencimiento: usuarioDB.empresa.planFechaVencimiento?.toISOString() ?? null,
+        pagos: (usuarioDB.empresa.pagos ?? []).map((p) => ({
+          id:             p.id,
+          commerceOrder:  p.commerceOrder,
+          planId:         p.planId,
+          monto:          p.monto,
+          estado:         p.estado,
+          pagadoEn:       p.pagadoEn?.toISOString() ?? null,
+          createdAt:      p.createdAt.toISOString(),
+        })),
       }}
     />
   );
