@@ -6,17 +6,17 @@ import { createClient } from "@/lib/supabaseServer";
 import { createAdminClient } from "@/lib/supabaseAdmin";
 
 export async function invitarRepartidor(formData: FormData) {
-  const nombre = formData.get("nombre") as string;
-  const email = formData.get("email") as string;
+  const nombre   = formData.get("nombre")   as string;
+  const email    = formData.get("email")    as string;
   const telefono = formData.get("telefono") as string;
   const vehiculo = formData.get("vehiculo") as string;
-  const patente = formData.get("patente") as string;
+  const patente  = formData.get("patente")  as string;
 
   if (!nombre || !email) {
     return { error: "Faltan datos obligatorios (nombre, email)" };
   }
 
-  // 1. Obtener la sesión actual y verificar permisos
+  // 1. Sesión y permisos
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "No autenticado" };
@@ -32,56 +32,45 @@ export async function invitarRepartidor(formData: FormData) {
 
   const empresaId = usuarioDB.empresaId;
 
-  // 2. Crear usuario en Supabase Auth mediante Admin API
+  // 2. Guardar datos en InvitacionPendiente (upsert por si re-invitan el mismo email)
+  const expiraEn = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 días
+  await prisma.invitacionPendiente.upsert({
+    where:  { email },
+    update: { nombre, telefono: telefono || null, vehiculo: vehiculo || null, patente: patente || null, empresaId, creadoPor: user.id, expiraEn },
+    create: { email, nombre, telefono: telefono || null, vehiculo: vehiculo || null, patente: patente || null, empresaId, creadoPor: user.id, expiraEn },
+  });
+
+  // 3. Enviar email de invitación vía Supabase Auth (el repartidor elige su propia contraseña)
   const adminAuth = createAdminClient().auth.admin;
-  
+  const redirectTo = `${process.env.NEXT_PUBLIC_APP_URL ?? "https://ruteai.vercel.app"}/registro-repartidor`;
+
   try {
-    const { data: userData, error: authError } = await adminAuth.createUser({
-      email: email,
-      password: "RouteAI2026!",
-      email_confirm: true,
-      user_metadata: {
-        nombre: nombre,
-        rol: "repartidor",
-        empresaId: empresaId
-      }
-    });
-
-    if (authError) {
-      if (authError.message.includes("already registered")) {
-        return { error: "Este correo ya está registrado en Supabase" };
-      }
-      throw authError;
-    }
-
-    if (!userData.user) {
-      throw new Error("No se pudo obtener el usuario de Supabase tras crearlo");
-    }
-
-    const nuevoUserId = userData.user.id;
-
-    // 3. Crear usuario en Prisma
-    await prisma.usuario.create({
+    const { error: inviteError } = await adminAuth.inviteUserByEmail(email, {
+      redirectTo,
       data: {
-        id: nuevoUserId,
-        nombre: nombre,
-        email: email,
-        telefono: telefono || null,
-        vehiculo: vehiculo || null,
-        patente: patente || null,
-        rol: "repartidor",
-        empresaId: empresaId,
-      }
+        nombre,
+        rol:       "repartidor",
+        empresaId,
+      },
     });
 
+    if (inviteError) {
+      // Limpiar la invitación si falló el email
+      await prisma.invitacionPendiente.deleteMany({ where: { email } });
+      if (inviteError.message.includes("already registered")) {
+        return { error: "Este correo ya tiene una cuenta en RuteAI." };
+      }
+      throw inviteError;
+    }
   } catch (error: any) {
     console.error("Error al invitar repartidor:", error);
-    return { error: error.message || "Error interno al invitar repartidor" };
+    return { error: error.message || "Error al enviar la invitación" };
   }
 
   revalidatePath("/dashboard/equipo");
-  return { success: true };
+  return { success: true, email };
 }
+
 
 export async function editarRepartidor(formData: FormData) {
   const id = formData.get("id") as string;

@@ -218,3 +218,25 @@ model Pago {
   @@index([estado])
   @@index([createdAt])
 }
+
+// -------------------------------------------------------------
+// 10. INVITACION PENDIENTE
+// Guarda los datos pre-llenados de un repartidor invitado por email.
+// El repartidor hace click en el link, ve sus datos y los completa.
+// Se elimina cuando el repartidor completa su registro.
+// -------------------------------------------------------------
+model InvitacionPendiente {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  nombre    String
+  telefono  String?
+  vehiculo  String?
+  patente   String?
+  empresaId String
+  creadoPor String   // ID del encargado que invitó
+  createdAt DateTime @default(now())
+  expiraEn  DateTime // 7 días de validez
+
+  @@index([email])
+  @@index([empresaId])
+}

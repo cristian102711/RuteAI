@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabaseServer';
 import { logAuthEvent } from '@/lib/authLogger';
+import prisma from '@ruteai/database';
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -137,17 +138,29 @@ export async function GET(request: Request) {
 
     // ── Redirigir según estado del usuario ────────────────────────────────
     if (!usuarioDB) {
-      // Usuario nuevo o no encontrado en la DB → onboarding
+      // Verificar si hay una invitación pendiente para este email
+      // (repartidor invitado por email → va a completar su perfil)
+      let tieneInvitacion = false;
+      try {
+        if (user.email) {
+          const inv = await prisma.invitacionPendiente.findUnique({
+            where: { email: user.email },
+          });
+          tieneInvitacion = !!inv && new Date() < inv.expiraEn;
+        }
+      } catch { /* silencio */ }
+
+      const destination = tieneInvitacion ? '/registro-repartidor' : '/onboarding';
       console.log(
         JSON.stringify({
           event: 'oauth.callback.redirect',
-          destination: '/onboarding',
-          reason: 'user_not_in_db',
+          destination,
+          reason: tieneInvitacion ? 'invited_repartidor' : 'user_not_in_db',
           userId: user.id,
           timestamp: new Date().toISOString(),
         })
       );
-      return NextResponse.redirect(`${redirectBase}/onboarding`);
+      return NextResponse.redirect(`${redirectBase}${destination}`);
     }
 
     // Usuario existente → rutear según rol
