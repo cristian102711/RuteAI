@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
   LayoutDashboard, Package, Users, Map, 
-  ChartColumn, Settings, ChevronDown, Route, CreditCard
+  ChartColumn, Settings, ChevronDown, Route, CreditCard, TriangleAlert
 } from "lucide-react";
 import { LogoutButton } from "./LogoutButton";
 
@@ -14,6 +14,7 @@ interface SidebarProps {
   usuarioEmail: string;
   planActual: string;
   pedidosPendientes?: number;
+  alertasNoLeidas?: number;
 }
 
 const PLAN_LABELS: Record<string, string> = {
@@ -22,7 +23,7 @@ const PLAN_LABELS: Record<string, string> = {
   business: "Business",
 };
 
-export function Sidebar({ empresaNombre, usuarioNombre, usuarioEmail, planActual, pedidosPendientes = 0 }: SidebarProps) {
+export function Sidebar({ empresaNombre, usuarioNombre, usuarioEmail, planActual, pedidosPendientes = 0, alertasNoLeidas = 0 }: SidebarProps) {
   const pathname = usePathname();
 
   const isActive = (path: string) => pathname === path || pathname?.startsWith(`${path}/`);
@@ -79,6 +80,19 @@ export function Sidebar({ empresaNombre, usuarioNombre, usuarioEmail, planActual
           </span>
           {pedidosPendientes > 0 && (
             <span className="rounded bg-purple-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-purple-400">{pedidosPendientes}</span>
+          )}
+        </Link>
+
+        <Link 
+          href="/dashboard/alertas" 
+          className={`group flex items-center justify-between rounded-md px-2.5 py-1.5 text-sm transition-colors ${isActive('/dashboard/alertas') ? 'bg-white/[0.06] text-white ring-1 ring-inset ring-white/10' : 'text-zinc-400 hover:bg-white/[0.04] hover:text-white'}`}
+        >
+          <span className="flex items-center gap-2.5">
+            <TriangleAlert className={`h-4 w-4 ${isActive('/dashboard/alertas') ? 'text-amber-500' : ''}`} />
+            Alertas
+          </span>
+          {alertasNoLeidas > 0 && (
+            <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-400">{alertasNoLeidas}</span>
           )}
         </Link>
 

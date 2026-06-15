@@ -76,6 +76,16 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       })
     : 0;
 
+  // Contar alertas no leídas para el badge del sidebar
+  const alertasNoLeidas = usuarioDB?.empresa
+    ? await prisma.alerta.count({
+        where: {
+          empresaId: usuarioDB.empresa.id,
+          leida: false,
+        },
+      })
+    : 0;
+
   return (
     <div className="flex h-screen bg-zinc-950 text-white font-sans overflow-hidden">
       {/* Sidebar */}
@@ -85,6 +95,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         empresaNombre={empresaNombre}
         planActual={planActual}
         pedidosPendientes={pedidosPendientes}
+        alertasNoLeidas={alertasNoLeidas}
       />
 
       {/* Área principal */}

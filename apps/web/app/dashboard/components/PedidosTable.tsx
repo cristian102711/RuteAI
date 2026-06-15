@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
-import { Search, Sparkles, Funnel, MoreHorizontal } from "lucide-react";
+import { Search, Sparkles, MoreHorizontal, Pencil, Trash2, CheckCircle, Eye } from "lucide-react";
 import { toast } from "sonner";
-import { eliminarPedido } from "../actions";
+import { eliminarPedido, marcarComoEntregado } from "../actions";
 
 interface Pedido {
   id: string;
@@ -19,6 +19,19 @@ export function PedidosTable({ pedidos }: { pedidos: Pedido[] }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<string>("Todos");
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Cerrar menú al hacer click fuera
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenu(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const filters = ["Todos", "Pendientes", "En ruta", "Entregados", "Fallidos"];
 
@@ -184,14 +197,68 @@ export function PedidosTable({ pedidos }: { pedidos: Pedido[] }) {
                     
                     <td className="px-5 py-3 text-zinc-400">{repartidor}</td>
                     
-                    {/* Acciones */}
+                    {/* Menú tres puntos */}
                     <td className="px-5 py-3 text-right">
-                      <Link
-                        href={`/dashboard/pedidos/${o.id}/editar`}
-                        className="grid h-7 w-7 place-items-center rounded-md text-zinc-500 hover:bg-white/10 hover:text-white transition-colors"
-                      >
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Link>
+                      <div className="relative" ref={openMenu === o.id ? menuRef : null}>
+                        <button
+                          onClick={() => setOpenMenu(openMenu === o.id ? null : o.id)}
+                          className="grid h-7 w-7 place-items-center rounded-md text-zinc-500 hover:bg-white/10 hover:text-white transition-colors"
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </button>
+
+                        {openMenu === o.id && (
+                          <div className="absolute right-0 top-8 z-50 w-44 rounded-xl border border-white/10 bg-zinc-900 shadow-2xl shadow-black/50 overflow-hidden">
+                            <Link
+                              href={`/tracking/${o.id}`}
+                              target="_blank"
+                              onClick={() => setOpenMenu(null)}
+                              className="flex items-center gap-2.5 px-3 py-2 text-xs text-zinc-300 hover:bg-white/5 hover:text-white transition-colors"
+                            >
+                              <Eye className="h-3.5 w-3.5 text-zinc-400" /> Ver tracking
+                            </Link>
+                            <Link
+                              href={`/dashboard/pedidos/${o.id}/editar`}
+                              onClick={() => setOpenMenu(null)}
+                              className="flex items-center gap-2.5 px-3 py-2 text-xs text-zinc-300 hover:bg-white/5 hover:text-white transition-colors"
+                            >
+                              <Pencil className="h-3.5 w-3.5 text-zinc-400" /> Editar pedido
+                            </Link>
+                            {o.estado === "en_ruta" && (
+                              <button
+                                onClick={async () => {
+                                  setOpenMenu(null);
+                                  try {
+                                    await marcarComoEntregado(o.id);
+                                    toast.success("Marcado como entregado");
+                                  } catch { toast.error("Error al actualizar"); }
+                                }}
+                                className="flex w-full items-center gap-2.5 px-3 py-2 text-xs text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                              >
+                                <CheckCircle className="h-3.5 w-3.5" /> Marcar entregado
+                              </button>
+                            )}
+                            <div className="mx-2 my-1 border-t border-white/5" />
+                            <button
+                              onClick={async () => {
+                                setOpenMenu(null);
+                                if (!confirm(`¿Eliminar pedido de ${o.nombreCliente}?`)) return;
+                                setIsDeleting(o.id);
+                                try {
+                                  await eliminarPedido(o.id);
+                                  toast.success("Pedido eliminado");
+                                } catch { toast.error("Error al eliminar"); }
+                                finally { setIsDeleting(null); }
+                              }}
+                              disabled={isDeleting === o.id}
+                              className="flex w-full items-center gap-2.5 px-3 py-2 text-xs text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              {isDeleting === o.id ? "Eliminando…" : "Eliminar"}
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
