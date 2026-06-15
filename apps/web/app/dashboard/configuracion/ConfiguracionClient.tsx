@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
+import Cropper from "react-easy-crop";
+import getCroppedImg from "@/lib/cropImage";
 import {
   Building2, User, BellRing, Sparkles, ChevronRight, Send, Upload, Loader2
 } from "lucide-react";
@@ -11,7 +13,6 @@ import {
   actualizarConfiguracionNotificaciones,
   actualizarConfiguracionIA,
 } from "../actions";
-import { PageWrapper, AnimatedHeader, AnimatedSection, AnimatedGrid } from "@/components/motion/PageWrapper";
 
 type TabId = "empresa" | "perfil" | "notificaciones" | "ia";
 
@@ -25,6 +26,7 @@ interface ConfiguracionClientProps {
     pais: string;
     zonaHoraria: string;
     direccion: string;
+    logoUrl?: string;
   };
   initialUsuario: {
     id: string;
@@ -65,6 +67,77 @@ export default function ConfiguracionClient({
   const [pais, setPais] = useState(initialEmpresa.pais);
   const [zonaHoraria, setZonaHoraria] = useState(initialEmpresa.zonaHoraria);
   const [direccion, setDireccion] = useState(initialEmpresa.direccion);
+  const [logoUrl, setLogoUrl] = useState(initialEmpresa.logoUrl || "");
+
+  // ── CROPPER ───────────────────────────────────────────────────
+  const [isCropping, setIsCropping] = useState(false);
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const onCropComplete = useCallback((croppedArea: any, croppedAreaPixels: any) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  }, []);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.addEventListener("load", () => {
+        setImageSrc(reader.result?.toString() || "");
+        setIsCropping(true);
+      });
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleCropSave = async () => {
+    if (!imageSrc || !croppedAreaPixels) return;
+    try {
+      setSaving(true);
+      const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels);
+      if (!croppedBlob) throw new Error("Error recortando imagen");
+      
+      // 1. Obtener la Signed URL
+      const resPost = await fetch("/api/empresa/logo", { method: "POST" });
+      const dataPost = await resPost.json();
+      if (!dataPost.success) throw new Error(dataPost.error || "Error al obtener URL de subida");
+      
+      const { signedUrl, publicUrl } = dataPost.data;
+
+      // 2. Subir el archivo a Supabase usando la Signed URL
+      const uploadRes = await fetch(signedUrl, {
+        method: "PUT",
+        headers: { "Content-Type": croppedBlob.type || "image/png" },
+        body: croppedBlob,
+      });
+
+      if (!uploadRes.ok) throw new Error("Error al subir archivo a Supabase");
+
+      // 3. Confirmar la subida y guardar en DB
+      const resPatch = await fetch("/api/empresa/logo", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ publicUrl }),
+      });
+
+      const dataPatch = await resPatch.json();
+      if (dataPatch.success) {
+        setLogoUrl(dataPatch.logoUrl);
+        toast.success("Logo actualizado correctamente");
+      } else {
+        toast.error("Error: " + dataPatch.error);
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Error al subir el logo");
+    } finally {
+      setIsCropping(false);
+      setImageSrc(null);
+      setSaving(false);
+    }
+  };
 
   // ── PERFIL ────────────────────────────────────────────────────
   const [nombre, setNombre] = useState(initialUsuario.nombre.split(" ")[0] || "");
@@ -252,19 +325,19 @@ export default function ConfiguracionClient({
   );
 
   return (
-    <PageWrapper className="max-w-7xl mx-auto space-y-6 pb-10">
+    <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500 pb-10">
 
       {/* HEADER */}
-      <AnimatedHeader>
+      <div>
         <p className="text-[11px] font-bold text-amber-500 uppercase tracking-widest">Configuración</p>
         <h1 className="text-3xl font-black text-white mt-1 tracking-tight">Ajustes del workspace</h1>
         <p className="text-zinc-400 text-xs mt-1 font-medium">
           {nombreEmpresa} · Plan {initialEmpresa.plan.charAt(0).toUpperCase() + initialEmpresa.plan.slice(1)}
         </p>
-      </AnimatedHeader>
+      </div>
 
       {/* LAYOUT DOS COLUMNAS */}
-      <AnimatedGrid className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
         {/* MENÚ LATERAL */}
         <aside className="lg:col-span-3 bg-zinc-900/40 backdrop-blur-md border border-zinc-800/80 rounded-3xl p-4 space-y-1">
@@ -321,10 +394,15 @@ export default function ConfiguracionClient({
                 <h3 className="text-sm font-extrabold text-white">Logo y branding</h3>
                 <p className="text-xs text-zinc-500 mt-0.5">Aparece en el PWA del repartidor y en los reportes PDF.</p>
                 <div className="flex items-center gap-4 mt-4">
-                  <div className="w-14 h-14 rounded-2xl bg-zinc-800/60 flex items-center justify-center border border-zinc-700/50 text-xl font-bold text-white shadow-inner">
-                    {nombreEmpresa.charAt(0).toUpperCase()}
+                  <div className="w-14 h-14 rounded-2xl bg-zinc-800/60 flex items-center justify-center border border-zinc-700/50 text-xl font-bold text-white shadow-inner overflow-hidden">
+                    {logoUrl ? (
+                      <img src={logoUrl} alt="Logo Empresa" className="w-full h-full object-cover" />
+                    ) : (
+                      nombreEmpresa.charAt(0).toUpperCase()
+                    )}
                   </div>
-                  <button className="flex items-center gap-2 border border-zinc-800 hover:bg-zinc-800/50 text-zinc-300 font-bold text-xs px-4 py-2.5 rounded-xl transition">
+                  <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleFileChange} />
+                  <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 border border-zinc-800 hover:bg-zinc-800/50 text-zinc-300 font-bold text-xs px-4 py-2.5 rounded-xl transition">
                     <Upload className="w-3.5 h-3.5" />
                     Subir nuevo logo
                   </button>
@@ -596,7 +674,38 @@ export default function ConfiguracionClient({
           )}
 
         </main>
-      </AnimatedGrid>
-    </PageWrapper>
+      </div>
+
+      {/* CROP MODAL */}
+      {isCropping && imageSrc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-3xl w-full max-w-lg p-6 space-y-6">
+            <h3 className="text-lg font-bold text-white">Recortar Logo</h3>
+            <div className="relative w-full h-64 bg-black rounded-2xl overflow-hidden">
+              <Cropper
+                image={imageSrc}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                onCropChange={setCrop}
+                onCropComplete={onCropComplete}
+                onZoomChange={setZoom}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs text-zinc-400">Zoom</label>
+              <input type="range" min={1} max={3} step={0.1} value={zoom} onChange={(e) => setZoom(Number(e.target.value))} className="w-full accent-amber-500" />
+            </div>
+            <div className="flex justify-end gap-3 pt-4 border-t border-zinc-800/60">
+              <button onClick={() => { setIsCropping(false); setImageSrc(null); }} className="px-5 py-2.5 rounded-xl text-xs font-bold text-zinc-400 hover:text-white transition">Cancelar</button>
+              <button onClick={handleCropSave} disabled={saving} className="bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-zinc-950 font-black text-xs px-6 py-2.5 rounded-xl transition flex items-center gap-2">
+                {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Guardar logo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
   );
 }

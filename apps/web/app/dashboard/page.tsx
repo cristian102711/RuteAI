@@ -1,11 +1,8 @@
 import prisma from "@ruteai/database";
 import { FormCrearPedido } from "./components/FormCrearPedido";
 import { FilaPedido } from "./components/FilaPedido";
-import { MiniMapaDashboard } from "./components/MiniMapaDashboard";
 import { createClient } from "@/lib/supabaseServer";
 import { crearEmpresaYUsuario } from "./actions";
-import OptimizarRutasModal from "./components/OptimizarRutasModal";
-import { AnimatedGrid, AnimatedCard, AnimatedSection } from "@/components/motion/PageWrapper";
 import { 
   Package, CheckSquare, Users, AlertTriangle, 
   Sparkles, ArrowRight, Zap
@@ -22,10 +19,19 @@ export default async function DashboardPage() {
   }
 
   // 2. Buscar en nuestra tabla 'Usuario' de Prisma usando el ID de Supabase
-  const usuarioDB = await prisma.usuario.findUnique({
+  // Si no se encuentra por ID, buscar por email como fallback
+  // (puede haber diferencia de ID si el usuario fue creado con otro método de login)
+  let usuarioDB = await prisma.usuario.findUnique({
     where: { id: user.id },
     include: { empresa: true }
   });
+
+  if (!usuarioDB && user.email) {
+    usuarioDB = await prisma.usuario.findUnique({
+      where: { email: user.email },
+      include: { empresa: true }
+    });
+  }
   
   if (!usuarioDB || !usuarioDB.empresa) {
     return (
@@ -195,15 +201,24 @@ export default async function DashboardPage() {
             {hoyCapitalized} · {conductoresTotales} repartidores registrados · {pedidosDelDia} pedidos totales
           </p>
         </div>
-        
-        <OptimizarRutasModal />
+        <div className="flex flex-col items-end gap-2">
+          <div className="inline-flex items-center gap-2 rounded-lg border border-white/[0.04] bg-white/[0.02] px-4 py-2 text-sm text-zinc-300">
+            <span className={`h-2 w-2 rounded-full ${empresaActiva.planEstado === 'activo' ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
+            Plan <strong>{empresaActiva.plan?.toUpperCase()}</strong> · Vence: {empresaActiva.planFechaVencimiento ? new Date(empresaActiva.planFechaVencimiento).toLocaleDateString() : 'N/A'}
+          </div>
+          <button className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-[0_0_15px_rgba(167,139,250,0.15)] hover:opacity-90 transition active:scale-[0.98]"
+            style={{ background: "linear-gradient(135deg, hsl(271 81% 66%), hsl(300 74% 40%))" }}>
+            <Sparkles className="h-4 w-4" />
+            Optimizar Flota
+          </button>
+        </div>
       </div>
 
-      {/* KPI Cards Grid — stagger + hover lift */}
-      <AnimatedGrid className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* KPI Cards Grid */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         
         {/* Card 1: Pedidos del día */}
-        <AnimatedCard className="rounded-xl border border-white/[0.04] bg-white/[0.02] p-5 shadow-lg backdrop-blur-xl cursor-default">
+        <div className="rounded-xl border border-white/[0.04] bg-white/[0.02] p-5 shadow-lg backdrop-blur-xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
               <Package className="h-3.5 w-3.5 text-amber-500" />
@@ -212,10 +227,10 @@ export default async function DashboardPage() {
           </div>
           <div className="mt-3 text-3xl font-semibold tabular-nums text-white">{pedidosDelDia}</div>
           <div className="mt-1 text-xs text-zinc-500">{enRuta} actualmente en ruta</div>
-        </AnimatedCard>
+        </div>
 
         {/* Card 2: Entregados */}
-        <AnimatedCard className="rounded-xl border border-white/[0.04] bg-white/[0.02] p-5 shadow-lg backdrop-blur-xl cursor-default">
+        <div className="rounded-xl border border-white/[0.04] bg-white/[0.02] p-5 shadow-lg backdrop-blur-xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
               <CheckSquare className="h-3.5 w-3.5 text-emerald-400" />
@@ -225,10 +240,10 @@ export default async function DashboardPage() {
           </div>
           <div className="mt-3 text-3xl font-semibold tabular-nums text-white">{entregados}</div>
           <div className="mt-1 text-xs text-zinc-500">{avancePorcentaje}% de avance</div>
-        </AnimatedCard>
+        </div>
 
         {/* Card 3: Fallidos */}
-        <AnimatedCard className="rounded-xl border border-white/[0.04] bg-white/[0.02] p-5 shadow-lg backdrop-blur-xl cursor-default">
+        <div className="rounded-xl border border-white/[0.04] bg-white/[0.02] p-5 shadow-lg backdrop-blur-xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
               <AlertTriangle className="h-3.5 w-3.5 text-rose-500" />
@@ -238,10 +253,10 @@ export default async function DashboardPage() {
           </div>
           <div className="mt-3 text-3xl font-semibold tabular-nums text-white">{fallidos}</div>
           <div className="mt-1 text-xs text-zinc-500">{fallidos === 0 ? "Sin incidencias hoy" : `${fallidos} entrega(s) fallida(s)`}</div>
-        </AnimatedCard>
+        </div>
 
         {/* Card 4: Repartidores */}
-        <AnimatedCard className="rounded-xl border border-white/[0.04] bg-white/[0.02] p-5 shadow-lg backdrop-blur-xl cursor-default">
+        <div className="rounded-xl border border-white/[0.04] bg-white/[0.02] p-5 shadow-lg backdrop-blur-xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
               <Users className="h-3.5 w-3.5 text-purple-400" />
@@ -250,12 +265,12 @@ export default async function DashboardPage() {
           </div>
           <div className="mt-3 text-3xl font-semibold tabular-nums text-white">{conductoresTotales}</div>
           <div className="mt-1 text-xs text-zinc-500">{conductoresTotales > 0 ? "Conductores activos" : "Sin conductores"}</div>
-        </AnimatedCard>
+        </div>
 
-      </AnimatedGrid>
+      </div>
 
       {/* Grid del medio: Reporte y Sugerencia IA */}
-      <AnimatedSection delay={0.15} className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-3">
         
         {/* Gráfico de barras de la semana */}
         <div className="rounded-xl border border-white/[0.04] bg-white/[0.02] p-5 lg:col-span-2 shadow-lg backdrop-blur-xl">
@@ -331,10 +346,10 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-      </AnimatedSection>
+      </div>
 
       {/* Grid inferior: Mapa y paradas */}
-      <AnimatedSection delay={0.2} className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-3">
         
         {/* Actividad en vivo con mapa animado */}
         <div className="rounded-xl border border-white/[0.04] bg-white/[0.02] lg:col-span-2 shadow-lg backdrop-blur-xl">
@@ -345,10 +360,81 @@ export default async function DashboardPage() {
 
           <div className="relative overflow-hidden rounded-2xl m-5 aspect-[16/9] bg-zinc-950/85 border border-white/[0.04]">
             
-            {/* Google Map real interactivo y dinámico */}
-            <div className="absolute inset-0 w-full h-full">
-              <MiniMapaDashboard pedidos={pedidos} empresaId={empresaActiva.id} />
-            </div>
+            {/* Grilla técnica en CSS */}
+            <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.01)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.01)_1px,transparent_1px)] bg-[size:24px_24px]" />
+            
+            {/* Efectos de luces radiales */}
+            <div className="absolute -left-16 -top-16 h-64 w-64 rounded-full bg-purple-500/5 blur-[80px]" />
+            <div className="absolute -bottom-20 -right-10 h-72 w-72 rounded-full bg-amber-500/5 blur-[95px]" />
+
+            {/* Líneas de red */}
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full opacity-10">
+              <path d="M0,82 L100,82" stroke="white" strokeWidth="0.2" />
+              <path d="M0,46 L100,46" stroke="white" strokeWidth="0.2" />
+              <path d="M22,0 L22,100" stroke="white" strokeWidth="0.2" />
+              <path d="M58,0 L58,100" stroke="white" strokeWidth="0.2" />
+              <path d="M84,0 L84,100" stroke="white" strokeWidth="0.2" />
+            </svg>
+
+            {/* SVG Ruta animada conectando los despachos reales */}
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
+              <defs>
+                <linearGradient id="routeGrad" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#f59e0b" />
+                  <stop offset="100%" stopColor="#a78bfa" />
+                </linearGradient>
+                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="0.8" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+              </defs>
+              
+              {mapPoints.length > 1 && (
+                <>
+                  <path 
+                    d={routePathD} 
+                    fill="none" 
+                    stroke="url(#routeGrad)" 
+                    strokeWidth="0.6" 
+                    filter="url(#glow)" 
+                    opacity="0.8" 
+                  />
+                  <path 
+                    d={routePathD} 
+                    fill="none" 
+                    stroke="url(#routeGrad)" 
+                    strokeWidth="0.4" 
+                    strokeDasharray="1.2 1" 
+                  />
+                  {/* Círculo animado que viaja por la ruta real */}
+                  <circle r="1.2" fill="#f59e0b" filter="url(#glow)">
+                    <animateMotion dur="8s" repeatCount="indefinite" path={routePathD} />
+                  </circle>
+                </>
+              )}
+            </svg>
+
+            {/* Puntos y etiquetas flotantes en el mapa */}
+            {mapPoints.map((pt, idx) => (
+              <div key={idx} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: pt.x, top: pt.y }}>
+                <div className="relative h-2 w-2 rounded-full" style={{ backgroundColor: pt.color, boxShadow: `0 0 0 2px ${pt.color}40` }}>
+                  <span className="absolute inset-0 rounded-full animate-ping opacity-60" style={{ backgroundColor: pt.color }} />
+                </div>
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-md bg-zinc-950/85 px-1.5 py-0.5 text-[9px] font-medium text-zinc-300 border border-white/[0.04] backdrop-blur">
+                  {pt.name}
+                </div>
+              </div>
+            ))}
+
+            {mapPoints.length === 0 && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
+                <span className="text-xl mb-1">🗺️</span>
+                <p className="text-zinc-500 text-xs tracking-wider">No hay despachos activos hoy en el mapa.</p>
+              </div>
+            )}
 
           </div>
         </div>
@@ -389,10 +475,10 @@ export default async function DashboardPage() {
           </ol>
         </div>
 
-      </AnimatedSection>
+      </div>
 
       {/* Zona Funcional Real: Formulario de Creación y Tabla de Pedidos DB */}
-      <AnimatedSection delay={0.25} className="grid grid-cols-1 xl:grid-cols-3 gap-6 pt-2">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 pt-2">
         
         {/* Formulario Crear Pedido */}
         <div className="xl:col-span-1 bg-white/[0.02] border border-white/[0.04] rounded-3xl p-7 shadow-xl hover:border-zinc-750 transition-all duration-300 h-fit">
@@ -428,7 +514,7 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-      </AnimatedSection>
+      </div>
 
     </div>
   );

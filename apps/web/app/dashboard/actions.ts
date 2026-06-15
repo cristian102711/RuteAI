@@ -2,6 +2,7 @@
 
 import prisma from "@ruteai/database";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabaseServer";
 import { obtenerScoreRiesgo } from "@/lib/aiServiceClient";
 import { notificarPedidoEnRuta, notificarPedidoEntregado } from "@/lib/twilioService";
@@ -12,7 +13,7 @@ export async function agregarPedidoNuevo(formData: FormData) {
   const direccion = formData.get("direccion") as string;
   const producto  = formData.get("producto")  as string;
   const clienteTelefono = formData.get("clienteTelefono") as string;
-
+  
   if (!cliente || !direccion || !producto) return { error: "Faltan datos" };
 
   const supabase = await createClient();
@@ -25,16 +26,11 @@ export async function agregarPedidoNuevo(formData: FormData) {
   });
   if (!usuarioDB) return { error: "Usuario sin empresa asignada" };
 
-  // Usar coordenadas del mapa si el usuario las seleccionó; si no, geocodificar
-  const latParam = formData.get("lat") as string | null;
-  const lngParam = formData.get("lng") as string | null;
-  const preCoords =
-    latParam && lngParam && !isNaN(parseFloat(latParam))
-      ? { lat: parseFloat(latParam), lng: parseFloat(lngParam) }
-      : null;
-
+  // RF-02: Geocodificar la dirección + RF-03: Score IA — en paralelo para minimizar latencia
   const horaActual = new Date().getHours();
-  const coords = preCoords ?? (await geocodificarDireccion(direccion));
+  const [coords] = await Promise.all([
+    geocodificarDireccion(direccion),
+  ]);
 
   const lat = coords?.lat ?? -33.45; // Fallback: Santiago centro
   const lng = coords?.lng ?? -70.66;
@@ -142,14 +138,8 @@ export async function editarPedido(formData: FormData) {
 
   if (!id || !cliente || !direccion || !producto) return { error: "Faltan datos para editar" };
 
-  const latParam = formData.get("lat") as string | null;
-  const lngParam = formData.get("lng") as string | null;
-  const preCoords =
-    latParam && lngParam && !isNaN(parseFloat(latParam))
-      ? { lat: parseFloat(latParam), lng: parseFloat(lngParam) }
-      : null;
-
-  const coords = preCoords ?? (await geocodificarDireccion(direccion));
+  // RF-02: Re-geocodificar si cambia la dirección
+  const coords = await geocodificarDireccion(direccion);
 
   await prisma.pedido.update({
     where: { id },
@@ -177,24 +167,52 @@ export async function crearEmpresaYUsuario(formData: FormData) {
     throw new Error("Faltan datos vitales");
   }
 
-  // Creamos la Empresa y a ti (el Usuario Administrador) de un solo golpe (Transacción)
-  await prisma.empresa.create({
-    data: {
-      nombre: nombreEmpresa,
-      email: userEmail,
-      usuarios: {
-        create: {
+  try {
+    // 1. Verificar si ya existe el usuario
+    const existingUser = await prisma.usuario.findUnique({
+      where: { id: userId },
+    });
+
+    if (!existingUser) {
+      // 2. Buscar si ya existe una empresa con este email
+      let empresa = await prisma.empresa.findUnique({
+        where: { email: userEmail }
+      });
+
+      // 3. Si no existe, crear la empresa
+      if (!empresa) {
+        empresa = await prisma.empresa.create({
+          data: {
+            nombre: nombreEmpresa,
+            email: userEmail,
+          }
+        });
+      }
+
+      // 4. Crear el usuario asociado a esa empresa
+      await prisma.usuario.create({
+        data: {
           id: userId,
           nombre: "Administrador Principal",
           email: userEmail,
-          rol: "encargado"
+          rol: "encargado",
+          empresaId: empresa.id
         }
-      }
+      });
     }
-  });
+
+  } catch (error: any) {
+    console.error("Error en crearEmpresaYUsuario:", error);
+    // Si hay P2002, asumimos que se creó concurrentemente — igualmente redirigir
+    if (error?.code !== "P2002") {
+      throw error;
+    }
+  }
 
   revalidatePath("/dashboard");
+  redirect("/dashboard");
 }
+
 
 export async function obtenerUbicacionRepartidorPublico(pedidoId: string) {
   if (!pedidoId) return { error: "ID de pedido no provisto" };
@@ -358,35 +376,6 @@ export async function actualizarConfiguracionNotificaciones(data: {
 // ──────────────────────────────────────────────────────────────
 // Guardar ajustes de IA & Optimización en el campo JSON
 // ──────────────────────────────────────────────────────────────
-export async function asignarRepartidor(pedidoId: string, repartidorId: string | null) {
-  if (!pedidoId) return { error: "ID de pedido requerido" };
-
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "No autenticado" };
-
-  const usuarioDB = await prisma.usuario.findUnique({
-    where: { id: user.id },
-    select: { empresaId: true, rol: true },
-  });
-  if (!usuarioDB || usuarioDB.rol !== "encargado") return { error: "Sin permisos" };
-
-  // Verificar que el pedido pertenece a la misma empresa
-  const pedido = await prisma.pedido.findFirst({
-    where: { id: pedidoId, empresaId: usuarioDB.empresaId },
-    select: { id: true },
-  });
-  if (!pedido) return { error: "Pedido no encontrado" };
-
-  await prisma.pedido.update({
-    where: { id: pedidoId },
-    data: { repartidorId: repartidorId ?? null },
-  });
-
-  revalidatePath("/dashboard/pedidos");
-  return { success: true };
-}
-
 export async function actualizarConfiguracionIA(data: {
   agresividad: number;
   modeloActivo: string;
@@ -421,8 +410,10 @@ export async function actualizarConfiguracionIA(data: {
   return { success: true };
 }
 
-export async function reprogramarPedido(pedidoId: string) {
-  if (!pedidoId) return { error: "ID de pedido requerido" };
+export async function actualizarPlanEmpresa(planId: string) {
+  if (!["starter", "pro", "business"].includes(planId)) {
+    return { error: "Plan inválido" };
+  }
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -430,19 +421,66 @@ export async function reprogramarPedido(pedidoId: string) {
 
   const usuarioDB = await prisma.usuario.findUnique({
     where: { id: user.id },
-    select: { empresaId: true, rol: true },
+    select: { empresaId: true }
   });
-  if (!usuarioDB || usuarioDB.rol !== "encargado") return { error: "Sin permisos" };
+  if (!usuarioDB) return { error: "Usuario sin empresa" };
 
-  await prisma.pedido.update({
-    where: { id: pedidoId, empresaId: usuarioDB.empresaId },
+  await prisma.empresa.update({
+    where: { id: usuarioDB.empresaId },
+    data: { plan: planId }
+  });
+
+  revalidatePath("/dashboard/planes");
+  return { success: true };
+}
+
+export async function procesarPagoSimulado(planId: string, cardNumber: string, expiry: string, cvc: string) {
+  if (!["starter", "pro", "business"].includes(planId)) {
+    return { error: "Plan inválido" };
+  }
+
+  // Simular un pequeño retraso de red
+  await new Promise(resolve => setTimeout(resolve, 2000));
+
+  // Validaciones súper básicas para la simulación
+  if (cardNumber.replace(/\s/g, '').length < 15) return { error: "Número de tarjeta inválido" };
+  if (!expiry) return { error: "Fecha de expiración requerida" };
+  if (!cvc) return { error: "CVC requerido" };
+
+  // Tarjeta rechazada de prueba (ej. empieza con 4000 0000 0000 0000)
+  if (cardNumber.startsWith("4000 0000")) {
+    return { error: "Tarjeta rechazada por el banco" };
+  }
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+
+  const usuarioDB = await prisma.usuario.findUnique({
+    where: { id: user.id },
+    select: { empresaId: true }
+  });
+  if (!usuarioDB) return { error: "Usuario sin empresa" };
+
+  // Guardar solo los últimos 4 dígitos y tipo de tarjeta para seguridad
+  const ultimos4 = cardNumber.slice(-4);
+  const tipo = cardNumber.startsWith("4") ? "visa" : cardNumber.startsWith("5") ? "mastercard" : "other";
+
+  const metodoPagoOfuscado = {
+    ultimos4,
+    tipo,
+    expiracion: expiry,
+  };
+
+  await prisma.empresa.update({
+    where: { id: usuarioDB.empresaId },
     data: {
-      estado: "pendiente",
-      motivoFallo: null,
+      plan: planId,
+      metodoPago: metodoPagoOfuscado,
     },
   });
 
-  revalidatePath("/dashboard/pedidos");
-  revalidatePath("/dashboard/incidencias");
+  revalidatePath("/dashboard/planes");
   return { success: true };
 }
+

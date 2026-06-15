@@ -1,5 +1,4 @@
 // apps/web/app/dashboard/components/BuscadorPedidos.tsx
-
 "use client";
 
 import { Search } from "lucide-react";
@@ -24,17 +23,14 @@ export function BuscadorPedidos() {
   }, [debouncedQuery, router, searchParams]);
 
   return (
-    <div className="relative flex-1 max-w-md">
-      <Search className="pointer-events-none absolute left-3 top-1/2 w-4 h-4 -translate-y-1/2 text-zinc-500" />
+    <div className="relative">
+      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
       <input 
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Buscar pedidos, clientes, productos..." 
-        className="h-9 w-full rounded-md border border-white/[0.04] bg-white/5 pl-9 pr-16 text-sm placeholder:text-zinc-500 text-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 transition-shadow outline-none"
+        placeholder="Buscar cliente o producto..." 
+        className="bg-card border border-border-ui rounded-xl pl-10 pr-4 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary w-full md:w-64 transition-all shadow-sm"
       />
-      <kbd className="pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 items-center gap-1 rounded border border-white/[0.04] bg-zinc-900 px-1.5 py-0.5 text-[10px] text-zinc-500 sm:inline-flex">
-        ⌘K
-      </kbd>
     </div>
   );
 }
