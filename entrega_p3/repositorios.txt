@@ -1,0 +1,70 @@
+REPOSITORIOS DEL PROYECTO — RuteAI
+====================================
+Plataforma de gestión logística con arquitectura de microservicios
+DSY1106 — Desarrollo Fullstack III
+
+REPOSITORIO PRINCIPAL (Monorepo)
+---------------------------------
+URL: https://github.com/cristian102711/RuteAI
+Descripción: Repositorio principal que contiene todos los componentes del sistema
+             organizados como monorepo (pnpm workspaces + Turborepo).
+             Incluye documentación general, configuración de CI/CD y guías del proyecto.
+Ramas: main (producción automática en Vercel)
+
+COMPONENTE: Frontend + BFF (Backend for Frontend)
+--------------------------------------------------
+URL: https://github.com/cristian102711/RuteAI/tree/main/apps/web
+Tecnología: Next.js 16, TypeScript, React 19, Tailwind CSS 4
+Descripción: Aplicación web fullstack que actúa como BFF (Backend for Frontend).
+             Incluye el panel del encargado (dashboard), portal del repartidor,
+             API REST (15+ endpoints), Server Actions para mutations, y
+             autenticación vía Supabase Auth.
+Deploy: https://ruteai.vercel.app
+Docs API: https://ruteai.vercel.app/docs
+JSON Spec: https://ruteai.vercel.app/api/docs
+
+MICROSERVICIO 1: Servicio de Scoring IA
+-----------------------------------------
+URL: https://github.com/cristian102711/RuteAI/tree/main/apps/ai-service
+Tecnología: Python, FastAPI
+Descripción: Microservicio independiente que calcula el score de riesgo de
+             entrega (0.0 a 1.0) basado en parámetros del pedido como
+             horario, zona geográfica y historial del repartidor.
+             Consumido por el BFF vía HTTP interno (/api/ai/score).
+
+MICROSERVICIO 2: Servicio de Notificaciones GPS/SMS
+-----------------------------------------------------
+URL: https://github.com/cristian102711/RuteAI/tree/main/apps/web/app/api
+Tecnología: Next.js API Routes, Twilio, Supabase Realtime
+Descripción: Microservicio embebido en el BFF que gestiona:
+             - Notificaciones SMS vía Twilio al cliente cuando su pedido 
+               es despachado (tracking link personalizado)
+             - Tracking GPS en tiempo real (Supabase Realtime WebSockets)
+             - Alertas automáticas (desvío, retraso, riesgo alto)
+Endpoints: /api/ubicacion (ping GPS), /api/alertas (notificaciones)
+
+RECURSO DE PERSISTENCIA
+------------------------
+URL: https://github.com/cristian102711/RuteAI/tree/main/packages/database
+Tecnología: PostgreSQL (Supabase), Prisma ORM v5.22
+Descripción: Paquete compartido de acceso a datos. Incluye:
+             - schema.prisma con 10 modelos (Empresa, Usuario, Pedido, 
+               Ruta, Alerta, Ubicacion, Pago, InvitacionPendiente, etc.)
+             - Cliente Prisma generado y compartido entre microservicios
+             - Migraciones de base de datos
+             
+PRUEBAS UNITARIAS
+-----------------
+Directorio: https://github.com/cristian102711/RuteAI/tree/main/apps/web/__tests__
+Framework: Jest + React Testing Library
+Cobertura: 61.45% (supera el mínimo requerido del 60%)
+Tests: 69 tests en 6 suites, 0 fallos
+Reporte HTML: apps/web/coverage/index.html
+
+DOCUMENTACIÓN API
+-----------------
+Swagger UI: https://ruteai.vercel.app/docs
+OpenAPI JSON: https://ruteai.vercel.app/api/docs
+Formato: OpenAPI 3.0
+Endpoints documentados: 14 endpoints en 7 categorías
+(Pedidos, Alertas, Evidencia, Ubicaciones, Auth, IA, Pagos)
