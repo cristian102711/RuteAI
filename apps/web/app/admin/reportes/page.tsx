@@ -38,18 +38,18 @@ export default async function AdminReportesPage() {
     }),
   ]);
 
-  const totalPedidos      = pedidosStats.reduce((a, p) => a + p._count._all, 0);
-  const pedidosEntregados = pedidosStats.find((p) => p.estado === "entregado")?._count._all ?? 0;
-  const pedidosPendientes = pedidosStats.find((p) => p.estado === "pendiente")?._count._all ?? 0;
-  const pedidosEnRuta     = pedidosStats.find((p) => p.estado === "en_ruta")?._count._all ?? 0;
-  const pedidosFallidos   = pedidosStats.find((p) => p.estado === "fallido")?._count._all ?? 0;
+  const totalPedidos      = pedidosStats.reduce((a: number, p: any) => a + p._count._all, 0);
+  const pedidosEntregados = pedidosStats.find((p: any) => p.estado === "entregado")?._count._all ?? 0;
+  const pedidosPendientes = pedidosStats.find((p: any) => p.estado === "pendiente")?._count._all ?? 0;
+  const pedidosEnRuta     = pedidosStats.find((p: any) => p.estado === "en_ruta")?._count._all ?? 0;
+  const pedidosFallidos   = pedidosStats.find((p: any) => p.estado === "fallido")?._count._all ?? 0;
   const tasaExito = totalPedidos > 0 ? Math.round((pedidosEntregados / totalPedidos) * 100) : 0;
 
   // Distribución por plan
   const planDist = {
-    starter:  empresas.filter((e) => e.plan === "starter").length,
-    pro:      empresas.filter((e) => e.plan === "pro").length,
-    business: empresas.filter((e) => e.plan === "business").length,
+    starter:  empresas.filter((e: any) => e.plan === "starter").length,
+    pro:      empresas.filter((e: any) => e.plan === "pro").length,
+    business: empresas.filter((e: any) => e.plan === "business").length,
   };
 
   return (
@@ -76,7 +76,7 @@ export default async function AdminReportesPage() {
           { label: "Total Empresas",   value: empresas.length,   dot: "bg-blue-500",    icon: Building2 },
           { label: "Total Usuarios",   value: totalUsuarios,     dot: "bg-emerald-500", icon: Users },
           { label: "Alertas sin leer", value: alertas,           dot: "bg-red-500",     icon: AlertTriangle },
-        ].map((k) => {
+        ].map((k: any) => {
           const Icon = k.icon;
           return (
             <div key={k.label} className="rounded-2xl border border-zinc-800/60 bg-zinc-900/40 p-6 hover:border-zinc-700 transition-all">
@@ -110,7 +110,7 @@ export default async function AdminReportesPage() {
               { label: "En Ruta",    count: pedidosEnRuta,     color: "bg-blue-500" },
               { label: "Pendientes", count: pedidosPendientes, color: "bg-amber-500" },
               { label: "Fallidos",   count: pedidosFallidos,   color: "bg-red-500" },
-            ].map((item) => {
+            ].map((item: any) => {
               const pct = totalPedidos > 0 ? Math.round((item.count / totalPedidos) * 100) : 0;
               return (
                 <div key={item.label} className="flex items-center gap-3">
@@ -136,7 +136,7 @@ export default async function AdminReportesPage() {
               { plan: "business", label: "Business", count: planDist.business, color: "bg-violet-500", badge: PLAN_BADGE.business },
               { plan: "pro",      label: "Pro",      count: planDist.pro,      color: "bg-blue-500",   badge: PLAN_BADGE.pro },
               { plan: "starter",  label: "Starter",  count: planDist.starter,  color: "bg-emerald-500",badge: PLAN_BADGE.starter },
-            ].map((item) => {
+            ].map((item: any) => {
               const pct = empresas.length > 0 ? Math.round((item.count / empresas.length) * 100) : 0;
               return (
                 <div key={item.plan}>
@@ -157,11 +157,11 @@ export default async function AdminReportesPage() {
           {/* Resumen rápido */}
           <div className="mt-6 grid grid-cols-2 gap-3">
             <div className="bg-zinc-800/50 rounded-xl p-3 text-center">
-              <p className="font-mono text-2xl font-bold text-white">{empresas.filter(e => e.activa).length}</p>
+              <p className="font-mono text-2xl font-bold text-white">{empresas.filter((e: any) => e.activa).length}</p>
               <p className="text-[10px] text-zinc-500 uppercase tracking-widest mt-0.5">Activas</p>
             </div>
             <div className="bg-zinc-800/50 rounded-xl p-3 text-center">
-              <p className="font-mono text-2xl font-bold text-white">{empresas.filter(e => !e.activa).length}</p>
+              <p className="font-mono text-2xl font-bold text-white">{empresas.filter((e: any) => !e.activa).length}</p>
               <p className="text-[10px] text-zinc-500 uppercase tracking-widest mt-0.5">Inactivas</p>
             </div>
           </div>
@@ -181,7 +181,7 @@ export default async function AdminReportesPage() {
           {pedidosRecientes.length === 0 ? (
             <p className="px-6 py-8 text-center text-zinc-600 text-sm">Sin actividad reciente</p>
           ) : (
-            pedidosRecientes.map((pedido) => {
+            pedidosRecientes.map((pedido: any) => {
               const cfg = ESTADO_CONFIG[pedido.estado] ?? ESTADO_CONFIG.pendiente;
               const Icon = cfg.icon;
               return (
@@ -224,9 +224,9 @@ export default async function AdminReportesPage() {
           </thead>
           <tbody className="divide-y divide-zinc-800/40">
             {empresas
-              .sort((a, b) => b._count.pedidos - a._count.pedidos)
-              .map((empresa, idx) => {
-                const maxPedidos = Math.max(...empresas.map((e) => e._count.pedidos), 1);
+              .sort((a: any, b: any) => b._count.pedidos - a._count.pedidos)
+              .map((empresa: any, idx: number) => {
+                const maxPedidos = Math.max(...empresas.map((e: any) => e._count.pedidos), 1);
                 const pct = Math.round((empresa._count.pedidos / maxPedidos) * 100);
                 const medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `#${idx + 1}`;
                 const lastPedido = empresa.pedidos[0]?.createdAt;

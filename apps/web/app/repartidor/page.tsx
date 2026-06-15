@@ -60,7 +60,7 @@ export default async function RepartidorPage() {
         initials: repartidor.nombre
           .split(" ")
           .slice(0, 2)
-          .map((w) => w[0])
+          .map((w: string) => w[0])
           .join("")
           .toUpperCase(),
       }}

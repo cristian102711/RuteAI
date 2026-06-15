@@ -111,7 +111,7 @@ export async function GET(req: NextRequest) {
     });
 
     const ultimasUbicaciones = await Promise.all(
-      repartidores.map((r) =>
+      repartidores.map((r: any) =>
         prisma.ubicacion.findFirst({
           where: { repartidorId: r.id, empresaId: usuarioDB.empresaId },
           orderBy: { timestamp: "desc" },

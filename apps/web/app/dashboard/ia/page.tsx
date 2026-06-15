@@ -91,7 +91,7 @@ export default async function IAPage() {
   // Calcular score de riesgo para cada pedido en paralelo via AI Service
   const hoy = new Date();
   const scores = await Promise.all(
-    pedidos.map((p) => {
+    pedidos.map((p: any) => {
       // Días desde creación como proxy de retraso si estado no es entregado
       const diasRetraso = p.estado !== "entregado"
         ? Math.floor((hoy.getTime() - new Date(p.createdAt).getTime()) / 86_400_000)
@@ -103,10 +103,10 @@ export default async function IAPage() {
   // Métricas globales
   const scoresValidos  = scores.filter(Boolean) as ScoreResultado[];
   const promedioScore  = scoresValidos.length
-    ? Math.round(scoresValidos.reduce((a, s) => a + s.score * 100, 0) / scoresValidos.length)
+    ? Math.round(scoresValidos.reduce((a: number, s: any) => a + s.score * 100, 0) / scoresValidos.length)
     : 0;
-  const pedidosAltos   = scoresValidos.filter((s) => s.nivel === "alto").length;
-  const pedidosMedios  = scoresValidos.filter((s) => s.nivel === "medio").length;
+  const pedidosAltos   = scoresValidos.filter((s: any) => s.nivel === "alto").length;
+  const pedidosMedios  = scoresValidos.filter((s: any) => s.nivel === "medio").length;
 
   return (
     <div className="px-2 pb-10">
@@ -185,7 +185,7 @@ export default async function IAPage() {
             <p className="text-center text-muted-foreground py-16">No hay pedidos para analizar.</p>
           ) : (
             <div className="space-y-4">
-              {pedidos.map((pedido, i) => {
+              {pedidos.map((pedido: any, i: number) => {
                 const score = scoresValidos[i];
                 if (!score) return null;
                 return (
@@ -203,7 +203,7 @@ export default async function IAPage() {
                     </div>
                     <ScoreBar score={score.score} />
                     <ul className="mt-3 space-y-1">
-                      {score.razones.map((r, j) => (
+                      {score.razones.map((r: string, j: number) => (
                         <li key={j} className="text-xs text-muted-foreground flex gap-1.5">
                           <span className="text-purple-500 mt-0.5">›</span> {r}
                         </li>

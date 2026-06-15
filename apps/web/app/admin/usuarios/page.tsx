@@ -16,8 +16,8 @@ export default async function AdminUsuariosPage() {
     orderBy: { createdAt: "desc" },
   });
 
-  const totalEncargados   = usuarios.filter((u) => u.rol === "encargado").length;
-  const totalRepartidores = usuarios.filter((u) => u.rol === "repartidor").length;
+  const totalEncargados   = usuarios.filter((u: any) => u.rol === "encargado").length;
+  const totalRepartidores = usuarios.filter((u: any) => u.rol === "repartidor").length;
 
   return (
     <div className="space-y-8">
@@ -44,7 +44,7 @@ export default async function AdminUsuariosPage() {
           { label: "Total Usuarios",  value: usuarios.length,      dot: "bg-violet-500" },
           { label: "Encargados",      value: totalEncargados,      dot: "bg-blue-500" },
           { label: "Repartidores",    value: totalRepartidores,    dot: "bg-amber-500" },
-        ].map((k) => (
+        ].map((k: any) => (
           <div key={k.label} className="rounded-2xl border border-zinc-800/60 bg-zinc-900/40 p-6">
             <div className="flex items-center gap-2 mb-3">
               <span className={`w-2 h-2 rounded-full ${k.dot}`} />
@@ -76,7 +76,7 @@ export default async function AdminUsuariosPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-800/40">
-            {usuarios.map((u) => (
+            {usuarios.map((u: any) => (
               <tr key={u.id} className="hover:bg-zinc-800/20 transition-colors group">
                 {/* Usuario */}
                 <td className="px-6 py-4">

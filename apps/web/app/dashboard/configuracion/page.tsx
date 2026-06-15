@@ -98,7 +98,7 @@ export default async function ConfiguracionPage() {
         planEstado: usuarioDB.empresa.planEstado ?? "inactivo",
         planFechaInicio: usuarioDB.empresa.planFechaInicio?.toISOString() ?? null,
         planFechaVencimiento: usuarioDB.empresa.planFechaVencimiento?.toISOString() ?? null,
-        pagos: (usuarioDB.empresa.pagos ?? []).map((p) => ({
+        pagos: (usuarioDB.empresa.pagos ?? []).map((p: any) => ({
           id:             p.id,
           commerceOrder:  p.commerceOrder,
           planId:         p.planId,

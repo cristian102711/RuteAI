@@ -58,7 +58,7 @@ export async function createCompany(formData: FormData) {
       });
     } else {
       // La empresa no existe, creamos ambas en transacción
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx: any) => {
         const nuevaEmpresa = await tx.empresa.create({
           data: {
             nombre: nombreEmpresa,

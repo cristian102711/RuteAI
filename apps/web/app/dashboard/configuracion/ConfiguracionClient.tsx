@@ -690,6 +690,122 @@ export default function ConfiguracionClient({
             </div>
           )}
 
+          {/* ── VISTA: FACTURACIÓN ── */}
+          {activeTab === "facturacion" && (() => {
+            const PLAN_LABELS: Record<string, string> = {
+              starter: "Starter — Gratis",
+              pro:     "Pro — $99.000 CLP/mes",
+              business:"Business — $199.000 CLP/mes",
+            };
+            const PLAN_COLOR: Record<string, string> = {
+              starter: "text-zinc-300",
+              pro:     "text-amber-400",
+              business:"text-purple-400",
+            };
+            const estadoColor: Record<string, string> = {
+              activo:   "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+              inactivo: "bg-zinc-800 text-zinc-400 border-zinc-700",
+              vencido:  "bg-rose-500/10 text-rose-400 border-rose-500/20",
+            };
+            const planActual = initialEmpresa.plan;
+            const esPlanPago = planActual === "pro" || planActual === "business";
+            return (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="bg-zinc-900/40 backdrop-blur-md border border-zinc-800/80 rounded-3xl p-6 sm:p-8">
+                  <h2 className="text-lg font-extrabold text-white">Plan activo</h2>
+                  <p className="text-xs text-zinc-500 mt-1">Estado de tu suscripción con RouteAI.</p>
+                  <div className="mt-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-zinc-800 rounded-2xl p-5 bg-zinc-950/30">
+                    <div className="flex items-center gap-4">
+                      <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-amber-500/20 to-purple-500/20 border border-white/5">
+                        <Zap className="h-6 w-6 text-amber-400" />
+                      </div>
+                      <div>
+                        <p className={`text-base font-black ${PLAN_COLOR[planActual] ?? "text-white"}`}>
+                          {PLAN_LABELS[planActual] ?? planActual}
+                        </p>
+                        <span className={`mt-1 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${estadoColor[initialBilling.planEstado] ?? estadoColor.inactivo}`}>
+                          {initialBilling.planEstado === "activo"
+                            ? <><CheckCircle2 className="h-3 w-3" /> Activo</>
+                            : initialBilling.planEstado === "vencido"
+                            ? <><AlertTriangle className="h-3 w-3" /> Vencido</>
+                            : <><Clock className="h-3 w-3" /> {planActual === "starter" ? "Plan gratuito" : "Sin pago activo"}</>}
+                        </span>
+                      </div>
+                    </div>
+                    {esPlanPago && initialBilling.planFechaVencimiento && (
+                      <div className="text-right">
+                        <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Vence el</p>
+                        <p className="text-sm font-bold text-white">
+                          {new Date(initialBilling.planFechaVencimiento).toLocaleDateString("es-CL", { day: "numeric", month: "long", year: "numeric" })}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  {planActual === "starter" && (
+                    <div className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5">
+                      <p className="text-sm font-bold text-white mb-1">¿Listo para escalar?</p>
+                      <p className="text-xs text-zinc-400 mb-4">Pasa a Pro y desbloquea Score IA, webhooks y 50 repartidores.</p>
+                      <a href="/#pricing" className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 px-5 py-2.5 text-xs font-black text-black hover:opacity-95 transition shadow-lg shadow-amber-500/10">
+                        <Zap className="h-3.5 w-3.5" /> Ver planes disponibles
+                      </a>
+                    </div>
+                  )}
+                </div>
+                <div className="bg-zinc-900/40 backdrop-blur-md border border-zinc-800/80 rounded-3xl p-6 sm:p-8">
+                  <h2 className="text-lg font-extrabold text-white">Historial de pagos</h2>
+                  <p className="text-xs text-zinc-500 mt-1">Transacciones procesadas via Flow.cl.</p>
+                  {initialBilling.pagos.length === 0 ? (
+                    <div className="mt-8 flex flex-col items-center justify-center gap-3 py-10 text-center">
+                      <div className="grid h-14 w-14 place-items-center rounded-2xl bg-zinc-800/60">
+                        <CreditCard className="h-7 w-7 text-zinc-600" />
+                      </div>
+                      <p className="text-sm font-bold text-zinc-400">Sin transacciones aún</p>
+                      <p className="text-xs text-zinc-600">Aquí aparecerán tus pagos una vez que contrates un plan.</p>
+                    </div>
+                  ) : (
+                    <div className="mt-5 overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b border-zinc-800 text-left">
+                            <th className="pb-3 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Orden</th>
+                            <th className="pb-3 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Plan</th>
+                            <th className="pb-3 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Monto</th>
+                            <th className="pb-3 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Estado</th>
+                            <th className="pb-3 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Fecha</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-800/60">
+                          {initialBilling.pagos.map((pago) => (
+                            <tr key={pago.id} className="hover:bg-white/[0.02] transition-colors">
+                              <td className="py-3 font-mono text-zinc-400 pr-4">{pago.commerceOrder.slice(-12)}</td>
+                              <td className="py-3 font-semibold text-white capitalize">{pago.planId}</td>
+                              <td className="py-3 font-mono text-white">${pago.monto.toLocaleString("es-CL")} CLP</td>
+                              <td className="py-3">
+                                <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold ${
+                                  pago.estado === "pagado"    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                                  pago.estado === "pendiente" ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
+                                  pago.estado === "rechazado" ? "bg-rose-500/10 text-rose-400 border-rose-500/20" :
+                                  "bg-zinc-800 text-zinc-400 border-zinc-700"
+                                }`}>
+                                  {pago.estado.charAt(0).toUpperCase() + pago.estado.slice(1)}
+                                </span>
+                              </td>
+                              <td className="py-3 text-zinc-400">
+                                {pago.pagadoEn
+                                  ? new Date(pago.pagadoEn).toLocaleDateString("es-CL")
+                                  : new Date(pago.createdAt).toLocaleDateString("es-CL")}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
         </main>
       </div>
 
@@ -722,145 +838,6 @@ export default function ConfiguracionClient({
           </div>
         </div>
       )}
-
-          {/* ── VISTA: FACTURACIÓN ── */}
-          {activeTab === "facturacion" && (() => {
-            const PLAN_LABELS: Record<string, string> = {
-              starter: "Starter — Gratis",
-              pro:     "Pro — $99.000 CLP/mes",
-              business:"Business — $199.000 CLP/mes",
-            };
-            const PLAN_COLOR: Record<string, string> = {
-              starter: "text-zinc-300",
-              pro:     "text-amber-400",
-              business:"text-purple-400",
-            };
-            const estadoColor: Record<string, string> = {
-              activo:   "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-              inactivo: "bg-zinc-800 text-zinc-400 border-zinc-700",
-              vencido:  "bg-rose-500/10 text-rose-400 border-rose-500/20",
-            };
-            const planActual = initialEmpresa.plan;
-            const esPlanPago = planActual === "pro" || planActual === "business";
-
-            return (
-              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-
-                {/* Estado del plan */}
-                <div className="bg-zinc-900/40 backdrop-blur-md border border-zinc-800/80 rounded-3xl p-6 sm:p-8">
-                  <h2 className="text-lg font-extrabold text-white">Plan activo</h2>
-                  <p className="text-xs text-zinc-500 mt-1">Estado de tu suscripción con RouteAI.</p>
-
-                  <div className="mt-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-zinc-800 rounded-2xl p-5 bg-zinc-950/30">
-                    <div className="flex items-center gap-4">
-                      <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-amber-500/20 to-purple-500/20 border border-white/5">
-                        <Zap className="h-6 w-6 text-amber-400" />
-                      </div>
-                      <div>
-                        <p className={`text-base font-black ${PLAN_COLOR[planActual] ?? "text-white"}`}>
-                          {PLAN_LABELS[planActual] ?? planActual}
-                        </p>
-                        <span className={`mt-1 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${estadoColor[initialBilling.planEstado] ?? estadoColor.inactivo}`}>
-                          {initialBilling.planEstado === "activo"
-                            ? <><CheckCircle2 className="h-3 w-3" /> Activo</>
-                            : initialBilling.planEstado === "vencido"
-                            ? <><AlertTriangle className="h-3 w-3" /> Vencido</>
-                            : <><Clock className="h-3 w-3" /> {planActual === "starter" ? "Plan gratuito" : "Sin pago activo"}</>}
-                        </span>
-                      </div>
-                    </div>
-
-                    {esPlanPago && initialBilling.planFechaVencimiento && (
-                      <div className="text-right">
-                        <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Vence el</p>
-                        <p className="text-sm font-bold text-white">
-                          {new Date(initialBilling.planFechaVencimiento).toLocaleDateString("es-CL", {
-                            day: "numeric", month: "long", year: "numeric"
-                          })}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* CTA upgrade para starter */}
-                  {planActual === "starter" && (
-                    <div className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5">
-                      <p className="text-sm font-bold text-white mb-1">¿Listo para escalar?</p>
-                      <p className="text-xs text-zinc-400 mb-4">Pasa a Pro y desbloquea Score IA, webhooks y 50 repartidores.</p>
-                      <a
-                        href="/#pricing"
-                        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 px-5 py-2.5 text-xs font-black text-black hover:opacity-95 transition shadow-lg shadow-amber-500/10"
-                      >
-                        <Zap className="h-3.5 w-3.5" /> Ver planes disponibles
-                      </a>
-                    </div>
-                  )}
-                </div>
-
-                {/* Historial de pagos */}
-                <div className="bg-zinc-900/40 backdrop-blur-md border border-zinc-800/80 rounded-3xl p-6 sm:p-8">
-                  <h2 className="text-lg font-extrabold text-white">Historial de pagos</h2>
-                  <p className="text-xs text-zinc-500 mt-1">Transacciones procesadas via Flow.cl.</p>
-
-                  {initialBilling.pagos.length === 0 ? (
-                    <div className="mt-8 flex flex-col items-center justify-center gap-3 py-10 text-center">
-                      <div className="grid h-14 w-14 place-items-center rounded-2xl bg-zinc-800/60">
-                        <CreditCard className="h-7 w-7 text-zinc-600" />
-                      </div>
-                      <p className="text-sm font-bold text-zinc-400">Sin transacciones aún</p>
-                      <p className="text-xs text-zinc-600">Aquí aparecerán tus pagos una vez que contrates un plan.</p>
-                    </div>
-                  ) : (
-                    <div className="mt-5 overflow-x-auto">
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr className="border-b border-zinc-800 text-left">
-                            <th className="pb-3 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Orden</th>
-                            <th className="pb-3 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Plan</th>
-                            <th className="pb-3 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Monto</th>
-                            <th className="pb-3 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Estado</th>
-                            <th className="pb-3 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Fecha</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-zinc-800/60">
-                          {initialBilling.pagos.map((pago) => (
-                            <tr key={pago.id} className="hover:bg-white/[0.02] transition-colors">
-                              <td className="py-3 font-mono text-zinc-400 pr-4">
-                                {pago.commerceOrder.slice(-12)}
-                              </td>
-                              <td className="py-3 font-semibold text-white capitalize">{pago.planId}</td>
-                              <td className="py-3 font-mono text-white">
-                                ${pago.monto.toLocaleString("es-CL")} CLP
-                              </td>
-                              <td className="py-3">
-                                <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold ${
-                                  pago.estado === "pagado"   ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
-                                  pago.estado === "pendiente"? "bg-amber-500/10   text-amber-400   border-amber-500/20"   :
-                                  pago.estado === "rechazado"? "bg-rose-500/10    text-rose-400    border-rose-500/20"    :
-                                  "bg-zinc-800 text-zinc-400 border-zinc-700"
-                                }`}>
-                                  {pago.estado.charAt(0).toUpperCase() + pago.estado.slice(1)}
-                                </span>
-                              </td>
-                              <td className="py-3 text-zinc-400">
-                                {pago.pagadoEn
-                                  ? new Date(pago.pagadoEn).toLocaleDateString("es-CL")
-                                  : new Date(pago.createdAt).toLocaleDateString("es-CL")}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-
-              </div>
-            );
-          })()}
-
-        </main>
-      </div>
     </div>
   );
 }

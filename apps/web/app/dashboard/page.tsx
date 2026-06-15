@@ -105,9 +105,9 @@ export default async function DashboardPage() {
 
   // KPIs 100% reales basados en la base de datos
   const pedidosDelDia = pedidos.length;
-  const entregados = pedidos.filter(p => p.estado === "entregado").length;
-  const fallidos = pedidos.filter(p => p.estado === "fallido").length;
-  const enRuta = pedidos.filter(p => p.estado === "en_ruta").length;
+  const entregados = pedidos.filter((p: any) => p.estado === "entregado").length;
+  const fallidos = pedidos.filter((p: any) => p.estado === "fallido").length;
+  const enRuta = pedidos.filter((p: any) => p.estado === "en_ruta").length;
   const avancePorcentaje = pedidosDelDia > 0 ? Math.round((entregados / pedidosDelDia) * 100) : 0;
 
   // Fecha bonita actual en español
@@ -131,19 +131,19 @@ export default async function DashboardPage() {
 
   // Agrupar pedidos por día de la semana
   const diasSemana = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
-  const graficoSemanalData = Array.from({ length: 7 }).map((_, i) => {
+  const graficoSemanalData = Array.from({ length: 7 }).map((_, i: number) => {
     const d = new Date();
     d.setDate(d.getDate() - (6 - i));
     const nombreDia = diasSemana[d.getDay()];
     
     // Contar pedidos de ese día específico
-    const pedidosDia = pedidosDeLaSemana.filter(p => {
+    const pedidosDia = pedidosDeLaSemana.filter((p: any) => {
       const pDate = new Date(p.createdAt);
       return pDate.getDate() === d.getDate() && pDate.getMonth() === d.getMonth();
     });
 
-    const successCount = pedidosDia.filter(p => p.estado === "entregado").length;
-    const failedCount = pedidosDia.filter(p => p.estado === "fallido").length;
+    const successCount = pedidosDia.filter((p: any) => p.estado === "entregado").length;
+    const failedCount = pedidosDia.filter((p: any) => p.estado === "fallido").length;
 
     return {
       day: nombreDia,
@@ -154,14 +154,14 @@ export default async function DashboardPage() {
   });
 
   const tasaExitoReal = pedidosDeLaSemana.length > 0 
-    ? Math.round((pedidosDeLaSemana.filter(p => p.estado === "entregado").length / pedidosDeLaSemana.length) * 100)
+    ? Math.round((pedidosDeLaSemana.filter((p: any) => p.estado === "entregado").length / pedidosDeLaSemana.length) * 100)
     : 0;
 
   // 5. Configurar el mapa en vivo dinámico basado en pedidos reales de la DB (sin fallbacks)
-  const paradasActivas = pedidos.filter(p => p.estado === "pendiente" || p.estado === "en_ruta").slice(0, 7);
+  const paradasActivas = pedidos.filter((p: any) => p.estado === "pendiente" || p.estado === "en_ruta").slice(0, 7);
   
   // Mapeo determinístico de lat/lng a posiciones SVG
-  const mapPoints = paradasActivas.map((p, idx) => {
+  const mapPoints = paradasActivas.map((p: any, idx: number) => {
     let x = 20 + (idx * 12) % 65;
     let y = 30 + (idx * 9) % 50;
 
@@ -185,7 +185,7 @@ export default async function DashboardPage() {
   // Crear el string de ruta SVG conectando todos los puntos reales
   let routePathD = "";
   if (mapPoints.length > 0) {
-    routePathD = "M " + mapPoints.map(p => `${parseFloat(p.x)},${parseFloat(p.y)}`).join(" L ");
+    routePathD = "M " + mapPoints.map((p: any) => `${parseFloat(p.x)},${parseFloat(p.y)}`).join(" L ");
   }
 
   return (
@@ -418,7 +418,7 @@ export default async function DashboardPage() {
             </svg>
 
             {/* Puntos y etiquetas flotantes en el mapa */}
-            {mapPoints.map((pt, idx) => (
+            {mapPoints.map((pt: any, idx: number) => (
               <div key={idx} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: pt.x, top: pt.y }}>
                 <div className="relative h-2 w-2 rounded-full" style={{ backgroundColor: pt.color, boxShadow: `0 0 0 2px ${pt.color}40` }}>
                   <span className="absolute inset-0 rounded-full animate-ping opacity-60" style={{ backgroundColor: pt.color }} />
@@ -447,13 +447,13 @@ export default async function DashboardPage() {
           </div>
 
           <ol className="divide-y divide-white/[0.03] flex-1 overflow-y-auto max-h-[380px]">
-            {pedidos.filter(p => p.estado === "pendiente" || p.estado === "en_ruta").length === 0 ? (
+            {pedidos.filter((p: any) => p.estado === "pendiente" || p.estado === "en_ruta").length === 0 ? (
               <div className="flex flex-col items-center justify-center p-8 text-center h-full text-zinc-500">
                 <span className="text-xl">🙌</span>
                 <p className="text-xs mt-2">No hay paradas pendientes para hoy.</p>
               </div>
             ) : (
-              pedidos.filter(p => p.estado === "pendiente" || p.estado === "en_ruta").slice(0, 5).map((pedido, idx) => (
+              pedidos.filter((p: any) => p.estado === "pendiente" || p.estado === "en_ruta").slice(0, 5).map((pedido: any, idx: number) => (
                 <li key={pedido.id} className="flex items-center gap-3 px-5 py-3 hover:bg-white/[0.01] transition-colors">
                   <div className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold border ${
                     pedido.estado === "en_ruta" 
@@ -507,7 +507,7 @@ export default async function DashboardPage() {
                 <p className="text-zinc-500 text-sm max-w-sm">Tu bandeja de despachos de hoy está vacía. Crea el primer pedido para iniciar la ruta.</p>
               </div>
             ) : (
-              pedidos.map((pedido) => (
+              pedidos.map((pedido: any) => (
                 <FilaPedido key={pedido.id} pedido={pedido} />
               ))
             )}

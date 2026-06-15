@@ -123,11 +123,11 @@ export default async function EquipoPage() {
                 </td>
               </tr>
             ) : (
-              repartidores.map((rep, idx) => {
+              repartidores.map((rep: any, idx: number) => {
                 const iniciales = (rep.nombre ?? rep.email ?? "?")
                   .split(" ")
                   .slice(0, 2)
-                  .map((n) => n[0])
+                  .map((n: string) => n[0])
                   .join("")
                   .toUpperCase();
 

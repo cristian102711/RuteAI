@@ -58,8 +58,8 @@ export default async function ReportesPage() {
     : null;
 
   const totalHoy      = ultimoReporte?.total      ?? pedidosHoy.length;
-  const entregadosHoy = ultimoReporte?.entregados ?? pedidosHoy.filter(p => p.estado === "entregado").length;
-  const fallidosHoy   = ultimoReporte?.fallidos   ?? pedidosHoy.filter(p => p.estado === "fallido").length;
+  const entregadosHoy = ultimoReporte?.entregados ?? pedidosHoy.filter((p: any) => p.estado === "entregado").length;
+  const fallidosHoy   = ultimoReporte?.fallidos   ?? pedidosHoy.filter((p: any) => p.estado === "fallido").length;
   const tasaExito     = ultimoReporte?.tasaExito  ?? (totalHoy > 0 ? Math.round((entregadosHoy / totalHoy) * 100) : 96);
 
   const ultimos6 = reportesCache.slice(0, 6).reverse();
@@ -167,7 +167,7 @@ export default async function ReportesPage() {
             </div>
             
             <div className="flex h-56 items-end gap-4 mt-4">
-              {meses.map((mes) => (
+              {meses.map((mes: any) => (
                 <div key={mes.name} className="flex flex-1 flex-col items-center gap-2 group cursor-pointer">
                   <div className="flex w-full items-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
                     <div className="flex-1 rounded-sm bg-white/10 group-hover:bg-white/20 transition-colors" style={{ height: mes.h1 }} />
@@ -186,7 +186,7 @@ export default async function ReportesPage() {
         <div className="rounded-xl border border-zinc-800 bg-white/[0.02] p-5">
           <h3 className="text-sm font-semibold text-white">Top motivos de fallo</h3>
           <ul className="mt-4 space-y-4 text-sm">
-            {motivosFallo.map((motivo) => (
+            {motivosFallo.map((motivo: any) => (
               <li key={motivo.causa} className="group">
                 <div className="flex justify-between text-xs mb-1.5">
                   <span className="text-zinc-300 group-hover:text-white transition-colors">{motivo.causa}</span>

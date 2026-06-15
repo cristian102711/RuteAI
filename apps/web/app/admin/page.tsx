@@ -10,9 +10,9 @@ export default async function AdminPage() {
     orderBy: { createdAt: "desc" },
   });
 
-  const totalUsuarios = empresas.reduce((acc, e) => acc + e._count.usuarios, 0);
-  const totalActivas  = empresas.filter((e) => e.activa).length;
-  const totalPedidos  = empresas.reduce((acc, e) => acc + e._count.pedidos, 0);
+  const totalUsuarios = empresas.reduce((acc: number, e: any) => acc + e._count.usuarios, 0);
+  const totalActivas  = empresas.filter((e: any) => e.activa).length;
+  const totalPedidos  = empresas.reduce((acc: number, e: any) => acc + e._count.pedidos, 0);
 
   return (
     <div className="space-y-8">
