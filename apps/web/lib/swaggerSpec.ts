@@ -1,0 +1,476 @@
+/**
+ * Especificación OpenAPI 3.0 — RuteAI API REST
+ * Documenta todos los endpoints del sistema de gestión logística.
+ */
+
+export const swaggerSpec = {
+  openapi: "3.0.0",
+  info: {
+    title: "RuteAI API",
+    version: "1.0.0",
+    description:
+      "API REST del sistema de gestión logística RuteAI. Permite gestionar pedidos, repartidores, rutas, alertas y evidencias de entrega.",
+    contact: {
+      name: "Equipo RuteAI",
+      email: "soporte@ruteai.cl",
+    },
+    license: {
+      name: "Privado",
+    },
+  },
+  servers: [
+    {
+      url: "https://ruteai.vercel.app",
+      description: "Producción",
+    },
+    {
+      url: "http://localhost:3000",
+      description: "Desarrollo local",
+    },
+  ],
+  tags: [
+    { name: "Pedidos",     description: "Gestión de pedidos de despacho" },
+    { name: "Alertas",     description: "Sistema de notificaciones y alertas" },
+    { name: "Evidencia",   description: "Evidencias fotográficas de entrega" },
+    { name: "Ubicaciones", description: "GPS tracking de repartidores" },
+    { name: "Auth",        description: "Autenticación OAuth y sesiones" },
+    { name: "IA",          description: "Microservicio de scoring de riesgo" },
+    { name: "Pagos",       description: "Integración con Flow.cl" },
+  ],
+  components: {
+    securitySchemes: {
+      cookieAuth: {
+        type: "apiKey",
+        in: "cookie",
+        name: "sb-access-token",
+        description: "Cookie de sesión Supabase (se establece automáticamente al hacer login)",
+      },
+    },
+    schemas: {
+      Pedido: {
+        type: "object",
+        properties: {
+          id:               { type: "string", format: "uuid", example: "a1b2c3d4-..." },
+          nombreCliente:    { type: "string", example: "Juan Pérez" },
+          clienteTelefono:  { type: "string", example: "+56912345678" },
+          direccion:        { type: "string", example: "Av. Providencia 1234, Santiago" },
+          lat:              { type: "number", example: -33.4489 },
+          lng:              { type: "number", example: -70.6693 },
+          producto:         { type: "string", example: "Caja de electrónica" },
+          horarioPreferido: { type: "string", example: "10:00 - 13:00" },
+          estado:           { type: "string", enum: ["pendiente", "en_ruta", "entregado", "fallido"] },
+          scoreRiesgo:      { type: "number", minimum: 0, maximum: 1, example: 0.72 },
+          fotoEntregaUrl:   { type: "string", format: "uri", nullable: true },
+          firmaEntregaUrl:  { type: "string", format: "uri", nullable: true },
+          repartidorId:     { type: "string", format: "uuid", nullable: true },
+          empresaId:        { type: "string", format: "uuid" },
+          createdAt:        { type: "string", format: "date-time" },
+          updatedAt:        { type: "string", format: "date-time" },
+        },
+      },
+      Alerta: {
+        type: "object",
+        properties: {
+          id:          { type: "string", format: "uuid" },
+          tipo:        { type: "string", enum: ["desvio", "retraso", "riesgo_alto"] },
+          mensaje:     { type: "string", example: "El repartidor lleva 30 min de retraso" },
+          leida:       { type: "boolean", example: false },
+          empresaId:   { type: "string", format: "uuid" },
+          repartidorId: { type: "string", format: "uuid", nullable: true },
+          createdAt:   { type: "string", format: "date-time" },
+        },
+      },
+      ErrorResponse: {
+        type: "object",
+        properties: {
+          error: { type: "string", example: "No autenticado" },
+        },
+      },
+      SuccessResponse: {
+        type: "object",
+        properties: {
+          ok: { type: "boolean", example: true },
+        },
+      },
+    },
+  },
+  security: [{ cookieAuth: [] }],
+  paths: {
+    // ── PEDIDOS ──────────────────────────────────────────────────────────────
+    "/api/pedidos": {
+      get: {
+        tags: ["Pedidos"],
+        summary: "Listar pedidos de la empresa",
+        description: "Retorna todos los pedidos de la empresa autenticada, ordenados por fecha de creación descendente.",
+        responses: {
+          "200": {
+            description: "Lista de pedidos",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "array",
+                  items: { $ref: "#/components/schemas/Pedido" },
+                },
+              },
+            },
+          },
+          "401": { description: "No autenticado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+      post: {
+        tags: ["Pedidos"],
+        summary: "Crear nuevo pedido",
+        description: "Crea un pedido y geocodifica la dirección automáticamente via Nominatim.",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["nombreCliente", "direccion", "producto"],
+                properties: {
+                  nombreCliente:    { type: "string", example: "María Torres" },
+                  clienteTelefono:  { type: "string", example: "+56987654321" },
+                  direccion:        { type: "string", example: "Av. Las Condes 11000, Santiago" },
+                  producto:         { type: "string", example: "Laptop Lenovo" },
+                  horarioPreferido: { type: "string", example: "14:00 - 18:00" },
+                  repartidorId:     { type: "string", format: "uuid" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "201": { description: "Pedido creado", content: { "application/json": { schema: { $ref: "#/components/schemas/Pedido" } } } },
+          "400": { description: "Datos inválidos" },
+          "401": { description: "No autenticado" },
+        },
+      },
+    },
+    "/api/pedidos/{id}/estado": {
+      patch: {
+        tags: ["Pedidos"],
+        summary: "Actualizar estado de un pedido",
+        description: "Permite al repartidor actualizar el estado de un pedido (en_ruta, entregado, fallido).",
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+            description: "ID del pedido",
+          },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["estado"],
+                properties: {
+                  estado: { type: "string", enum: ["en_ruta", "entregado", "fallido"] },
+                },
+              },
+              example: { estado: "entregado" },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "Estado actualizado", content: { "application/json": { schema: { $ref: "#/components/schemas/SuccessResponse" } } } },
+          "400": { description: "Estado inválido" },
+          "403": { description: "Sin permisos" },
+          "404": { description: "Pedido no encontrado" },
+        },
+      },
+    },
+    // ── ALERTAS ──────────────────────────────────────────────────────────────
+    "/api/alertas": {
+      patch: {
+        tags: ["Alertas"],
+        summary: "Marcar todas las alertas como leídas",
+        description: "Marca todas las alertas sin leer de la empresa como leídas. Se llama al abrir el dropdown de notificaciones.",
+        responses: {
+          "200": { description: "Alertas marcadas como leídas", content: { "application/json": { schema: { $ref: "#/components/schemas/SuccessResponse" } } } },
+          "401": { description: "No autenticado" },
+        },
+      },
+    },
+    "/api/alertas/count": {
+      get: {
+        tags: ["Alertas"],
+        summary: "Obtener conteo y últimas alertas sin leer",
+        description: "Endpoint ligero para polling cada 30 segundos desde el header del dashboard. Retorna el conteo y las últimas 5 alertas.",
+        responses: {
+          "200": {
+            description: "Conteo y alertas recientes",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    count:   { type: "integer", example: 3 },
+                    alertas: { type: "array", items: { $ref: "#/components/schemas/Alerta" } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    // ── EVIDENCIA ────────────────────────────────────────────────────────────
+    "/api/evidencia": {
+      post: {
+        tags: ["Evidencia"],
+        summary: "Generar Signed URL para subida de evidencia",
+        description: "Genera una URL firmada de Supabase Storage (válida 5 min) para que el móvil del repartidor suba una foto o firma de entrega.",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["pedidoId", "tipo"],
+                properties: {
+                  pedidoId: { type: "string", format: "uuid" },
+                  tipo:     { type: "string", enum: ["foto", "firma"] },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Signed URL generada",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    success:   { type: "boolean" },
+                    data: {
+                      type: "object",
+                      properties: {
+                        signedUrl: { type: "string", format: "uri" },
+                        publicUrl: { type: "string", format: "uri" },
+                        filePath:  { type: "string" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "401": { description: "No autenticado" },
+          "404": { description: "Pedido no encontrado" },
+        },
+      },
+      patch: {
+        tags: ["Evidencia"],
+        summary: "Confirmar subida y guardar URL en el pedido",
+        description: "El cliente móvil llama a este endpoint después de subir la evidencia. Guarda la URL pública en el pedido y lo marca como entregado (si es foto).",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["pedidoId", "tipo", "publicUrl"],
+                properties: {
+                  pedidoId:  { type: "string", format: "uuid" },
+                  tipo:      { type: "string", enum: ["foto", "firma"] },
+                  publicUrl: { type: "string", format: "uri" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "URL guardada correctamente" },
+          "404": { description: "Pedido no encontrado" },
+        },
+      },
+    },
+    // ── UBICACIONES ──────────────────────────────────────────────────────────
+    "/api/ubicacion": {
+      post: {
+        tags: ["Ubicaciones"],
+        summary: "Registrar ping GPS del repartidor",
+        description: "El repartidor envía su posición GPS. Se guarda en la tabla Ubicacion y se publica en Supabase Realtime para el mapa en vivo.",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["lat", "lng"],
+                properties: {
+                  lat: { type: "number", example: -33.4489 },
+                  lng: { type: "number", example: -70.6693 },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "Ubicación registrada" },
+          "401": { description: "No autenticado" },
+        },
+      },
+    },
+    "/api/ubicaciones": {
+      get: {
+        tags: ["Ubicaciones"],
+        summary: "Obtener últimas ubicaciones de todos los repartidores",
+        description: "Retorna la última posición GPS de cada repartidor activo de la empresa. Usado por el mapa en tiempo real.",
+        responses: {
+          "200": {
+            description: "Lista de ubicaciones",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      repartidorId: { type: "string" },
+                      nombre:       { type: "string" },
+                      lat:          { type: "number" },
+                      lng:          { type: "number" },
+                      timestamp:    { type: "string", format: "date-time" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    // ── AUTH ─────────────────────────────────────────────────────────────────
+    "/api/auth/login": {
+      post: {
+        tags: ["Auth"],
+        summary: "Iniciar sesión con email/password",
+        description: "Autentica al usuario con Supabase Auth y establece la cookie de sesión.",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["email", "password"],
+                properties: {
+                  email:    { type: "string", format: "email", example: "admin@empresa.cl" },
+                  password: { type: "string", format: "password", example: "MiPassword123" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "Login exitoso — sesión establecida en cookie" },
+          "401": { description: "Credenciales inválidas" },
+        },
+      },
+    },
+    "/api/auth/logout": {
+      post: {
+        tags: ["Auth"],
+        summary: "Cerrar sesión",
+        description: "Invalida la sesión del usuario y elimina la cookie.",
+        responses: {
+          "200": { description: "Logout exitoso" },
+        },
+      },
+    },
+    // ── IA ───────────────────────────────────────────────────────────────────
+    "/api/ai/score": {
+      post: {
+        tags: ["IA"],
+        summary: "Calcular score de riesgo de un pedido",
+        description: "Llama al microservicio de IA (Python FastAPI) para calcular la probabilidad de fallo en la entrega. Devuelve un score entre 0 (bajo riesgo) y 1 (alto riesgo).",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["pedidoId"],
+                properties: {
+                  pedidoId: { type: "string", format: "uuid" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Score calculado",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    score:    { type: "number", minimum: 0, maximum: 1, example: 0.72 },
+                    nivel:    { type: "string", enum: ["bajo", "medio", "alto"] },
+                    factores: { type: "array", items: { type: "string" } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    // ── PAGOS ────────────────────────────────────────────────────────────────
+    "/api/flow/crear": {
+      post: {
+        tags: ["Pagos"],
+        summary: "Crear orden de pago en Flow.cl",
+        description: "Inicia un proceso de pago en Flow.cl para suscripción al plan Pro o Business. Retorna la URL de redirección al checkout.",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["planId"],
+                properties: {
+                  planId: { type: "string", enum: ["pro", "business"], example: "pro" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "URL de checkout generada",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    url:          { type: "string", format: "uri" },
+                    commerceOrder: { type: "string" },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/api/flow/confirmar": {
+      post: {
+        tags: ["Pagos"],
+        summary: "Webhook de confirmación de pago Flow.cl",
+        description: "Flow.cl llama a este endpoint cuando el pago es exitoso. Activa el plan de la empresa.",
+        responses: {
+          "200": { description: "Pago confirmado, plan activado" },
+        },
+      },
+    },
+  },
+};
