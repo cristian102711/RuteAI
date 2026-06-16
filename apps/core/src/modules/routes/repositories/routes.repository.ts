@@ -17,11 +17,21 @@ export const RoutesRepository = {
   },
 
   async create(data: {
-    empresaId:     string;
-    repartidorId:  string;
-    fecha:         Date;
+    empresaId:      string;
+    repartidorId:   string;
+    fecha:          Date;
+    rutaOptimizada?: unknown;
   }) {
-    return prisma.ruta.create({ data });
+    return prisma.ruta.create({
+      data: {
+        empresaId:    data.empresaId,
+        repartidorId: data.repartidorId,
+        fecha:        data.fecha,
+        ...(data.rutaOptimizada !== undefined
+          ? { rutaOptimizada: data.rutaOptimizada as any }
+          : {}),
+      },
+    });
   },
 
   async updateEstado(id: string, estado: string) {

@@ -13,6 +13,7 @@ empresasRouter.use(requireRole(["super_admin"]) as RequestHandler);
 const CreateEmpresaSchema = z.object({
   nombre: z.string().min(1),
   plan: z.enum(["starter", "pro", "business"]).default("pro"),
+  email: z.string().email().optional(),
 });
 
 // GET /api/v1/empresas
@@ -38,7 +39,7 @@ empresasRouter.post("/", async (req: Request, res: Response): Promise<void> => {
       res.status(400).json({ success: false, error: "Datos inválidos" });
       return;
     }
-    const empresa = await EmpresasService.crear(parsed.data.nombre, parsed.data.plan);
+    const empresa = await EmpresasService.crear(parsed.data.nombre, parsed.data.plan, parsed.data.email);
     res.status(201).json({ success: true, data: { ...empresa, usuarios: 0 } });
   } catch (error) {
     res.status(500).json({ success: false, error: error instanceof Error ? error.message : "Error interno" });

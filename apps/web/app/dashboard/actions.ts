@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabaseServer";
 import { obtenerScoreRiesgo } from "@/lib/aiServiceClient";
 import { notificarPedidoEnRuta, notificarPedidoEntregado } from "@/lib/twilioService";
 import { geocodificarDireccion } from "@/lib/geocodingService";
+import { callCore, CoreServiceError } from "@/lib/coreServiceClient";
 
 export async function agregarPedidoNuevo(formData: FormData) {
   const cliente  = formData.get("cliente")  as string;
@@ -16,21 +17,9 @@ export async function agregarPedidoNuevo(formData: FormData) {
   
   if (!cliente || !direccion || !producto) return { error: "Faltan datos" };
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "No autenticado" };
-
-  const usuarioDB = await prisma.usuario.findUnique({
-    where: { id: user.id },
-    select: { empresaId: true }
-  });
-  if (!usuarioDB) return { error: "Usuario sin empresa asignada" };
-
-  // RF-02: Geocodificar la dirección + RF-03: Score IA — en paralelo para minimizar latencia
+  // RF-02: Geocodificar la dirección + RF-03: Score IA (orquestado por el BFF)
   const horaActual = new Date().getHours();
-  const [coords] = await Promise.all([
-    geocodificarDireccion(direccion),
-  ]);
+  const coords = await geocodificarDireccion(direccion);
 
   const lat = coords?.lat ?? -33.45; // Fallback: Santiago centro
   const lng = coords?.lng ?? -70.66;
@@ -47,46 +36,61 @@ export async function agregarPedidoNuevo(formData: FormData) {
 
   const scoreParaBD = Math.round(resultadoIA.score * 100);
 
-  await prisma.pedido.create({
-    data: {
-      nombreCliente: cliente,
-      direccion,
-      producto,
-      clienteTelefono: clienteTelefono || null,
-      lat:         coords?.lat ?? null, // Guardar coordenadas reales
-      lng:         coords?.lng ?? null,
-      scoreRiesgo: scoreParaBD,
-      estado:      "pendiente",
-      empresaId:   usuarioDB.empresaId,
-    }
-  });
+  try {
+    // Persistencia delegada a core-service
+    await callCore("/api/v1/orders", {
+      method: "POST",
+      body: {
+        nombreCliente: cliente,
+        direccion,
+        producto,
+        clienteTelefono: clienteTelefono || undefined,
+        lat: coords?.lat ?? undefined,
+        lng: coords?.lng ?? undefined,
+        scoreRiesgo: scoreParaBD,
+      },
+    });
+  } catch (err) {
+    if (err instanceof CoreServiceError) return { error: err.message };
+    console.error("[agregarPedidoNuevo]", err);
+    return { error: "No se pudo crear el pedido" };
+  }
 
   revalidatePath("/dashboard/pedidos");
   return { success: true };
 }
 
+type PedidoNotif = {
+  nombreCliente: string;
+  clienteTelefono: string | null;
+  direccion: string;
+};
+
 export async function marcarEnRuta(id: string) {
   if (!id) return;
 
-  // Obtener datos del pedido para la notificación (RF-06)
-  const pedido = await prisma.pedido.findUnique({
-    where: { id },
-    select: { nombreCliente: true, clienteTelefono: true, direccion: true },
-  });
+  try {
+    // Obtener datos del pedido para la notificación (RF-06) vía core
+    const pedido = await callCore<PedidoNotif>(`/api/v1/orders/${id}`);
 
-  await prisma.pedido.update({
-    where: { id },
-    data:  { estado: "en_ruta" },
-  });
-
-  // Disparar notificación Twilio (async, no bloquea la respuesta)
-  if (pedido?.clienteTelefono) {
-    void notificarPedidoEnRuta({
-      pedidoId:  id,
-      telefono:  pedido.clienteTelefono,
-      cliente:   pedido.nombreCliente,
-      direccion: pedido.direccion,
+    await callCore(`/api/v1/orders/${id}/estado`, {
+      method: "PATCH",
+      body: { estado: "en_ruta" },
     });
+
+    // Disparar notificación Twilio (async, no bloquea la respuesta)
+    if (pedido?.clienteTelefono) {
+      void notificarPedidoEnRuta({
+        pedidoId:  id,
+        telefono:  pedido.clienteTelefono,
+        cliente:   pedido.nombreCliente,
+        direccion: pedido.direccion,
+      });
+    }
+  } catch (err) {
+    if (err instanceof CoreServiceError) return { error: err.message };
+    console.error("[marcarEnRuta]", err);
+    return { error: "No se pudo actualizar el pedido" };
   }
 
   revalidatePath("/dashboard");
@@ -96,24 +100,28 @@ export async function marcarEnRuta(id: string) {
 export async function marcarComoEntregado(id: string) {
   if (!id) return;
 
-  const pedido = await prisma.pedido.findUnique({
-    where: { id },
-    select: { nombreCliente: true, clienteTelefono: true, direccion: true },
-  });
+  try {
+    const pedido = await callCore<PedidoNotif>(`/api/v1/orders/${id}`);
 
-  await prisma.pedido.update({
-    where: { id },
-    data:  { estado: "entregado", scoreRiesgo: 0 },
-  });
-
-  // Notificación de entrega confirmada (RF-06)
-  if (pedido?.clienteTelefono) {
-    void notificarPedidoEntregado({
-      pedidoId:  id,
-      telefono:  pedido.clienteTelefono,
-      cliente:   pedido.nombreCliente,
-      direccion: pedido.direccion,
+    // core pone scoreRiesgo: 0 automáticamente al marcar "entregado"
+    await callCore(`/api/v1/orders/${id}/estado`, {
+      method: "PATCH",
+      body: { estado: "entregado" },
     });
+
+    // Notificación de entrega confirmada (RF-06)
+    if (pedido?.clienteTelefono) {
+      void notificarPedidoEntregado({
+        pedidoId:  id,
+        telefono:  pedido.clienteTelefono,
+        cliente:   pedido.nombreCliente,
+        direccion: pedido.direccion,
+      });
+    }
+  } catch (err) {
+    if (err instanceof CoreServiceError) return { error: err.message };
+    console.error("[marcarComoEntregado]", err);
+    return { error: "No se pudo actualizar el pedido" };
   }
 
   revalidatePath("/dashboard");
@@ -122,9 +130,13 @@ export async function marcarComoEntregado(id: string) {
 
 export async function eliminarPedido(id: string) {
   if (!id) return;
-  await prisma.pedido.delete({
-    where: { id }
-  });
+  try {
+    await callCore(`/api/v1/orders/${id}`, { method: "DELETE" });
+  } catch (err) {
+    if (err instanceof CoreServiceError) return { error: err.message };
+    console.error("[eliminarPedido]", err);
+    return { error: "No se pudo eliminar el pedido" };
+  }
   revalidatePath("/dashboard");
   return { success: true };
 }

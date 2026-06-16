@@ -3,8 +3,11 @@ import { OrdersRepository } from "../repositories/orders.repository";
 // ── Service Layer ─────────────────────────────────────────────
 
 export const OrdersService = {
-  async listar(empresaId: string) {
-    return OrdersRepository.findAll(empresaId);
+  async listar(
+    empresaId: string,
+    filtros?: { estado?: string; repartidorId?: string }
+  ) {
+    return OrdersRepository.findAll(empresaId, filtros);
   },
 
   async obtener(id: string) {
@@ -14,13 +17,16 @@ export const OrdersService = {
   },
 
   async crear(data: {
-    empresaId:       string;
-    nombreCliente:   string;
+    empresaId:        string;
+    nombreCliente:    string;
     clienteTelefono?: string;
-    direccion:       string;
-    producto:        string;
-    lat?:            number;
-    lng?:            number;
+    direccion:        string;
+    producto:         string;
+    horarioPreferido?: string;
+    lat?:             number;
+    lng?:             number;
+    scoreRiesgo?:     number;
+    repartidorId?:    string;
   }) {
     if (!data.nombreCliente || !data.direccion || !data.producto) {
       throw new Error("nombreCliente, direccion y producto son requeridos.");

@@ -10,13 +10,16 @@ export const ordersRouter = Router();
 ordersRouter.use(requireAuth as RequestHandler);
 
 const CreateOrderSchema = z.object({
-  empresaId:       z.string().uuid(),
+  empresaId:       z.string().uuid().optional(),
   nombreCliente:   z.string().min(1),
   clienteTelefono: z.string().optional(),
-  direccion:       z.string().min(1),
-  producto:        z.string().min(1),
-  lat:             z.number().optional(),
-  lng:             z.number().optional(),
+  direccion:        z.string().min(1),
+  producto:         z.string().min(1),
+  horarioPreferido: z.string().optional(),
+  lat:              z.number().optional(),
+  lng:              z.number().optional(),
+  scoreRiesgo:      z.number().optional(),
+  repartidorId:     z.string().uuid().optional(),
 });
 
 const UpdateEstadoSchema = z.object({
@@ -31,7 +34,9 @@ ordersRouter.get("/", async (req: Request, res: Response): Promise<void> => {
       res.status(403).json({ success: false, error: "Usuario sin empresa asignada" });
       return;
     }
-    const orders = await OrdersService.listar(empresaId);
+    const estado = typeof req.query["estado"] === "string" ? req.query["estado"] : undefined;
+    const repartidorId = typeof req.query["repartidorId"] === "string" ? req.query["repartidorId"] : undefined;
+    const orders = await OrdersService.listar(empresaId, { estado, repartidorId });
     res.json({ success: true, data: orders, total: orders.length });
   } catch (error) {
     res.status(500).json({ success: false, error: error instanceof Error ? error.message : "Error interno" });
@@ -48,8 +53,8 @@ ordersRouter.get("/:id", async (req: Request, res: Response): Promise<void> => {
   }
 });
 
-// POST /api/v1/orders
-ordersRouter.post("/", async (req: Request, res: Response): Promise<void> => {
+// POST /api/v1/orders — solo los encargados pueden crear pedidos
+ordersRouter.post("/", requireRole(["encargado"]) as RequestHandler, async (req: Request, res: Response): Promise<void> => {
   try {
     const parsed = CreateOrderSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -74,7 +79,21 @@ ordersRouter.patch("/:id/estado", async (req: Request, res: Response): Promise<v
       res.status(400).json({ success: false, error: "Estado inválido" });
       return;
     }
-    const order = await OrdersService.actualizarEstado(req.params["id"] ?? "", parsed.data.estado);
+    const id = req.params["id"] ?? "";
+
+    // Verificación multi-tenant + propiedad: el pedido debe ser de la empresa
+    // del usuario, y un repartidor solo puede cambiar sus pedidos asignados.
+    const pedido = await OrdersService.obtener(id);
+    if (pedido.empresaId !== req.user!.empresaId) {
+      res.status(403).json({ success: false, error: "Pedido fuera de tu empresa" });
+      return;
+    }
+    if (req.user!.rol === "repartidor" && pedido.repartidorId !== req.user!.id) {
+      res.status(403).json({ success: false, error: "Pedido no asignado a ti" });
+      return;
+    }
+
+    const order = await OrdersService.actualizarEstado(id, parsed.data.estado);
     res.json({ success: true, data: order });
   } catch (error) {
     res.status(400).json({ success: false, error: error instanceof Error ? error.message : "Error" });

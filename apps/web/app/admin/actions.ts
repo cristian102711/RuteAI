@@ -2,14 +2,17 @@
 
 import prisma from "@ruteai/database";
 import { revalidatePath } from "next/cache";
+import { callCore } from "@/lib/coreServiceClient";
 
 export async function crearEmpresa(formData: FormData) {
   const nombre = formData.get("nombre") as string;
   const plan   = formData.get("plan")   as string;
   const email  = formData.get("email")  as string;
   if (!nombre || !email) throw new Error("Nombre y email son requeridos");
-  await prisma.empresa.create({
-    data: { nombre, email, plan: plan || "starter", planActivo: true, activa: true },
+  // Persistencia delegada a core (valida rol super_admin)
+  await callCore("/api/v1/empresas", {
+    method: "POST",
+    body: { nombre, email, plan: plan || "starter" },
   });
   revalidatePath("/admin");
 }
@@ -27,11 +30,9 @@ export async function editarEmpresa(formData: FormData) {
   revalidatePath("/admin");
 }
 
-export async function toggleEmpresaEstado(id: string, activa: boolean) {
-  await prisma.empresa.update({
-    where: { id },
-    data: { activa: !activa },
-  });
+export async function toggleEmpresaEstado(id: string, _activa: boolean) {
+  // core lee el estado actual y lo invierte
+  await callCore(`/api/v1/empresas/${id}/toggle`, { method: "PATCH" });
   revalidatePath("/admin");
 }
 

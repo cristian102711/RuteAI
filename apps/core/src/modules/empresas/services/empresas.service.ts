@@ -1,22 +1,23 @@
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import prisma from "../../../lib/prisma";
 
 export const EmpresasService = {
   async listarTodas() {
     return prisma.empresa.findMany({
       include: {
         _count: {
-          select: { usuarios: true }
+          select: { usuarios: true, pedidos: true }
         }
       },
       orderBy: { createdAt: "desc" }
     });
   },
 
-  async crear(nombre: string, plan: string) {
-    // Para simplificar, generamos un email basado en el nombre (en un MVP real se pediría)
-    const emailStr = nombre.toLowerCase().replace(/[^a-z0-9]/g, "") + "@empresa.com";
+  async crear(nombre: string, plan: string, email?: string) {
+    // Si no se entrega email, se genera uno basado en el nombre
+    const emailStr =
+      email && email.trim().length > 0
+        ? email
+        : nombre.toLowerCase().replace(/[^a-z0-9]/g, "") + "@empresa.com";
     return prisma.empresa.create({
       data: {
         nombre,

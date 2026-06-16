@@ -63,6 +63,49 @@ function fallbackScore(payload: ScorePayload): ScoreResult {
   return { score: parseFloat(score.toFixed(2)), nivel, razones };
 }
 
+// ── Optimización de rutas (TSP nearest-neighbor en ai-service) ──
+export interface PuntoRuta {
+  id: string;
+  lat: number;
+  lng: number;
+}
+
+// Devuelve los puntos reordenados. Si ai-service no está disponible,
+// devuelve el orden original (fallback no bloqueante).
+export async function optimizarRuta(
+  origen: PuntoRuta,
+  puntos: PuntoRuta[]
+): Promise<PuntoRuta[]> {
+  if (!AI_SERVICE_URL || puntos.length === 0) {
+    return puntos;
+  }
+
+  try {
+    const response = await fetch(`${AI_SERVICE_URL}/api/optimize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ origen, puntos }),
+      signal: AbortSignal.timeout(5000),
+    });
+
+    if (!response.ok) {
+      throw new Error(`ai-service respondió con status ${response.status}`);
+    }
+
+    const json = (await response.json()) as {
+      success: boolean;
+      data: { rutaOptimizada: PuntoRuta[] };
+    };
+
+    if (!json.success) throw new Error('ai-service retornó success: false');
+
+    return json.data.rutaOptimizada;
+  } catch (error) {
+    console.error('[AI Client] Falló optimización, usando orden original:', error);
+    return puntos;
+  }
+}
+
 // ── Cliente principal ────────────────────────────────────────
 export async function obtenerScoreRiesgo(
   payload: ScorePayload
