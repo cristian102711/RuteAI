@@ -12,6 +12,7 @@ const CrearPedidoSchema = z.object({
   direccion: z.string().min(5, "Dirección requerida"),
   producto: z.string().min(1, "Producto requerido"),
   horarioPreferido: z.string().optional(),
+  fechaEntregaLimite: z.string().datetime().optional(),
   repartidorId: z.string().uuid().optional(),
 });
 
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { nombreCliente, clienteTelefono, direccion, producto, horarioPreferido, repartidorId } =
+    const { nombreCliente, clienteTelefono, direccion, producto, horarioPreferido, fechaEntregaLimite, repartidorId } =
       parsed.data;
 
     // Geocodificación (orquestada por el BFF) — opcional, no bloquea la creación
@@ -63,6 +64,7 @@ export async function POST(req: NextRequest) {
         direccion,
         producto,
         horarioPreferido,
+        ...(fechaEntregaLimite && { fechaEntregaLimite }),
         lat: coords?.lat ?? undefined,
         lng: coords?.lng ?? undefined,
         ...(repartidorId && { repartidorId }),

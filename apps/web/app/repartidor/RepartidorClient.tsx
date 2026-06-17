@@ -4,10 +4,14 @@ import { useState, useTransition } from "react";
 import {
   Menu, MapPin, Package, Navigation, Phone,
   Sparkles, ChevronRight, CheckCircle2, XCircle,
-  LogOut, Loader2,
+  LogOut, Loader2, Ban, Clock,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ModalEvidencia } from "../dashboard/components/ModalEvidencia";
+import {
+  MOTIVOS_FALLO, MOTIVOS_CANCELACION,
+  estaAtrasado, minutosAtraso, formatearAtraso,
+} from "@/lib/logistica";
 
 interface Pedido {
   id:              string;
@@ -16,6 +20,7 @@ interface Pedido {
   direccion:       string;
   producto:        string;
   horarioPreferido: string | null;
+  fechaEntregaLimite: string | Date | null;
   estado:          string;
   lat:             number | null;
   lng:             number | null;
@@ -45,23 +50,38 @@ export function RepartidorClient({
   const [restantes, setRestantes]   = useState<Pedido[]>(restantesIniciales);
   const [entregados, setEntregados] = useState(0);
   const [total]                     = useState(totalInicial);
-  const [confirmando, setConfirmando] = useState<"entregado" | "fallido" | null>(null);
+  const [confirmando, setConfirmando] = useState<"entregado" | "fallido" | "cancelado" | null>(null);
   const [menuOpen, setMenuOpen]     = useState(false);
   const [modalEvidencia, setModalEvidencia] = useState<string | null>(null); // pedidoId cuando abierto
+  // Hoja de selección de motivo: para "no entregado" (fallido) o "cancelar"
+  const [motivoSheet, setMotivoSheet] = useState<"fallido" | "cancelado" | null>(null);
 
   const totalConEntregados = total;
   const progreso = totalConEntregados === 0
     ? 100
     : Math.round((entregados / totalConEntregados) * 100);
 
+  // ── Avanzar a la siguiente parada (tras entregar/fallar/cancelar) ──
+  function avanzarSiguiente(suma = false) {
+    if (suma) setEntregados((e) => e + 1);
+    const [siguiente, ...resto] = restantes;
+    setProxima(siguiente ?? null);
+    setRestantes(resto);
+  }
+
   // ── Actualizar estado del pedido en DB ───────────────────────
-  async function actualizarEstado(pedidoId: string, estado: "entregado" | "fallido") {
+  async function actualizarEstado(
+    pedidoId: string,
+    estado: "entregado" | "fallido" | "cancelado",
+    motivo?: string
+  ) {
     setConfirmando(estado);
+    setMotivoSheet(null);
     try {
       const res = await fetch(`/api/pedidos/${pedidoId}/estado`, {
         method:  "PATCH",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ estado }),
+        body:    JSON.stringify({ estado, ...(motivo && { motivo }) }),
       });
 
       if (!res.ok) {
@@ -70,11 +90,9 @@ export function RepartidorClient({
         return;
       }
 
-      // Avanzar al siguiente pedido localmente sin recargar página
-      setEntregados((e) => e + 1);
-      const [siguiente, ...resto] = restantes;
-      setProxima(siguiente ?? null);
-      setRestantes(resto);
+      // Avanzar al siguiente pedido localmente sin recargar página.
+      // Solo cuenta como "entregado" en el progreso si fue entrega exitosa.
+      avanzarSiguiente(estado === "entregado");
     } catch {
       alert("Error de conexión. Inténtalo de nuevo.");
     } finally {
@@ -215,6 +233,14 @@ export function RepartidorClient({
                       ⏰ Ventana: {proxima.horarioPreferido}
                     </div>
                   )}
+                  {proxima.fechaEntregaLimite && (
+                    <div className={`mt-1 inline-flex items-center gap-1 text-xs ${estaAtrasado(proxima) ? "text-rose-400 font-bold" : "text-zinc-500"}`}>
+                      <Clock className="h-3 w-3" />
+                      {estaAtrasado(proxima)
+                        ? `ATRASADO · ${formatearAtraso(minutosAtraso(proxima))}`
+                        : `Límite: ${new Date(proxima.fechaEntregaLimite).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" })}`}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -272,9 +298,9 @@ export function RepartidorClient({
                   Entregado
                 </button>
                 <button
-                  onClick={() => actualizarEstado(proxima.id, "fallido")}
+                  onClick={() => setMotivoSheet("fallido")}
                   disabled={!!confirmando}
-                  className="flex items-center justify-center gap-1.5 rounded-xl bg-rose-500/20 border border-rose-500/40 py-3 text-sm font-bold text-rose-400 hover:bg-rose-500/30 transition-colors disabled:opacity-60"
+                  className="flex items-center justify-center gap-1.5 rounded-xl bg-orange-500/20 border border-orange-500/40 py-3 text-sm font-bold text-orange-400 hover:bg-orange-500/30 transition-colors disabled:opacity-60"
                 >
                   {confirmando === "fallido"
                     ? <Loader2 className="h-4 w-4 animate-spin" />
@@ -283,6 +309,19 @@ export function RepartidorClient({
                   No entregado
                 </button>
               </div>
+
+              {/* Cancelar pedido (anula, estado terminal) */}
+              <button
+                onClick={() => setMotivoSheet("cancelado")}
+                disabled={!!confirmando}
+                className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-red-500/30 bg-red-500/10 py-2.5 text-xs font-bold text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-60"
+              >
+                {confirmando === "cancelado"
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : <Ban className="h-4 w-4" />
+                }
+                Cancelar pedido
+              </button>
             </div>
           )}
 
@@ -350,12 +389,45 @@ export function RepartidorClient({
           onSuccess={() => {
             setModalEvidencia(null);
             // Avanzar al siguiente pedido igual que al marcar entregado
-            setEntregados((e) => e + 1);
-            const [siguiente, ...resto] = restantes;
-            setProxima(siguiente ?? null);
-            setRestantes(resto);
+            avanzarSiguiente(true);
           }}
         />
+      )}
+
+      {/* ── Hoja de selección de motivo (fallido / cancelado) ── */}
+      {motivoSheet && proxima && (
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setMotivoSheet(null)} />
+          <div className="relative z-10 w-full sm:max-w-sm bg-zinc-900 sm:rounded-3xl rounded-t-3xl border border-zinc-800 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <div className="px-5 py-4 border-b border-zinc-800/60">
+              <h2 className="text-base font-bold text-white">
+                {motivoSheet === "fallido" ? "¿Por qué no se entregó?" : "Motivo de cancelación"}
+              </h2>
+              <p className="text-xs text-zinc-400 mt-0.5">
+                {motivoSheet === "fallido"
+                  ? "Quedará como intento fallido (re-agendable)."
+                  : "El pedido se anulará y no podrá cambiar de estado."}
+              </p>
+            </div>
+            <div className="p-3 space-y-1.5">
+              {(motivoSheet === "fallido" ? MOTIVOS_FALLO : MOTIVOS_CANCELACION).map((m) => (
+                <button
+                  key={m.valor}
+                  onClick={() => actualizarEstado(proxima.id, motivoSheet, m.valor)}
+                  className="w-full text-left px-4 py-3 rounded-xl border border-zinc-800 bg-white/[0.02] text-sm text-zinc-200 hover:bg-white/[0.06] active:scale-[0.99] transition"
+                >
+                  {m.label}
+                </button>
+              ))}
+              <button
+                onClick={() => setMotivoSheet(null)}
+                className="w-full text-center px-4 py-2.5 mt-1 text-xs text-zinc-500 hover:text-white transition"
+              >
+                Volver
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

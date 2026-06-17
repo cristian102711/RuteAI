@@ -1,0 +1,416 @@
+================================================================================
+  LEE ESTEBAN — PARA LA CASA
+  Guía para (1) probar TODO localmente sin tocar Supabase
+            (2) auditoría del microservicio CORE + qué hacer
+  Fecha: 2026-06-17
+================================================================================
+
+--------------------------------------------------------------------------------
+  PARTE 0 — TL;DR (lo mínimo que tienes que saber)
+--------------------------------------------------------------------------------
+
+- El cambio nuevo (pedidos con hora límite, estado "atrasado" derivado,
+  cancelado, foto opcional, timeline, métricas SLA) YA está en el código.
+- Lo ÚNICO que falta para que funcione es que la base de datos tenga las
+  columnas nuevas.
+- EN CASA, con Node instalado, NO necesitas tocar Supabase ni pegar SQL:
+  levantas un Postgres LOCAL y corres `prisma db push`, que crea TODO el
+  esquema (incluidas las columnas nuevas) automáticamente.
+- Recién cuando lo veas funcionando, replicas el cambio en Supabase (también
+  con `prisma db push`, o pegando el archivo SQL que te dejé).
+- Idea clave de arquitectura: el WEB es el BFF (orquesta geocoding, IA, Twilio
+  y delega los datos), CORE es el dueño de los datos. Eso está BIEN. La
+  auditoría (Parte 2) detalla lo que se afinó en CORE.
+- EN ESTA SESIÓN ya se IMPLEMENTARON los arreglos del core de la auditoría
+  (identidad desde la DB, logging, CORS, 404, manejador de errores, estados de
+  ruta, velocidad GPS, limpieza de código muerto). Ver Parte 3 para el detalle
+  exacto de qué cambió y qué falta.
+
+
+--------------------------------------------------------------------------------
+  PARTE 1 — PROBAR TODO LOCALMENTE (SIN TOCAR SUPABASE)
+--------------------------------------------------------------------------------
+
+### Mapa de servicios y puertos
+  - web (Next.js, BFF + frontend) ....... http://localhost:3000
+  - ai-service (FastAPI/Express, scoring)  http://localhost:3001
+  - auth  (Express, valida tokens) ....... http://localhost:3002
+  - core  (Express, dueño de los datos)    http://localhost:3003
+
+### Prerrequisitos en el PC de la casa
+  - Node 20+  y  pnpm 9+   (el repo usa pnpm@9.15.0)
+  - Una base PostgreSQL LOCAL. La forma más simple es Docker:
+        docker run --name ruteai-pg -e POSTGRES_PASSWORD=postgres \
+          -e POSTGRES_USER=postgres -e POSTGRES_DB=ruteai \
+          -p 5432:5432 -d postgres:16
+    (Si no tienes Docker: instala "PostgreSQL 16" para Windows desde
+     enterprisedb.com y crea una base llamada "ruteai". Da igual el método,
+     lo único que necesitas es una cadena de conexión postgresql://...)
+
+### Paso 1 — Instalar dependencias (en la raíz del repo)
+        pnpm install
+  Esto, por el "postinstall" de packages/database, ya corre `prisma generate`
+  y el cliente Prisma queda con los campos nuevos (fechaEntregaLimite,
+  entregadoEn, intentosEntrega, etc. + el modelo EventoPedido).
+
+### Paso 2 — Variables de entorno (crea un .env por app)
+  IMPORTANTE: la DB apunta a tu Postgres LOCAL. Supabase SOLO se usa para el
+  LOGIN (Auth), que NO modifica tu base — así no "tocas" Supabase.
+
+  >> apps/core/.env
+        DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ruteai
+        DIRECT_URL=postgresql://postgres:postgres@localhost:5432/ruteai
+        AUTH_SERVICE_URL=http://localhost:3002
+        AI_SERVICE_URL=http://localhost:3001
+        PORT=3003
+
+  >> apps/auth/.env   (estas claves SÍ son de tu proyecto Supabase actual,
+                       son de solo-lectura para validar el login)
+        SUPABASE_URL=https://TU_PROJECT_REF.supabase.co
+        SUPABASE_SERVICE_ROLE_KEY=eyJ...service_role...
+        SUPABASE_ANON_KEY=eyJ...anon...
+        PORT=3002
+
+  >> apps/ai-service/.env
+        PORT=3001
+        WEB_URL=http://localhost:3000
+
+  >> apps/web/.env
+        DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ruteai
+        DIRECT_URL=postgresql://postgres:postgres@localhost:5432/ruteai
+        NEXT_PUBLIC_SUPABASE_URL=https://TU_PROJECT_REF.supabase.co
+        NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...anon...
+        SUPABASE_URL=https://TU_PROJECT_REF.supabase.co
+        SUPABASE_SERVICE_ROLE_KEY=eyJ...service_role...
+        SUPABASE_ANON_KEY=eyJ...anon...
+        NEXT_PUBLIC_APP_URL=http://localhost:3000
+        AUTH_SERVICE_URL=http://localhost:3002
+        CORE_SERVICE_URL=http://localhost:3003
+        AI_SERVICE_URL=http://localhost:3001
+        # Twilio/Flow/Maps: déjalos vacíos para probar; tienen fallback.
+
+  (Las claves Supabase reales están en tu memoria de proyecto:
+   packages/.../memory/project_credentials.md o en el panel de Supabase →
+   Settings → API. Para Storage de fotos necesitarías el bucket "evidencias",
+   pero como ahora la foto es OPCIONAL puedes probar el flujo eligiendo
+   "Confirmar entrega sin foto".)
+
+### Paso 3 — Crear el esquema en tu Postgres LOCAL (AQUÍ está la magia)
+        pnpm --filter @ruteai/database exec prisma db push
+  Esto crea TODAS las tablas a partir de schema.prisma, incluyendo: los campos
+  SLA del pedido, la tabla EventoPedido, el campo "velocidad" en Ubicacion y el
+  nuevo default de estado en Ruta. NO necesitas el archivo .sql ni tocar
+  Supabase. (El .sql sólo sirve para cuando quieras aplicar el cambio a la BD
+  de Supabase ya existente, ver Paso 9.)
+
+  Verifica si quieres con el visor:
+        pnpm --filter @ruteai/database exec prisma studio
+
+### Paso 4 — Levantar los 4 servicios
+  Abre 4 terminales (o usa `pnpm dev` en la raíz, que con turbo levanta todo):
+        pnpm --filter @ruteai/auth        dev     # 3002
+        pnpm --filter @ruteai/core        dev     # 3003
+        pnpm --filter @ruteai/ai-service  dev     # 3001
+        pnpm --filter @ruteai/web         dev     # 3000
+  Chequeo rápido de salud:
+        curl http://localhost:3002/api/v1/health
+        curl http://localhost:3003/api/v1/health
+        curl http://localhost:3001/api/health
+
+### Paso 5 — Crear empresa y datos de prueba
+  1. Entra a http://localhost:3000 e inicia sesión (usa una cuenta de tu
+     Supabase Auth; el login es lo único que pasa por Supabase).
+  2. La primera vez te pedirá el nombre de la empresa (onboarding) → se crea
+     en tu Postgres LOCAL.
+  3. (Opcional) datos de demo:
+        pnpm --filter @ruteai/database exec ts-node prisma/seed-demo.ts
+     OJO: el seed necesita que ya exista una empresa (paso 2 de arriba) y, para
+     ver pedidos en el portal del repartidor, que existan usuarios con
+     rol="repartidor" en esa empresa (invítalos desde Dashboard → Equipo).
+
+  >> GOTCHA IMPORTANTE (ver también Auditoría, hallazgo #1):
+     CORE deduce tu empresaId del TOKEN (user_metadata de Supabase), no de la
+     tabla Usuario. Si tu usuario encargado se creó sin empresaId en el
+     metadata, las páginas que pegan a CORE (ej. /dashboard/pedidos) pueden
+     responder 403 "Usuario sin empresa asignada", aunque /dashboard (que lee
+     la DB directo) sí funcione. Si te pasa:
+       - Más simple para probar el FLUJO nuevo: usa la pantalla /dashboard
+         (crea pedido, ves tabla, badges de atraso, métricas SLA) y el portal
+         /repartidor, que NO dependen de ese empresaId del token.
+       - Para que /dashboard/pedidos (vía core) funcione, el empresaId del
+         metadata del usuario debe coincidir con el de la empresa en tu DB.
+
+### Paso 6 — Checklist del FLUJO NUEVO a verificar
+  [ ] Crear pedido en /dashboard con "Hora límite de entrega" (el reloj).
+  [ ] Poner una hora límite ya pasada y recargar → debe aparecer el badge rojo
+      "ATRASADO · Xmin" en la fila del pedido.
+  [ ] Métricas SLA arriba del dashboard: "Atrasados ahora", "OTD %",
+      "Atraso promedio".
+  [ ] Portal /repartidor:
+        [ ] Ver la próxima parada con su hora límite / aviso de atraso.
+        [ ] "Entregado" → modal → "Confirmar entrega sin foto" (mensaje de
+            requisito omitido). Debe marcar entregado y avanzar.
+        [ ] "No entregado" → elegir motivo (queda fallido, re-agendable).
+        [ ] "Cancelar pedido" → elegir motivo (queda cancelado).
+  [ ] Un pedido cancelado NO debe poder cambiar de estado (core responde 409).
+  [ ] (Si quieres ver el timeline) GET al endpoint de eventos (Paso 7).
+
+### Paso 7 — Probar CORE en aislado con curl (verificación de endpoints)
+  Saca un token logueándote contra el auth-service:
+        curl -X POST http://localhost:3002/api/v1/auth/login \
+          -H "Content-Type: application/json" \
+          -d "{\"email\":\"TU_EMAIL\",\"password\":\"TU_PASSWORD\"}"
+  Copia el accessToken de la respuesta y úsalo:
+        SET TOKEN=eyJ...        (en PowerShell: $TOKEN="eyJ...")
+        curl http://localhost:3003/api/v1/orders -H "Authorization: Bearer %TOKEN%"
+        curl http://localhost:3003/api/v1/orders/EL_ID/eventos -H "Authorization: Bearer %TOKEN%"
+        # Probar el bloqueo de cancelado (debe dar 409):
+        curl -X PATCH http://localhost:3003/api/v1/orders/EL_ID_CANCELADO/estado \
+          -H "Authorization: Bearer %TOKEN%" -H "Content-Type: application/json" \
+          -d "{\"estado\":\"entregado\"}"
+
+### Paso 8 — Tests automáticos
+        pnpm --filter @ruteai/web test
+  Deberían pasar los 69 previos + los nuevos de lógica SLA
+  (apps/web/__tests__/logistica.test.ts) y los ajustes de StatusBadge/Botones.
+
+### Paso 9 — RECIÉN cuando todo funcione: aplicar a Supabase
+  Opción A (recomendada, también con Node):
+     Pon en apps/.../.env el DATABASE_URL/DIRECT_URL de Supabase y corre:
+        pnpm --filter @ruteai/database exec prisma db push
+     (Es aditivo: sólo agrega columnas/tabla nuevas; no borra datos.)
+  Opción B (sin Node, desde el navegador):
+     Supabase → SQL Editor → pega y ejecuta:
+        packages/database/migrations/2026-06-17_sla_pedidos.sql
+  Después, redeploy en Vercel (el build regenera el cliente Prisma solo).
+
+
+--------------------------------------------------------------------------------
+  PARTE 2 — AUDITORÍA DEL MICROSERVICIO CORE
+--------------------------------------------------------------------------------
+
+### VEREDICTO GENERAL
+  CORE está BIEN encaminado y respeta el patrón BFF (web orquesta, core posee
+  los datos), con capas limpias route -> service -> repository y multi-tenant
+  por empresaId. Está desplegable en Vercel y conectado a Supabase vía Prisma.
+  Tenía 3 puntos a resolver: (1) de dónde saca la identidad (empresaId/rol),
+  (2) observabilidad/logs casi inexistente, (3) endpoints inconsistentes o
+  muertos.
+  >> ESTADO: en esta sesión se RESOLVIERON los 3 (ver detalle marcado
+     [RESUELTO] abajo). Queda como mejora opcional validar el JWT localmente
+     (hoy mitigado con caché).
+
+### A. CUMPLIMIENTO DEL MODELO BFF
+  BIEN:
+   - El web (apps/web) actúa como BFF real: valida sesión Supabase, reenvía el
+     Bearer token a core (lib/coreServiceClient.ts), y orquesta lo "externo"
+     (geocoding, IA, Twilio). Core NO conoce esas integraciones: sólo datos.
+   - Core deriva el empresaId del token (no lo confía del body) -> buen
+     aislamiento multi-tenant.
+   - Envelope de respuesta consistente: { success, data, error, total? }.
+  A MEJORAR:
+   - Hay "controllers" vacíos y muertos: orders.controller.ts es literalmente
+     `export class OrdersController {}` (igual locations/routes controllers).
+     La lógica vive en los route handlers. O los usas de verdad o los borras;
+     hoy confunden.
+   - No hay middleware de error global ni handler 404 (el ai-service sí tiene
+     404). Cada handler repite try/catch.
+
+### B. DESPLIEGUE EN VERCEL
+  BIEN:
+   - api/index.ts exporta el app Express; vercel.json reescribe /(.*) ->
+     /api/index con maxDuration 30. `app.listen` está guardado por
+     NODE_ENV!=="production", correcto para serverless.
+  A MEJORAR / RIESGOS:
+   - PRISMA EN SERVERLESS: en Vercel cada función es efímera. Debes usar el
+     POOLER de Supabase (host *.pooler.supabase.com:6543 con ?pgbouncer=true)
+     en DATABASE_URL, y la conexión directa (:5432) sólo en DIRECT_URL para
+     migraciones. Si core usa la conexión directa en runtime, agotarás
+     conexiones bajo carga. (El web ya documenta esto en su .env.example; core
+     debería seguir el mismo patrón.)
+   - El singleton global de PrismaClient ayuda sólo dentro de una instancia
+     "tibia"; no evita el problema de pool -> por eso importa el pooler.
+   - CORS abierto (app.use(cors())) — para prod conviene restringir al origin
+     del web.
+
+### C. SUPABASE + LOGS (observabilidad)
+  ESTADO ACTUAL: CORE casi no loguea nada (sólo el health lista endpoints).
+  Eso hace muy difícil "ver logs" y depurar en Vercel. Compáralo con
+  auth-service, que sí emite logs estructurados en JSON (auth.login.success,
+  etc.) visibles en Vercel -> Functions -> Logs. Core debería hacer lo mismo.
+  RECOMENDADO:
+   - Middleware de logging de requests: método, ruta, status, duración, y
+     empresaId/usuarioId del token. Una línea JSON por request.
+   - Activar logs de Prisma en no-producción:
+         new PrismaClient({ log: ["query","warn","error"] })
+     y en producción al menos ["warn","error"].
+   - Loguear los errores 5xx con stack (hoy se devuelven al cliente pero no se
+     registran).
+   - Dónde se ven: Vercel -> proyecto core -> pestaña Logs/Functions. Para la
+     DB: Supabase -> Logs -> Postgres / Query Performance.
+
+### D. ESTADO DE LOS ENDPOINTS (¿funcionan?)
+  orders  GET / , GET /:id , GET /:id/eventos (NUEVO) , POST / ,
+          PATCH /:id/estado , DELETE /:id ............ OK / funcionales.
+  routes  GET / , GET /:id , POST / , PATCH /:id/estado  OK pero ver hallazgo #3
+  locations GET / , GET /repartidor/:id , POST / ...... OK pero ver hallazgo #4
+  empresas GET / , POST / , PATCH /:id/toggle ......... BLOQUEADOS (hallazgo #2)
+  health  GET /health ................................. OK (lista desactualizada)
+
+### E. HALLAZGOS CONCRETOS (con severidad y estado)
+  #1 [ALTA] [RESUELTO] Identidad desde el TOKEN, no desde la DB.
+     ANTES: auth /me devolvía empresaId/rol del user_metadata de Supabase; si
+     faltaba empresaId, core respondía 403 en /orders, /routes, /locations.
+     AHORA: el middleware de core valida el token con auth-service y luego usa
+     la tabla Usuario (por id Supabase, fallback por email) como FUENTE DE
+     VERDAD para empresaId/rol/nombre. Si no hay fila (onboarding pendiente),
+     cae a los valores del token. -> apps/core/src/middlewares/auth.middleware.ts
+
+  #2 [ALTA] [RESUELTO] Rol super_admin para empresas.
+     El guard requireRole(["super_admin"]) es correcto (las pantallas /admin y
+     /super-admin del web lo usan). El problema era que el rol no estaba
+     declarado en el modelo. AHORA el comentario de Usuario.rol incluye
+     "super_admin" y, como la identidad sale de la DB (#1), basta con poner
+     rol="super_admin" a un usuario en la tabla Usuario para habilitar esas
+     pantallas. CÓMO BOOTSTRAPEAR EL PRIMER SUPER_ADMIN: ver Parte 3, sección
+     "Pendientes".
+
+  #3 [MEDIA] [RESUELTO] Estados de Ruta inconsistentes.
+     ANTES: schema decía "pendiente | activa | ..." y default "pendiente",
+     pero la API usa "planificada | en_curso | completada | cancelada".
+     AHORA: schema unificado (default "planificada", comentario corregido) y el
+     repositorio crea la ruta con estado="planificada" explícito. El .sql
+     incluye el ALTER del default para Supabase.
+
+  #4 [MEDIA] [RESUELTO] Campo "velocidad" que no existía.
+     AHORA el modelo Ubicacion tiene "velocidad Float?". El schema Zod y el
+     repositorio ya lo pasaban; ahora persiste sin error. (Incluido en .sql.)
+
+  #5 [MEDIA] [MITIGADO] Acoplamiento de red por request a auth-service.
+     AHORA hay una caché en memoria por token (TTL 30s) en el middleware: se
+     evita el fetch a auth/me y la consulta a la DB en requests repetidos.
+     MEJORA OPCIONAL futura: validar el JWT de Supabase localmente (con el JWT
+     secret/JWKS) para eliminar del todo la dependencia de red. Requiere añadir
+     una librería (jose/jsonwebtoken), por eso se dejó como opcional.
+
+  #6 [BAJA] [RESUELTO] Controllers muertos y health desactualizado.
+     Se borraron orders/routes/locations.controller.ts (clases vacías). El
+     health ahora lista todos los endpoints (incl. /:id/eventos y empresas).
+
+  #7 [BAJA] [RESUELTO] Sin validación de entorno + sin manejo global de errores.
+     index.ts ahora: valida DATABASE_URL al boot (falla rápido en prod), tiene
+     logging de requests (JSON), CORS restringido por allowlist, handler 404 y
+     manejador de errores global. prisma.ts activa logs de Prisma.
+
+### F. QUÉ QUEDA POR HACER (no urgente)
+  - [PROD] Confirmar que en Vercel el DATABASE_URL de core use el POOLER de
+    Supabase (host *.pooler.supabase.com:6543 con ?pgbouncer=true) y que
+    DIRECT_URL (:5432) sea sólo para migraciones. (Esto es config de Vercel, no
+    código.)
+  - [OPCIONAL] Validar el JWT localmente en core (#5) para quitar el hop de red.
+  - [OPCIONAL] Mover la lógica de los route handlers a clases controller reales
+    si se quiere el patrón MVC completo (hoy route -> service -> repo funciona
+    bien; los controllers vacíos ya se eliminaron).
+
+--------------------------------------------------------------------------------
+  PARTE 3 — RESUMEN DE AVANCES Y QUÉ SIGUE
+  (LÉEME PRIMERO si eres Claude Code trabajando en este repo en la casa)
+--------------------------------------------------------------------------------
+
+### CONTEXTO PARA CLAUDE CODE (EN LA CASA)
+  Hola. En la sesión del PC del trabajo se trabajó SIN poder ejecutar nada
+  (ese PC no tiene Node/npm). Por eso NADA se compiló ni se testeó ni se migró
+  la base. Tu primera misión en la casa es: instalar, migrar la DB LOCAL con
+  `prisma db push`, levantar los servicios y VERIFICAR que todo compile y pase
+  los tests (ver Parte 1). NO toques Supabase hasta que todo funcione local.
+
+### A. QUÉ SE IMPLEMENTÓ — FEATURE DE LOGÍSTICA / SLA
+  Objetivo: pedidos con hora límite, estado "atrasado" derivado, cancelación,
+  foto opcional, timeline de auditoría y métricas SLA en el dashboard.
+
+  Modelo de datos (packages/database/prisma/schema.prisma):
+   - Pedido: + fechaEntregaLimite, despachadoEn, entregadoEn, canceladoEn,
+     intentosEntrega, entregaSinFoto, motivoCancelacion. (Estado "atrasado" NO
+     se guarda: se DERIVA de fechaEntregaLimite.)
+   - Nuevo modelo EventoPedido (timeline/auditoría con FK a Pedido).
+   - Ubicacion: + velocidad (fix auditoría #4).
+   - Ruta: estado default unificado a "planificada" (fix #3).
+
+  Lógica pura (sin deps), espejada en web y core:
+   - apps/web/lib/logistica.ts  (estaAtrasado, minutosAtraso, entregadoATiempo,
+     calcularMetricasSLA, catálogos MOTIVOS_FALLO / MOTIVOS_CANCELACION, etc.)
+   - apps/core/src/modules/orders/logistica.ts (versión del core)
+
+  Core (apps/core):
+   - orders.route.ts: crear acepta fechaEntregaLimite; PATCH /estado acepta
+     "cancelado" + motivo + sinFoto; nuevo GET /:id/eventos; 409 si la
+     transición es inválida (p.ej. tocar un cancelado).
+   - orders.service.ts: reglas de transición (sella tiempos, bloquea estados
+     terminales, suma intentosEntrega, registra evento en transacción).
+   - orders.repository.ts: transicionEstado() atómica (update + evento),
+     listarEventos().
+
+  BFF (apps/web):
+   - app/dashboard/actions.ts: agregarPedidoNuevo pasa fechaEntregaLimite;
+     nuevas acciones cancelarPedido() y marcarComoFallido() con motivo.
+   - app/api/pedidos/route.ts y .../[id]/estado/route.ts: aceptan deadline,
+     cancelado, motivo, sinFoto.
+   - app/api/evidencia/route.ts: al subir foto sella entregadoEn + crea evento;
+     bloquea si el pedido ya es terminal.
+
+  UI:
+   - FormCrearPedido: input datetime-local "Hora límite de entrega".
+   - StatusBadge: estado "cancelado" + overlay "ATRASADO · Xmin".
+   - FilaPedido / PedidosTable: badge de atraso, filtro "Atrasados",
+     estado "cancelado".
+   - BotonesTabla: botón Cancelar (con motivo, SweetAlert) además de eliminar.
+   - dashboard/page.tsx: tira de métricas SLA (Atrasados ahora / OTD% / Atraso
+     promedio).
+   - RepartidorClient: aviso de atraso en la parada, botón Cancelar y "No
+     entregado" con hoja de motivos; ModalEvidencia con "Confirmar entrega sin
+     foto" (requisito de foto omitido).
+
+  Tests:
+   - apps/web/__tests__/logistica.test.ts (NUEVO) + ajustes en
+     businessLogic.test.ts, StatusBadge.test.tsx, BotonesTabla.test.tsx.
+
+### B. QUÉ SE ARREGLÓ — AUDITORÍA DEL CORE
+  (detalle en Parte 2, sección E: #1 a #7, casi todos [RESUELTO])
+   - Identidad desde la DB (auth.middleware.ts) + caché por token.
+   - schema: rol super_admin documentado; Ruta default; Ubicacion.velocidad.
+   - index.ts: validación de entorno, logging JSON de requests, CORS allowlist,
+     404 y manejador de errores global. prisma.ts: logs de Prisma.
+   - Borrados los controllers vacíos; health actualizado.
+
+### C. ARCHIVOS DE MIGRACIÓN
+   - packages/database/migrations/2026-06-17_sla_pedidos.sql
+     (para Supabase, vía SQL Editor, cuando todo funcione local; idempotente).
+   - En LOCAL no lo necesitas: `prisma db push` crea todo desde el schema.
+
+### D. PENDIENTES (ordenados)
+  1. [VERIFICAR EN CASA] Instalar, `prisma db push` a Postgres LOCAL, levantar
+     los 4 servicios, correr `pnpm --filter @ruteai/web test`, y completar el
+     checklist del flujo (Parte 1, Paso 6). Si algo no compila, arréglalo:
+     recuerda que en el trabajo no se pudo verificar.
+  2. [BOOTSTRAP SUPER_ADMIN] Para usar /admin y /super-admin: en Prisma Studio
+     (o con un UPDATE) pon rol="super_admin" a tu usuario en la tabla Usuario.
+     Como la identidad del core ahora sale de la DB, con eso basta.
+  3. [GOTCHA empresaId] Ya mitigado (#1): el core toma empresaId de la DB. Si
+     aún ves 403 en /dashboard/pedidos, confirma que tu usuario tenga una fila
+     en Usuario con empresaId correcto (hazlo logueándote y completando el
+     onboarding, o en Prisma Studio).
+  4. [SUPABASE, sólo cuando todo funcione] Aplica el cambio de schema:
+     `prisma db push` apuntando a Supabase, o el .sql. Luego redeploy en Vercel.
+  5. [VERCEL] Verifica DATABASE_URL de core = pooler (6543, pgbouncer).
+  6. [OPCIONAL] Validar JWT localmente en core (quita el hop de red, #5).
+
+### E. CÓMO RETOMAR LA CONVERSACIÓN CON CLAUDE CODE EN LA CASA
+  Dile algo como: "Lee el archivo 'lee esteban para la casa.txt' en la raíz.
+  Ya migré la DB local y levanté los servicios; ayúdame a verificar el flujo de
+  pedidos SLA y a resolver los pendientes de la Parte 3, sección D."
+
+================================================================================
+  FIN — Si eres Claude Code en la casa: empieza por la Parte 1 (montaje local)
+  y luego la Parte 3-D (pendientes). Si eres Esteban: cualquier duda, pídele a
+  Claude Code que ejecute los pendientes uno por uno.
+================================================================================

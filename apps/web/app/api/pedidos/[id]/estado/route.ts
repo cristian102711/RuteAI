@@ -11,19 +11,23 @@ export async function PATCH(
   try {
     const { id: pedidoId } = await params;
 
-    const body = (await req.json()) as { estado: string };
-    const { estado } = body;
+    const body = (await req.json()) as { estado: string; motivo?: string; sinFoto?: boolean };
+    const { estado, motivo, sinFoto } = body;
 
-    if (!["entregado", "fallido", "en_ruta"].includes(estado)) {
+    if (!["entregado", "fallido", "en_ruta", "cancelado"].includes(estado)) {
       return NextResponse.json(
-        { error: "Estado inválido. Usa: entregado | fallido | en_ruta" },
+        { error: "Estado inválido. Usa: entregado | fallido | en_ruta | cancelado" },
         { status: 400 }
       );
     }
 
     const actualizado = await callCore(`/api/v1/orders/${pedidoId}/estado`, {
       method: "PATCH",
-      body: { estado },
+      body: {
+        estado,
+        ...(motivo && { motivo }),
+        ...(sinFoto !== undefined && { sinFoto }),
+      },
     });
 
     console.log(`[PATCH /api/pedidos/${pedidoId}/estado] → ${estado}`);

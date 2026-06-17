@@ -3,10 +3,11 @@ import { FormCrearPedido } from "./components/FormCrearPedido";
 import { FilaPedido } from "./components/FilaPedido";
 import { createClient } from "@/lib/supabaseServer";
 import { crearEmpresaYUsuario } from "./actions";
-import { 
-  Package, CheckSquare, Users, AlertTriangle, 
-  Sparkles, ArrowRight, Zap
+import {
+  Package, CheckSquare, Users, AlertTriangle,
+  Sparkles, ArrowRight, Zap, Clock, Timer, Gauge
 } from "lucide-react";
+import { calcularMetricasSLA, formatearAtraso } from "@/lib/logistica";
 
 // Server component para la gestión de RouteAI Dashboard conectado a datos reales sin fallbacks ficticios
 export default async function DashboardPage() {
@@ -109,6 +110,9 @@ export default async function DashboardPage() {
   const fallidos = pedidos.filter((p: any) => p.estado === "fallido").length;
   const enRuta = pedidos.filter((p: any) => p.estado === "en_ruta").length;
   const avancePorcentaje = pedidosDelDia > 0 ? Math.round((entregados / pedidosDelDia) * 100) : 0;
+
+  // Métricas SLA / cumplimiento de horario (atraso derivado, sin cron)
+  const sla = calcularMetricasSLA(pedidos as any);
 
   // Fecha bonita actual en español
   const hoyFormatted = new Date().toLocaleDateString("es-ES", {
@@ -267,6 +271,45 @@ export default async function DashboardPage() {
           <div className="mt-1 text-xs text-zinc-500">{conductoresTotales > 0 ? "Conductores activos" : "Sin conductores"}</div>
         </div>
 
+      </div>
+
+      {/* Cumplimiento de SLA / Horarios de entrega */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        {/* Atrasados ahora */}
+        <div className={`rounded-xl border p-5 shadow-lg backdrop-blur-xl ${sla.atrasadosActivos > 0 ? "border-rose-500/30 bg-rose-500/[0.04]" : "border-white/[0.04] bg-white/[0.02]"}`}>
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+            <Clock className="h-3.5 w-3.5 text-rose-400" />
+            Atrasados ahora
+          </div>
+          <div className="mt-3 text-3xl font-semibold tabular-nums text-white">{sla.atrasadosActivos}</div>
+          <div className="mt-1 text-xs text-zinc-500">
+            {sla.atrasadosActivos > 0 ? "Pedidos fuera de plazo SLA" : "Todo dentro de plazo"}
+          </div>
+        </div>
+
+        {/* OTD — On-Time Delivery */}
+        <div className="rounded-xl border border-white/[0.04] bg-white/[0.02] p-5 shadow-lg backdrop-blur-xl">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+            <Gauge className="h-3.5 w-3.5 text-emerald-400" />
+            Entregas a tiempo (OTD)
+          </div>
+          <div className="mt-3 text-3xl font-semibold tabular-nums text-white">{sla.otd}%</div>
+          <div className="mt-1 text-xs text-zinc-500">
+            {sla.entregadosATiempo}/{sla.entregados} entregas dentro de plazo
+          </div>
+        </div>
+
+        {/* Atraso promedio */}
+        <div className="rounded-xl border border-white/[0.04] bg-white/[0.02] p-5 shadow-lg backdrop-blur-xl">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+            <Timer className="h-3.5 w-3.5 text-amber-400" />
+            Atraso promedio
+          </div>
+          <div className="mt-3 text-3xl font-semibold tabular-nums text-white">
+            {sla.atrasoPromedioMin > 0 ? formatearAtraso(sla.atrasoPromedioMin) : "—"}
+          </div>
+          <div className="mt-1 text-xs text-zinc-500">En las entregas fuera de plazo</div>
+        </div>
       </div>
 
       {/* Grid del medio: Reporte y Sugerencia IA */}

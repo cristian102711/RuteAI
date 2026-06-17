@@ -48,8 +48,20 @@ export function FormCrearPedido({ empresaId }: { empresaId: string }) {
         <label className="text-[10px] font-bold text-muted-foreground tracking-widest uppercase ml-1">Despacho / SKU</label>
         <input name="producto" placeholder="Identificador del equipo" required className="w-full bg-secondary border border-border-ui text-foreground placeholder-muted-foreground/60 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary shadow-sm transition-all text-sm font-bold uppercase tracking-wider disabled:opacity-50" disabled={isSubmitting} />
       </div>
-      
-      <button 
+
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[10px] font-bold text-muted-foreground tracking-widest uppercase ml-1">⏱ Hora límite de entrega (SLA)</label>
+        <input
+          name="fechaEntregaLimite"
+          type="datetime-local"
+          min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
+          className="w-full bg-secondary border border-border-ui text-foreground placeholder-muted-foreground/60 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary shadow-sm transition-all text-sm disabled:opacity-50 [color-scheme:dark]"
+          disabled={isSubmitting}
+        />
+        <span className="text-[10px] text-muted-foreground/70 ml-1">Si no se entrega antes de esta hora, el pedido se marca como atrasado.</span>
+      </div>
+
+      <button
         type="submit" 
         disabled={isSubmitting}
         className="mt-4 flex justify-center items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-black text-sm px-4 py-3.5 rounded-xl transition-all duration-300 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed group w-full tracking-wide shadow-md hover:shadow-primary/20"

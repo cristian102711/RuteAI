@@ -27,6 +27,7 @@ export const RoutesRepository = {
         empresaId:    data.empresaId,
         repartidorId: data.repartidorId,
         fecha:        data.fecha,
+        estado:       "planificada", // catálogo unificado con la API (#3)
         ...(data.rutaOptimizada !== undefined
           ? { rutaOptimizada: data.rutaOptimizada as any }
           : {}),

@@ -14,8 +14,19 @@ export async function agregarPedidoNuevo(formData: FormData) {
   const direccion = formData.get("direccion") as string;
   const producto  = formData.get("producto")  as string;
   const clienteTelefono = formData.get("clienteTelefono") as string;
-  
+  const fechaEntregaLimiteRaw = formData.get("fechaEntregaLimite") as string;
+
   if (!cliente || !direccion || !producto) return { error: "Faltan datos" };
+
+  // El input datetime-local entrega "2026-06-17T15:30" (hora local). Lo
+  // convertimos a ISO para el SLA. Validamos que no sea anterior a ahora.
+  let fechaEntregaLimite: string | undefined;
+  if (fechaEntregaLimiteRaw) {
+    const d = new Date(fechaEntregaLimiteRaw);
+    if (isNaN(d.getTime())) return { error: "Hora límite inválida" };
+    if (d.getTime() < Date.now()) return { error: "La hora límite no puede estar en el pasado" };
+    fechaEntregaLimite = d.toISOString();
+  }
 
   // RF-02: Geocodificar la dirección + RF-03: Score IA (orquestado por el BFF)
   const horaActual = new Date().getHours();
@@ -45,6 +56,7 @@ export async function agregarPedidoNuevo(formData: FormData) {
         direccion,
         producto,
         clienteTelefono: clienteTelefono || undefined,
+        fechaEntregaLimite,
         lat: coords?.lat ?? undefined,
         lng: coords?.lng ?? undefined,
         scoreRiesgo: scoreParaBD,
@@ -136,6 +148,41 @@ export async function eliminarPedido(id: string) {
     if (err instanceof CoreServiceError) return { error: err.message };
     console.error("[eliminarPedido]", err);
     return { error: "No se pudo eliminar el pedido" };
+  }
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+// Cancelar un pedido (estado terminal). Distinto de eliminar:
+// el pedido queda en la base con su historial para trazabilidad.
+export async function cancelarPedido(id: string, motivo?: string) {
+  if (!id) return { error: "ID no provisto" };
+  try {
+    await callCore(`/api/v1/orders/${id}/estado`, {
+      method: "PATCH",
+      body: { estado: "cancelado", ...(motivo && { motivo }) },
+    });
+  } catch (err) {
+    if (err instanceof CoreServiceError) return { error: err.message };
+    console.error("[cancelarPedido]", err);
+    return { error: "No se pudo cancelar el pedido" };
+  }
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+// Marcar un intento de entrega como fallido (re-agendable), con motivo.
+export async function marcarComoFallido(id: string, motivo?: string) {
+  if (!id) return { error: "ID no provisto" };
+  try {
+    await callCore(`/api/v1/orders/${id}/estado`, {
+      method: "PATCH",
+      body: { estado: "fallido", ...(motivo && { motivo }) },
+    });
+  } catch (err) {
+    if (err instanceof CoreServiceError) return { error: err.message };
+    console.error("[marcarComoFallido]", err);
+    return { error: "No se pudo actualizar el pedido" };
   }
   revalidatePath("/dashboard");
   return { success: true };

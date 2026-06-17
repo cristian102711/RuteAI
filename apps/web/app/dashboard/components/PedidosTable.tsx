@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Search, Sparkles, MoreHorizontal, Pencil, Trash2, CheckCircle, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { eliminarPedido, marcarComoEntregado } from "../actions";
+import { estaAtrasado, minutosAtraso, formatearAtraso } from "@/lib/logistica";
 
 interface Pedido {
   id: string;
@@ -13,6 +14,8 @@ interface Pedido {
   direccion: string;
   estado: string;
   scoreRiesgo: number | null;
+  fechaEntregaLimite?: string | Date | null;
+  entregadoEn?: string | Date | null;
 }
 
 export function PedidosTable({ pedidos }: { pedidos: Pedido[] }) {
@@ -33,7 +36,7 @@ export function PedidosTable({ pedidos }: { pedidos: Pedido[] }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const filters = ["Todos", "Pendientes", "En ruta", "Entregados", "Fallidos"];
+  const filters = ["Todos", "Pendientes", "En ruta", "Atrasados", "Entregados", "Fallidos", "Cancelados"];
 
   const filtered = useMemo(() => {
     return pedidos.filter((p) => {
@@ -41,10 +44,16 @@ export function PedidosTable({ pedidos }: { pedidos: Pedido[] }) {
         "Pendientes": "pendiente",
         "En ruta": "en_ruta",
         "Entregados": "entregado",
-        "Fallidos": "fallido"
+        "Fallidos": "fallido",
+        "Cancelados": "cancelado",
       };
-      
-      const matchStatus = filter === "Todos" || p.estado === dbStatusMap[filter];
+
+      const matchStatus =
+        filter === "Todos"
+          ? true
+          : filter === "Atrasados"
+            ? estaAtrasado(p)
+            : p.estado === dbStatusMap[filter];
       const matchQuery =
         query === "" ||
         p.id.toLowerCase().includes(query.toLowerCase()) ||
@@ -74,9 +83,14 @@ export function PedidosTable({ pedidos }: { pedidos: Pedido[] }) {
           classes: "bg-emerald-500/10 text-emerald-400 ring-emerald-500/30" 
         };
       case "fallido":
-        return { 
-          label: "Fallido", 
-          classes: "bg-red-500/10 text-red-400 ring-red-500/30" 
+        return {
+          label: "Fallido",
+          classes: "bg-orange-500/10 text-orange-400 ring-orange-500/30"
+        };
+      case "cancelado":
+        return {
+          label: "Cancelado",
+          classes: "bg-red-500/10 text-red-400 ring-red-500/30"
         };
       default:
         return { 
@@ -176,10 +190,17 @@ export function PedidosTable({ pedidos }: { pedidos: Pedido[] }) {
                     
                     {/* Estado */}
                     <td className="px-5 py-3">
-                      <span className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${status.classes}`}>
-                        <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                        {status.label}
-                      </span>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${status.classes}`}>
+                          <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                          {status.label}
+                        </span>
+                        {estaAtrasado(o) && (
+                          <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold ring-1 ring-inset ring-rose-500/40 bg-rose-500/15 text-rose-400 animate-pulse" title="Fuera de plazo SLA">
+                            ⏱ {formatearAtraso(minutosAtraso(o))}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     
                     {/* Riesgo IA */}

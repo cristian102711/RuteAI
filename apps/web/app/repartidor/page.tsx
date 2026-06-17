@@ -39,6 +39,7 @@ export default async function RepartidorPage() {
       direccion:      true,
       producto:       true,
       horarioPreferido: true,
+      fechaEntregaLimite: true,
       estado:         true,
       lat:            true,
       lng:            true,

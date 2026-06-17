@@ -6,6 +6,7 @@ jest.mock("../app/dashboard/actions", () => ({
   eliminarPedido:    jest.fn().mockResolvedValue(undefined),
   marcarComoEntregado: jest.fn().mockResolvedValue(undefined),
   marcarEnRuta:      jest.fn().mockResolvedValue(undefined),
+  cancelarPedido:    jest.fn().mockResolvedValue({ success: true }),
 }));
 
 jest.mock("../app/dashboard/components/ModalEvidencia", () => ({
@@ -57,5 +58,25 @@ describe("BotonesTabla", () => {
       <BotonesTabla pedidoId="p1" estado="en_ruta" nombreCliente="Ana Torres" />
     );
     expect(container).toBeInTheDocument();
+  });
+
+  it("renders cancelar (anular) button for active states", () => {
+    render(<BotonesTabla pedidoId="p1" estado="pendiente" />);
+    expect(screen.getByTitle(/cancelar pedido \(anular\)/i)).toBeInTheDocument();
+  });
+
+  it("does not render cancelar (anular) button for terminal states", () => {
+    render(<BotonesTabla pedidoId="p3" estado="entregado" />);
+    expect(screen.queryByTitle(/cancelar pedido \(anular\)/i)).not.toBeInTheDocument();
+  });
+
+  it("renders cancelado badge for estado=cancelado", () => {
+    render(<BotonesTabla pedidoId="p4" estado="cancelado" />);
+    expect(screen.getByText(/^cancelado$/i)).toBeInTheDocument();
+  });
+
+  it("renders fallido badge for estado=fallido", () => {
+    render(<BotonesTabla pedidoId="p5" estado="fallido" />);
+    expect(screen.getByText(/^fallido$/i)).toBeInTheDocument();
   });
 });

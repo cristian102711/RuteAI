@@ -1,7 +1,19 @@
 import prisma from "../../../lib/prisma";
+import type { Prisma } from "@prisma/client";
 
 // ── Repository Layer ─────────────────────────────────────────
 // Encapsula todas las operaciones de Pedido en la base de datos.
+
+interface EventoInput {
+  tipo: string;
+  estadoAnterior?: string | null;
+  estadoNuevo?: string | null;
+  motivo?: string | null;
+  descripcion?: string | null;
+  actorId?: string | null;
+  actorNombre?: string | null;
+  metadata?: Prisma.InputJsonValue;
+}
 
 export const OrdersRepository = {
   async findAll(
@@ -26,31 +38,55 @@ export const OrdersRepository = {
     });
   },
 
-  async create(data: {
-    empresaId:        string;
-    nombreCliente:    string;
-    clienteTelefono?: string;
-    direccion:        string;
-    producto:         string;
-    horarioPreferido?: string;
-    lat?:             number;
-    lng?:             number;
-    scoreRiesgo?:     number;
-    repartidorId?:    string;
-  }) {
-    return prisma.pedido.create({ data });
+  async create(
+    data: {
+      empresaId:        string;
+      nombreCliente:    string;
+      clienteTelefono?: string;
+      direccion:        string;
+      producto:         string;
+      horarioPreferido?: string;
+      fechaEntregaLimite?: Date;
+      lat?:             number;
+      lng?:             number;
+      scoreRiesgo?:     number;
+      repartidorId?:    string;
+    },
+    evento?: EventoInput
+  ) {
+    return prisma.pedido.create({
+      data: {
+        ...data,
+        ...(evento && { eventos: { create: evento } }),
+      },
+    });
   },
 
-  async updateEstado(id: string, estado: string) {
-    // Un pedido entregado ya no tiene riesgo asociado
-    return prisma.pedido.update({
-      where: { id },
-      data: { estado, ...(estado === "entregado" && { scoreRiesgo: 0 }) },
+  /**
+   * Cambia el estado del pedido y registra el evento de auditoría en una
+   * sola transacción, garantizando que el timeline nunca se desincronice.
+   */
+  async transicionEstado(
+    id: string,
+    data: Prisma.PedidoUpdateInput,
+    evento: EventoInput
+  ) {
+    return prisma.$transaction(async (tx) => {
+      const pedido = await tx.pedido.update({ where: { id }, data });
+      await tx.eventoPedido.create({ data: { pedidoId: id, ...evento } });
+      return pedido;
     });
   },
 
   async updateScore(id: string, scoreRiesgo: number) {
     return prisma.pedido.update({ where: { id }, data: { scoreRiesgo } });
+  },
+
+  async listarEventos(pedidoId: string) {
+    return prisma.eventoPedido.findMany({
+      where: { pedidoId },
+      orderBy: { createdAt: "asc" },
+    });
   },
 
   async delete(id: string) {
