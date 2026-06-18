@@ -106,15 +106,13 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
                       <Marker
                         position={{ lat: pedido.lat, lng: pedido.lng }}
                         onClick={() => setSelectedPedido(isSelected ? null : pedido.id)}
-                        options={{
-                          icon: {
-                            path: "M 0,0 C -2,-20 -10,-22 -10,-30 A 10,10 0 1,1 10,-30 C 10,-22 2,-20 0,0 z",
-                            fillColor: isEnRuta ? "#f59e0b" : "#10b981",
-                            fillOpacity: 1,
-                            strokeColor: "#ffffff",
-                            strokeWeight: 1.5,
-                            scale: 1
-                          }
+                        icon={{
+                          path: "M 0,0 C -2,-20 -10,-22 -10,-30 A 10,10 0 1,1 10,-30 C 10,-22 2,-20 0,0 z",
+                          fillColor: isEnRuta ? "#f59e0b" : "#10b981",
+                          fillOpacity: 1,
+                          strokeColor: "#ffffff",
+                          strokeWeight: 1.5,
+                          scale: 1
                         }}
                       />
                       {isSelected && (
@@ -139,15 +137,13 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
                 {ubicacion && (
                   <Marker
                     position={{ lat: ubicacion.lat, lng: ubicacion.lng }}
-                    options={{
-                      icon: {
-                        path: "M 0,0 C -2,-20 -10,-22 -10,-30 A 10,10 0 1,1 10,-30 C 10,-22 2,-20 0,0 z",
-                        fillColor: "#3b82f6",
-                        fillOpacity: 1,
-                        strokeColor: "#ffffff",
-                        strokeWeight: 2,
-                        scale: 1.2
-                      }
+                    icon={{
+                      path: "M 0,0 C -2,-20 -10,-22 -10,-30 A 10,10 0 1,1 10,-30 C 10,-22 2,-20 0,0 z",
+                      fillColor: "#3b82f6",
+                      fillOpacity: 1,
+                      strokeColor: "#ffffff",
+                      strokeWeight: 2,
+                      scale: 1.2
                     }}
                   />
                 )}
@@ -157,20 +153,18 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
                   <Marker
                     key={ub.id}
                     position={{ lat: ub.lat, lng: ub.lng }}
-                    options={{
-                      label: {
-                        text: ub.repartidor.nombre.split(" ")[0],
-                        color: "#ffffff",
-                        fontSize: "9px"
-                      },
-                      icon: {
-                        path: 0, // SymbolPath.CIRCLE
-                        fillColor: "#3b82f6",
-                        fillOpacity: 0.7,
-                        strokeColor: "#ffffff",
-                        strokeWeight: 1,
-                        scale: 8
-                      }
+                    label={{
+                      text: ub.repartidor.nombre.split(" ")[0],
+                      color: "#ffffff",
+                      fontSize: "9px"
+                    }}
+                    icon={{
+                      path: 0, // SymbolPath.CIRCLE
+                      fillColor: "#3b82f6",
+                      fillOpacity: 0.7,
+                      strokeColor: "#ffffff",
+                      strokeWeight: 1,
+                      scale: 8
                     }}
                   />
                 ))}

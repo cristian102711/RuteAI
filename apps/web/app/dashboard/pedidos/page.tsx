@@ -5,11 +5,25 @@ import Link from "next/link";
 import { PedidosTable } from "../components/PedidosTable";
 import { OptimizarRutasButton } from "../components/OptimizarRutasButton";
 import { callCore } from "@/lib/coreServiceClient";
+import prisma from "@ruteai/database";
 
 export default async function PedidosPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  // Repartidores de la empresa (para la asignación inline en la tabla)
+  const usuarioDB = await prisma.usuario.findUnique({
+    where: { id: user.id },
+    select: { empresaId: true },
+  });
+  const repartidores = usuarioDB
+    ? await prisma.usuario.findMany({
+        where: { empresaId: usuarioDB.empresaId, rol: "repartidor" },
+        select: { id: true, nombre: true },
+        orderBy: { nombre: "asc" },
+      })
+    : [];
 
   // Lista de pedidos de la empresa (empresaId derivado del token en core)
   let todosLosPedidos: any[] = [];
@@ -46,7 +60,7 @@ export default async function PedidosPage() {
       </div>
 
       {/* Tabla integrada con Filtros */}
-      <PedidosTable pedidos={todosLosPedidos} />
+      <PedidosTable pedidos={todosLosPedidos} repartidores={repartidores} />
       
     </div>
   );

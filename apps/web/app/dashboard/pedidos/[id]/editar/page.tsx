@@ -1,16 +1,16 @@
 import { createClient } from "@/lib/supabaseServer";
 import { redirect } from "next/navigation";
 import { callCore } from "@/lib/coreServiceClient";
-import { EditarPedidoForm } from "./EditarPedidoForm";
+import { EditarPedidoForm, type Pedido } from "./EditarPedidoForm";
 
 export default async function EditarPedidoPage({ params }: { params: { id: string } }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  let pedido = null;
+  let pedido: Pedido | null = null;
   try {
-    pedido = await callCore(`/api/v1/orders/${params.id}`);
+    pedido = await callCore<Pedido>(`/api/v1/orders/${params.id}`);
   } catch {
     // Pedido inexistente o fuera de alcance — redirige abajo
   }

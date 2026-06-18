@@ -19,6 +19,7 @@ export function FilaPedido({ pedido }: { pedido: Pedido }) {
   const limiteTexto = pedido.fechaEntregaLimite
     ? new Date(pedido.fechaEntregaLimite).toLocaleString("es-CL", {
         day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
+        timeZone: "America/Santiago",
       })
     : null;
 
@@ -81,7 +82,7 @@ export function FilaPedido({ pedido }: { pedido: Pedido }) {
         <p className="text-sm font-semibold text-white">📍 {pedido.direccion}</p>
         <p className="text-xs text-zinc-500 truncate max-w-[200px] md:max-w-md lg:max-w-xs mt-0.5">👤 {pedido.nombreCliente} {pedido.clienteTelefono && `• 📞 ${pedido.clienteTelefono}`}</p>
         {limiteTexto && (
-          <p className={`text-[11px] mt-0.5 ${atrasado ? "text-rose-400 font-semibold" : "text-zinc-600"}`}>
+          <p suppressHydrationWarning className={`text-[11px] mt-0.5 ${atrasado ? "text-rose-400 font-semibold" : "text-zinc-600"}`}>
             ⏱ Límite: {limiteTexto}{pedido.estado === "entregado" && pedido.entregadoEn ? ` · entregado ${minAtraso > 0 ? `${minAtraso} min tarde` : "a tiempo"}` : ""}
           </p>
         )}

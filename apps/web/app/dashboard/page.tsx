@@ -1,11 +1,10 @@
 import prisma from "@ruteai/database";
-import { FormCrearPedido } from "./components/FormCrearPedido";
 import { FilaPedido } from "./components/FilaPedido";
 import { createClient } from "@/lib/supabaseServer";
 import { crearEmpresaYUsuario } from "./actions";
 import {
   Package, CheckSquare, Users, AlertTriangle,
-  Sparkles, ArrowRight, Zap, Clock, Timer, Gauge
+  Sparkles, ArrowRight, Clock, Timer, Gauge
 } from "lucide-react";
 import { calcularMetricasSLA, formatearAtraso } from "@/lib/logistica";
 
@@ -520,20 +519,11 @@ export default async function DashboardPage() {
 
       </div>
 
-      {/* Zona Funcional Real: Formulario de Creación y Tabla de Pedidos DB */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 pt-2">
-        
-        {/* Formulario Crear Pedido */}
-        <div className="xl:col-span-1 bg-white/[0.02] border border-white/[0.04] rounded-3xl p-7 shadow-xl hover:border-zinc-750 transition-all duration-300 h-fit">
-          <h2 className="text-sm font-bold tracking-widest uppercase mb-6 text-amber-500 flex items-center gap-2">
-            <Zap className="w-4 h-4" />
-            Nuevo Despacho
-          </h2>
-          <FormCrearPedido empresaId={empresaActiva.id} />
-        </div>
+      {/* Monitoreo: despachos en curso. La creación de pedidos vive en la pestaña Pedidos. */}
+      <div className="pt-2">
 
         {/* Listado de Pedidos Recientes */}
-        <div className="xl:col-span-2 bg-white/[0.02] border border-white/[0.04] rounded-3xl shadow-xl overflow-hidden flex flex-col hover:border-zinc-750 transition-all duration-300">
+        <div className="bg-white/[0.02] border border-white/[0.04] rounded-3xl shadow-xl overflow-hidden flex flex-col hover:border-zinc-750 transition-all duration-300">
           <div className="px-8 py-5 border-b border-white/[0.04] flex justify-between items-center bg-zinc-950/20">
             <h2 className="text-sm font-bold tracking-widest uppercase text-zinc-300">
               Despachos en Curso <span className="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2.5 py-0.5 rounded-full ml-2 text-xs">{pedidos.length}</span>

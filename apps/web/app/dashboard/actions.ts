@@ -15,6 +15,14 @@ export async function agregarPedidoNuevo(formData: FormData) {
   const producto  = formData.get("producto")  as string;
   const clienteTelefono = formData.get("clienteTelefono") as string;
   const fechaEntregaLimiteRaw = formData.get("fechaEntregaLimite") as string;
+  const repartidorId = (formData.get("repartidorId") as string) || undefined;
+  // Coordenadas que vienen del selector de mapa (Google) en el cliente.
+  const latRaw = formData.get("lat") as string;
+  const lngRaw = formData.get("lng") as string;
+  const coordsCliente =
+    latRaw && lngRaw && !isNaN(Number(latRaw)) && !isNaN(Number(lngRaw))
+      ? { lat: Number(latRaw), lng: Number(lngRaw) }
+      : null;
 
   if (!cliente || !direccion || !producto) return { error: "Faltan datos" };
 
@@ -29,8 +37,10 @@ export async function agregarPedidoNuevo(formData: FormData) {
   }
 
   // RF-02: Geocodificar la dirección + RF-03: Score IA (orquestado por el BFF)
+  // Preferimos las coordenadas que ya validó el selector de mapa en el cliente;
+  // solo geocodificamos en el servidor si no llegaron (fallback).
   const horaActual = new Date().getHours();
-  const coords = await geocodificarDireccion(direccion);
+  const coords = coordsCliente ?? (await geocodificarDireccion(direccion));
 
   const lat = coords?.lat ?? -33.45; // Fallback: Santiago centro
   const lng = coords?.lng ?? -70.66;
@@ -59,6 +69,7 @@ export async function agregarPedidoNuevo(formData: FormData) {
         fechaEntregaLimite,
         lat: coords?.lat ?? undefined,
         lng: coords?.lng ?? undefined,
+        repartidorId,
         scoreRiesgo: scoreParaBD,
       },
     });
@@ -67,6 +78,49 @@ export async function agregarPedidoNuevo(formData: FormData) {
     console.error("[agregarPedidoNuevo]", err);
     return { error: "No se pudo crear el pedido" };
   }
+
+  revalidatePath("/dashboard/pedidos");
+  return { success: true };
+}
+
+/**
+ * Asigna (o desasigna con null) un repartidor a un pedido. Solo el encargado de
+ * la misma empresa puede hacerlo. Escribe directo a la DB (el web es BFF con
+ * acceso a datos), validando pertenencia multi-tenant.
+ */
+export async function asignarRepartidor(pedidoId: string, repartidorId: string | null) {
+  if (!pedidoId) return { error: "ID de pedido requerido" };
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+
+  const usuarioDB = await prisma.usuario.findUnique({
+    where: { id: user.id },
+    select: { empresaId: true, rol: true },
+  });
+  if (!usuarioDB || usuarioDB.rol !== "encargado") return { error: "Sin permisos" };
+
+  // El pedido debe pertenecer a la empresa del encargado.
+  const pedido = await prisma.pedido.findFirst({
+    where: { id: pedidoId, empresaId: usuarioDB.empresaId },
+    select: { id: true },
+  });
+  if (!pedido) return { error: "Pedido no encontrado" };
+
+  // Si se asigna un repartidor, debe ser de la misma empresa.
+  if (repartidorId) {
+    const rep = await prisma.usuario.findFirst({
+      where: { id: repartidorId, empresaId: usuarioDB.empresaId, rol: "repartidor" },
+      select: { id: true },
+    });
+    if (!rep) return { error: "Repartidor inválido" };
+  }
+
+  await prisma.pedido.update({
+    where: { id: pedidoId },
+    data: { repartidorId: repartidorId ?? null },
+  });
 
   revalidatePath("/dashboard/pedidos");
   return { success: true };

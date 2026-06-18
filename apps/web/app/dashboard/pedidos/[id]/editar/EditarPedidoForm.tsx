@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Package, ArrowLeft, Save } from "lucide-react";
 import { editarPedido } from "../../../actions"; 
 
-interface Pedido {
+export interface Pedido {
   id: string;
   nombreCliente: string;
   direccion: string;
