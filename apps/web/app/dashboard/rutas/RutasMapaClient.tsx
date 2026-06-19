@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Layers, Maximize2, Navigation, Sparkles, Wifi, WifiOff } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Layers, Maximize2, Navigation, Sparkles, Wifi, Play, Square, Truck } from "lucide-react";
 import { useRealtimeGPS } from "../components/RealtimeGPSPin";
 import { APIProvider, Map, Marker, InfoWindow } from "@vis.gl/react-google-maps";
 
@@ -52,8 +52,37 @@ const DARK_MAP_STYLE = [
 ];
 
 export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbicaciones }: Props) {
-  const { pinPos, ubicacion, conectado } = useRealtimeGPS(empresaId);
+  const { ubicacion, conectado } = useRealtimeGPS(empresaId);
   const [selectedPedido, setSelectedPedido] = useState<string | null>(null);
+
+  // ── Tracking en vivo por POLLING (no depende de Supabase Realtime) ──────────
+  // Refresca la última posición de cada repartidor cada ~1.8s. Funciona tanto en
+  // local (Postgres local) como en prod, leyendo /api/ubicaciones.
+  const [ubicaciones, setUbicaciones] = useState<UbicacionConRepartidor[]>(ultimasUbicaciones);
+  const [simulando, setSimulando] = useState(false);
+
+  useEffect(() => {
+    let cancelado = false;
+    const tick = async () => {
+      try {
+        const res = await fetch("/api/ubicaciones");
+        const json = await res.json();
+        if (!cancelado && Array.isArray(json.data)) setUbicaciones(json.data);
+      } catch { /* silencioso */ }
+    };
+    tick();
+    const id = setInterval(tick, 1800);
+    return () => { cancelado = true; clearInterval(id); };
+  }, []);
+
+  // Simulación: mientras esté activa, avanza un paso a cada repartidor cada ~1.8s.
+  useEffect(() => {
+    if (!simulando) return;
+    const id = setInterval(() => {
+      fetch("/api/dev/simular-gps", { method: "POST" }).catch(() => {});
+    }, 1800);
+    return () => clearInterval(id);
+  }, [simulando]);
 
   const enRuta = pedidos.filter(p => p.estado === "en_ruta");
   const pendientes = pedidos.filter(p => p.estado === "pendiente");
@@ -148,23 +177,25 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
                   />
                 )}
 
-                {/* Pines de última ubicación conocida (cargados del servidor) */}
-                {!pinPos && ultimasUbicaciones.map((ub) => (
+                {/* Camiones de repartidores EN VIVO (polling /api/ubicaciones) */}
+                {ubicaciones.map((ub) => (
                   <Marker
-                    key={ub.id}
+                    key={ub.repartidorId}
                     position={{ lat: ub.lat, lng: ub.lng }}
+                    title={ub.repartidor?.nombre ?? "Repartidor"}
                     label={{
-                      text: ub.repartidor.nombre.split(" ")[0],
+                      text: (ub.repartidor?.nombre ?? "·").split(" ")[0],
                       color: "#ffffff",
-                      fontSize: "9px"
+                      fontSize: "10px",
+                      fontWeight: "700",
                     }}
                     icon={{
                       path: 0, // SymbolPath.CIRCLE
-                      fillColor: "#3b82f6",
-                      fillOpacity: 0.7,
+                      fillColor: "#0ea5e9",
+                      fillOpacity: 1,
                       strokeColor: "#ffffff",
-                      strokeWeight: 1,
-                      scale: 8
+                      strokeWeight: 2,
+                      scale: 9,
                     }}
                   />
                 ))}
@@ -193,15 +224,32 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
             ))}
           </div>
 
-          {/* Indicador Realtime */}
+          {/* Toggle de simulación de movimiento (demo) */}
+          <button
+            onClick={() => setSimulando((s) => !s)}
+            className={`absolute left-4 top-36 z-10 inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-xs font-semibold backdrop-blur-md border transition-colors ${
+              simulando
+                ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                : "bg-white/5 text-zinc-300 border-white/[0.04] hover:bg-white/10"
+            }`}
+            title="Mueve los camiones hacia sus pedidos asignados (demo local)"
+          >
+            {simulando ? <Square className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+            {simulando ? "Detener simulación" : "Simular movimiento"}
+          </button>
+
+          {/* Indicador de estado del tracking (polling siempre activo) */}
           <div className="absolute top-4 right-4 z-10">
             <div className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium backdrop-blur border ${
-              conectado
+              simulando
                 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                : "bg-zinc-800/80 text-zinc-500 border-white/[0.04]"
+                : conectado
+                  ? "bg-sky-500/10 text-sky-400 border-sky-500/20"
+                  : "bg-zinc-800/80 text-zinc-400 border-white/[0.04]"
             }`}>
-              {conectado ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
-              {conectado ? "GPS en vivo" : "Conectando..."}
+              {simulando
+                ? <><span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" /> Simulando movimiento</>
+                : <><Wifi className="h-3 w-3" /> GPS en vivo · {ubicaciones.length}</>}
             </div>
           </div>
 
@@ -216,6 +264,10 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
               </span>
               <span className="text-zinc-400">
                 Total: <span className="font-mono text-white">{pedidos.length}</span>
+              </span>
+              <span className="inline-flex items-center gap-1 text-zinc-400">
+                <Truck className="h-3 w-3 text-sky-400" />
+                Repartidores: <span className="font-mono text-sky-400 font-semibold">{ubicaciones.length}</span>
               </span>
             </div>
             <span className="inline-flex items-center gap-1.5 rounded bg-purple-500/15 px-2 py-0.5 font-semibold text-purple-400 ring-1 ring-inset ring-purple-500/20">

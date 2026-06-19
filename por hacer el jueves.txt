@@ -47,9 +47,16 @@
       el prompt y cachear resultados por pedido para no gastar tokens.
 
 --------------------------------------------------------------------------------
-  PENDIENTE 2 — TRACKING EN VIVO DE REPARTIDORES EN EL MAPA (ADMIN)
-  (Se empezó a diseñar pero NO se implementó por falta de tiempo/tokens)
+  PENDIENTE 2 — TRACKING EN VIVO DE REPARTIDORES EN EL MAPA (ADMIN)  ✅ RESUELTO (18-jun)
 --------------------------------------------------------------------------------
+RESUELTO: el mapa admin (/dashboard/rutas → RutasMapaClient) ahora hace POLLING
+de /api/ubicaciones cada 1.8s y muestra un camión (círculo sky + nombre) por
+repartidor que se mueve en vivo. Botón "Simular movimiento" que llama cada 1.8s
+al nuevo endpoint POST /api/dev/simular-gps (avanza ~150 m hacia el pedido activo
+más cercano de cada repartidor; guard NODE_ENV!=='production' + sesión encargado).
+Ya NO depende de Supabase Realtime en local. (Detalle del plan original abajo.)
+
+
 OBJETIVO: que el admin vea los camiones de los repartidores moviéndose en tiempo
 real en el mapa del dashboard, con simulación de movimiento automático de paso.
 
@@ -84,8 +91,15 @@ PLAN CONCRETO (para implementar el jueves):
   mismo polling.
 
 --------------------------------------------------------------------------------
-  PENDIENTE 3 — MAPA DEL DASHBOARD: LEAFLET -> GOOGLE MAPS (A INVESTIGAR)
+  PENDIENTE 3 — MAPA: LEAFLET -> GOOGLE MAPS  ✅ RESUELTO (18-jun)
 --------------------------------------------------------------------------------
+RESUELTO: el mapa admin REAL (/dashboard/rutas) ya era Google Maps; el "Actividad
+en vivo" del dashboard era un SVG decorativo, no Leaflet. Leaflet solo lo usaba
+SimuladorRuta (componente MUERTO, sin importadores). Se ELIMINARON los 3 archivos
+muertos (SimuladorRuta, MapaRutas, MapaRutasRender) y las deps leaflet /
+react-leaflet / @types/leaflet. Toda la app usa Google Maps ahora. (Notas abajo.)
+
+
 QUÉ ES "LEAFLET": el mapa de "Actividad en vivo" del dashboard usa la librería
 **react-leaflet / Leaflet** (mapas open-source, gratis, SIN API key) con tiles
 oscuros de CartoDB/OpenStreetMap. Archivos:
