@@ -68,11 +68,19 @@ export interface PuntoRuta {
   id: string;
   lat: number;
   lng: number;
+  fechaEntregaLimite?: string | null; // ISO; habilita la planificación con SLA
+}
+
+export interface ResumenRuta {
+  distanciaTotalKm: number;
+  duracionTotalMin: number;
+  paradasEnRiesgo: number;
 }
 
 export interface OptimizacionResultado {
   rutaOptimizada: PuntoRuta[];
-  algoritmo: 'gemini' | 'nearest-neighbor';
+  algoritmo: 'gemini' | 'sla-heuristico' | 'nearest-neighbor';
+  resumen?: ResumenRuta;
   razon?: string;
 }
 
@@ -101,7 +109,12 @@ export async function optimizarRuta(
 
     const json = (await response.json()) as {
       success: boolean;
-      data: { rutaOptimizada: PuntoRuta[]; algoritmo: 'gemini' | 'nearest-neighbor'; razon?: string };
+      data: {
+        rutaOptimizada: PuntoRuta[];
+        algoritmo: OptimizacionResultado['algoritmo'];
+        resumen?: ResumenRuta;
+        razon?: string;
+      };
     };
 
     if (!json.success) throw new Error('ai-service retornó success: false');
@@ -109,6 +122,7 @@ export async function optimizarRuta(
     return {
       rutaOptimizada: json.data.rutaOptimizada,
       algoritmo: json.data.algoritmo ?? 'nearest-neighbor',
+      resumen: json.data.resumen,
       razon: json.data.razon,
     };
   } catch (error) {

@@ -10,6 +10,7 @@ interface PedidoCore {
   lat: number | null;
   lng: number | null;
   repartidorId: string | null;
+  fechaEntregaLimite?: string | null;
 }
 
 // GET /api/rutas — Listar rutas de la empresa
@@ -54,9 +55,10 @@ export async function POST(req: NextRequest) {
       id: p.id,
       lat: p.lat as number,
       lng: p.lng as number,
+      fechaEntregaLimite: p.fechaEntregaLimite ?? null,
     }));
 
-    const { rutaOptimizada, algoritmo, razon } = await optimizarRuta(puntos[0], puntos);
+    const { rutaOptimizada, algoritmo, resumen, razon } = await optimizarRuta(puntos[0], puntos);
 
     // Determinar repartidor: explícito o el más frecuente entre los activos
     const repartidorId = body.repartidorId ?? repartidorMasFrecuente(activos);
@@ -64,7 +66,7 @@ export async function POST(req: NextRequest) {
     if (!repartidorId) {
       // Previsualización sin persistir (no hay repartidor asignado)
       return NextResponse.json(
-        { data: { rutaOptimizada, algoritmo, razon, persistida: false }, error: null },
+        { data: { rutaOptimizada, algoritmo, resumen, razon, persistida: false }, error: null },
         { status: 200 }
       );
     }
@@ -74,12 +76,12 @@ export async function POST(req: NextRequest) {
       body: {
         repartidorId,
         fecha: new Date().toISOString(),
-        rutaOptimizada: { stops: rutaOptimizada, algoritmo, razon },
+        rutaOptimizada: { stops: rutaOptimizada, algoritmo, resumen, razon },
       },
     });
 
     return NextResponse.json(
-      { data: { ruta, rutaOptimizada, algoritmo, razon, persistida: true }, error: null },
+      { data: { ruta, rutaOptimizada, algoritmo, resumen, razon, persistida: true }, error: null },
       { status: 201 }
     );
   } catch (err) {

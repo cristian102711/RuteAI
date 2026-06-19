@@ -23,12 +23,15 @@ export function OptimizarRutasButton() {
       }
 
       const stops = json.data?.rutaOptimizada?.length ?? 0;
-      const motor = json.data?.algoritmo === "gemini" ? "Gemini IA" : "heurístico";
+      const r = json.data?.resumen;
+      const enRiesgo = r?.paradasEnRiesgo ?? 0;
+      const detalle = r ? ` · ~${r.duracionTotalMin} min` : "";
+      const riesgo = enRiesgo > 0 ? ` · ⚠ ${enRiesgo} en riesgo SLA` : "";
       if (json.data?.persistida) {
-        toast.success(`Ruta optimizada (${motor}) y guardada · ${stops} paradas`);
+        toast.success(`Ruta optimizada y guardada · ${stops} paradas${detalle}${riesgo}`);
         router.refresh();
       } else {
-        toast.success(`Ruta optimizada (${motor}) · ${stops} paradas (sin repartidor asignado)`);
+        toast.success(`Ruta optimizada · ${stops} paradas${detalle}${riesgo} (sin repartidor)`);
       }
     } catch {
       toast.error("Error al conectar con el servicio de rutas");

@@ -118,8 +118,11 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
       }
       const stops = (json.data?.rutaOptimizada ?? []) as { lat: number; lng: number }[];
       setRutaStops(stops.map((s) => ({ lat: s.lat, lng: s.lng })));
-      const motor = json.data?.algoritmo === "gemini" ? "Gemini IA" : "heurístico";
-      toast.success(`Ruta optimizada (${motor}) · ${stops.length} paradas`);
+      const r = json.data?.resumen;
+      const extra = r ? ` · ~${r.duracionTotalMin} min · ${r.distanciaTotalKm} km` : "";
+      const base = `Ruta optimizada · ${stops.length} paradas${extra}`;
+      if ((r?.paradasEnRiesgo ?? 0) > 0) toast.warning(`${base} · ⚠ ${r!.paradasEnRiesgo} en riesgo SLA`);
+      else toast.success(base);
     } catch {
       toast.error("Error al optimizar la ruta");
     } finally {

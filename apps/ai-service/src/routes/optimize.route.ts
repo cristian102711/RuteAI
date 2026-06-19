@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { optimizarRutaIA } from '../services/gemini.service';
+import { planificarRuta } from '../services/ai.service';
 
 export const optimizeRouter = Router();
 
@@ -9,15 +9,19 @@ const PuntoSchema = z.object({
   id:  z.string(),
   lat: z.number(),
   lng: z.number(),
+  fechaEntregaLimite: z.string().nullable().optional(), // ISO; habilita el SLA
 });
 
 const OptimizeSchema = z.object({
-  origen:  PuntoSchema,
-  puntos:  z.array(PuntoSchema).min(1).max(20),
+  origen:       PuntoSchema,
+  puntos:       z.array(PuntoSchema).min(1).max(20),
+  velocidadKmh: z.number().positive().optional(),
 });
 
 // ── POST /api/optimize ──────────────────────────────────────
-optimizeRouter.post('/', async (req: Request, res: Response) => {
+// Planificación DETERMINISTA consciente del SLA: ordena para minimizar distancia
+// priorizando no incumplir horas límite, y devuelve ETA por parada + resumen.
+optimizeRouter.post('/', (req: Request, res: Response) => {
   const parsed = OptimizeSchema.safeParse(req.body);
 
   if (!parsed.success) {
@@ -29,18 +33,23 @@ optimizeRouter.post('/', async (req: Request, res: Response) => {
     return;
   }
 
-  const { origen, puntos } = parsed.data;
-  // Intenta optimizar con Gemini; cae al heurístico si no hay cuota/clave.
-  const { ruta, algoritmo, razon } = await optimizarRutaIA(origen, puntos);
+  const { origen, puntos, velocidadKmh } = parsed.data;
+  const hayDeadlines = puntos.some((p) => !!p.fechaEntregaLimite);
+  const plan = planificarRuta(origen, puntos, { velocidadKmh });
 
   res.json({
     success: true,
     data: {
-      rutaOptimizada: ruta,
-      totalPuntos:    puntos.length,
-      algoritmo,
-      razon,
-      timestamp:      new Date().toISOString(),
+      rutaOptimizada: plan.orden,
+      etas:           plan.etas,
+      resumen: {
+        distanciaTotalKm: plan.distanciaTotalKm,
+        duracionTotalMin: plan.duracionTotalMin,
+        paradasEnRiesgo:  plan.paradasEnRiesgo,
+      },
+      totalPuntos: puntos.length,
+      algoritmo:   hayDeadlines ? 'sla-heuristico' : 'nearest-neighbor',
+      timestamp:   new Date().toISOString(),
     },
   });
 });
