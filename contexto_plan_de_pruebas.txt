@@ -1,0 +1,95 @@
+================================================================================
+  RUTEAI — CONTEXTO DEL PROYECTO PARA ARMAR EL INFORME DE PLAN DE PRUEBAS
+  Úsalo para pedirle a Claude la PLANTILLA del informe ideal de QA/testing.
+================================================================================
+
+--------------------------------------------------------------------------------
+  1. QUÉ ES EL PROYECTO
+--------------------------------------------------------------------------------
+RuteAI es una plataforma de logística de última milla (despacho de pedidos,
+asignación a repartidores, tracking GPS, SLA de entrega y optimización de rutas
+con IA). Arquitectura de MICROSERVICIOS en un monorepo pnpm + Turbo:
+
+  - apps/web        Next.js (App Router). Actúa como BFF: orquesta geocoding,
+                    IA, Twilio y delega la persistencia en core. Frontend +
+                    Server Actions + API routes. Auth con Supabase.
+  - apps/core       Express + Prisma. DUEÑO DE LOS DATOS (Postgres). Multi-tenant
+                    por empresaId derivado del token. Capas route→service→repo.
+  - apps/auth       Express + Supabase Auth. Login/signup/refresh, valida tokens.
+  - apps/ai-service Express. Score de riesgo (heurística) y optimización de rutas
+                    (Gemini con fallback nearest-neighbor). Sin DB.
+  - packages/database  Esquema Prisma compartido (Empresa, Usuario, Pedido,
+                    EventoPedido, Ruta, Ubicacion, Alerta, etc.).
+
+Stack: TypeScript, Next.js 16, React 19, Express 4, Prisma 5, Postgres/Supabase,
+Google Maps (@vis.gl/react-google-maps), Twilio, Flow (pagos), Jest.
+
+--------------------------------------------------------------------------------
+  2. ESTADO ACTUAL DE LAS PRUEBAS (línea base)
+--------------------------------------------------------------------------------
+  - apps/web        ~101 tests Jest (lógica SLA, StatusBadge, BotonesTabla,
+                    KPICard, NotificationBell, businessLogic, logistica).
+  - apps/core       10 tests (logistica.ts: esTerminal, minutosAtraso, catálogos).
+  - apps/ai-service 22 tests (score heurístico, optimizarRuta, módulo Gemini con
+                    fetch mockeado: permutación válida, inválida, 429, sin key).
+  - apps/auth       3 tests (supertest: /health, validación Zod de login/signup).
+  Comando: pnpm --filter @ruteai/<app> test
+  FALTA: tests de integración (BFF↔core↔ai), E2E de flujos completos, y cobertura
+  formal por requisito.
+
+--------------------------------------------------------------------------------
+  3. MÓDULOS / FLUJOS CRÍTICOS A CUBRIR EN EL PLAN
+--------------------------------------------------------------------------------
+  A. Autenticación y roles (encargado / repartidor / super_admin); multi-tenant
+     (un usuario NO puede ver/editar datos de otra empresa).
+  B. Pedidos + SLA: crear con hora límite, estado "atrasado" derivado, entrega
+     (con/sin foto), fallido y cancelado con motivo, timeline de eventos,
+     transiciones inválidas (409 al tocar un terminal).
+  C. Asignación de repartidor a pedidos (inline en tabla y al crear).
+  D. Geocoding / selector de mapa (autocompletado, dirección inválida).
+  E. Portal repartidor: login propio, ver paradas, completar entregas, GPS.
+  F. Tracking en vivo (admin): polling de ubicaciones, camiones en mapa,
+     simulación de movimiento (/api/dev/simular-gps).
+  G. Optimización de rutas con IA: ai-service /api/optimize (Gemini + fallback),
+     persistencia en Ruta.rutaOptimizada, polyline en el mapa.
+  H. Score de riesgo IA por pedido.
+  I. Notificaciones (Twilio) y pagos (Flow).
+  J. Métricas/Reportes (OTD, atraso promedio, gráfico semanal).
+
+--------------------------------------------------------------------------------
+  4. QUÉ DEBERÍA CONTENER EL INFORME IDEAL DE PLAN DE PRUEBAS
+  (esta es la estructura que se le pedirá a Claude como PLANTILLA)
+--------------------------------------------------------------------------------
+  1) Portada e identificación: proyecto, versión/rama, fecha, responsables.
+  2) Objetivo y alcance: qué se prueba y qué queda fuera (out of scope).
+  3) Referencias: requisitos funcionales (RF-xx), historias de usuario, arquitectura.
+  4) Estrategia y niveles de prueba:
+       - Unitarias (Jest, lógica pura por servicio).
+       - Integración (BFF↔microservicios; contratos de API; Prisma↔DB de test).
+       - Sistema / E2E (flujos de punta a punta, idealmente Playwright/Cypress).
+       - No funcionales: rendimiento (carga del tracking/polling), seguridad
+         (multi-tenant, authz), usabilidad.
+  5) Entornos y datos de prueba: local (Postgres + seed-local.js), staging,
+     credenciales demo, cómo levantar los 4 servicios.
+  6) Matriz de casos de prueba por módulo (sección 3): ID, precondición, pasos,
+     datos, resultado esperado, prioridad, tipo, automatizado (S/N).
+  7) Trazabilidad: mapa RF ↔ casos de prueba (cobertura de requisitos).
+  8) Criterios de entrada/salida y de aceptación (definición de "aprobado").
+  9) Gestión de defectos: severidad/prioridad, flujo de reporte, plantilla de bug.
+ 10) Métricas: % cobertura de código, % requisitos cubiertos, tasa de defectos,
+     casos pass/fail, deuda de pruebas.
+ 11) Riesgos y mitigaciones (p.ej. dependencia de cuota Gemini, Supabase Realtime
+     vs polling, datos sensibles).
+ 12) Cronograma y recursos.
+ 13) Anexos: comandos, ejemplos de payloads de API, checklist de regresión.
+
+--------------------------------------------------------------------------------
+  5. CÓMO PEDIRLE LA PLANTILLA A CLAUDE (sugerencia de prompt)
+--------------------------------------------------------------------------------
+  "Con el contexto de este archivo (proyecto RuteAI, microservicios, sección 3 de
+   módulos críticos y sección 4 de estructura), genérame la PLANTILLA completa de
+   un Informe de Plan de Pruebas profesional, con todas las secciones del punto 4,
+   tablas vacías listas para llenar (matriz de casos, trazabilidad RF↔casos,
+   registro de defectos) y ejemplos de 2-3 casos por cada módulo de la sección 3."
+
+================================================================================

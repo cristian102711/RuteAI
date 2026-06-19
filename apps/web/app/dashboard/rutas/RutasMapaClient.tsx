@@ -1,9 +1,51 @@
+/// <reference types="google.maps" />
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import { Layers, Maximize2, Navigation, Sparkles, Wifi, Play, Square, Truck } from "lucide-react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { Layers, Maximize2, Navigation, Sparkles, Wifi, Play, Square, Truck, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { useRealtimeGPS } from "../components/RealtimeGPSPin";
-import { APIProvider, Map, Marker, InfoWindow } from "@vis.gl/react-google-maps";
+import { APIProvider, Map, Marker, InfoWindow, useMap } from "@vis.gl/react-google-maps";
+
+const MAP_ID = "rutas-admin-map";
+
+// Ícono de camión (SVG data URL) para representar a cada repartidor en el mapa.
+const TRUCK_ICON =
+  "data:image/svg+xml;charset=UTF-8," +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">` +
+      `<circle cx="20" cy="20" r="15" fill="#0ea5e9" stroke="#ffffff" stroke-width="2.5"/>` +
+      `<text x="20" y="27" font-size="17" text-anchor="middle">🚚</text>` +
+      `</svg>`
+  );
+
+// Dibuja la ruta optimizada por la IA como polyline con flechas de sentido.
+function RutaPolyline({ path }: { path: { lat: number; lng: number }[] }) {
+  const map = useMap(MAP_ID);
+  const ref = useRef<google.maps.Polyline | null>(null);
+  useEffect(() => {
+    if (!map) return;
+    ref.current?.setMap(null);
+    if (path.length < 2) return;
+    ref.current = new google.maps.Polyline({
+      path,
+      geodesic: true,
+      strokeColor: "#a855f7",
+      strokeOpacity: 0.9,
+      strokeWeight: 4,
+      icons: [
+        {
+          icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 3, strokeColor: "#a855f7" },
+          offset: "50%",
+          repeat: "120px",
+        },
+      ],
+    });
+    ref.current.setMap(map);
+    return () => ref.current?.setMap(null);
+  }, [map, path]);
+  return null;
+}
 
 interface Pedido {
   id: string;
@@ -60,6 +102,30 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
   // local (Postgres local) como en prod, leyendo /api/ubicaciones.
   const [ubicaciones, setUbicaciones] = useState<UbicacionConRepartidor[]>(ultimasUbicaciones);
   const [simulando, setSimulando] = useState(false);
+  const [rutaStops, setRutaStops] = useState<{ lat: number; lng: number }[]>([]);
+  const [optimizando, setOptimizando] = useState(false);
+
+  // Optimiza la ruta con IA (ai-service → Gemini, con fallback heurístico) y la
+  // dibuja como polyline sobre el mapa.
+  async function optimizarConIA() {
+    setOptimizando(true);
+    try {
+      const res = await fetch("/api/rutas", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.error ?? "No se pudo optimizar la ruta");
+        return;
+      }
+      const stops = (json.data?.rutaOptimizada ?? []) as { lat: number; lng: number }[];
+      setRutaStops(stops.map((s) => ({ lat: s.lat, lng: s.lng })));
+      const motor = json.data?.algoritmo === "gemini" ? "Gemini IA" : "heurístico";
+      toast.success(`Ruta optimizada (${motor}) · ${stops.length} paradas`);
+    } catch {
+      toast.error("Error al optimizar la ruta");
+    } finally {
+      setOptimizando(false);
+    }
+  }
 
   useEffect(() => {
     let cancelado = false;
@@ -117,6 +183,7 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
           {googleMapsApiKey ? (
             <APIProvider apiKey={googleMapsApiKey}>
               <Map
+                id={MAP_ID}
                 defaultCenter={mapCenter}
                 defaultZoom={12}
                 gestureHandling={"greedy"}
@@ -124,6 +191,9 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
                 styles={DARK_MAP_STYLE}
                 className="h-full w-full"
               >
+                {/* Ruta optimizada por la IA (polyline) */}
+                <RutaPolyline path={rutaStops} />
+
                 {/* Marcadores de Pedidos */}
                 {pedidos.map((pedido) => {
                   if (!pedido.lat || !pedido.lng) return null;
@@ -183,20 +253,7 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
                     key={ub.repartidorId}
                     position={{ lat: ub.lat, lng: ub.lng }}
                     title={ub.repartidor?.nombre ?? "Repartidor"}
-                    label={{
-                      text: (ub.repartidor?.nombre ?? "·").split(" ")[0],
-                      color: "#ffffff",
-                      fontSize: "10px",
-                      fontWeight: "700",
-                    }}
-                    icon={{
-                      path: 0, // SymbolPath.CIRCLE
-                      fillColor: "#0ea5e9",
-                      fillOpacity: 1,
-                      strokeColor: "#ffffff",
-                      strokeWeight: 2,
-                      scale: 9,
-                    }}
+                    icon={{ url: TRUCK_ICON }}
                   />
                 ))}
               </Map>
@@ -236,6 +293,17 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
           >
             {simulando ? <Square className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
             {simulando ? "Detener simulación" : "Simular movimiento"}
+          </button>
+
+          {/* Optimizar ruta con IA (Gemini → fallback heurístico) */}
+          <button
+            onClick={optimizarConIA}
+            disabled={optimizando}
+            className="absolute left-4 top-48 z-10 inline-flex items-center gap-1.5 rounded-md bg-gradient-to-r from-purple-500 to-purple-400 px-3 py-2 text-xs font-bold text-white shadow-[0_0_15px_rgba(168,85,247,0.4)] hover:opacity-90 transition-opacity disabled:opacity-60"
+            title="La IA ordena las paradas para el mejor camino y dibuja la ruta"
+          >
+            {optimizando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+            {optimizando ? "Optimizando…" : "Optimizar con IA"}
           </button>
 
           {/* Indicador de estado del tracking (polling siempre activo) */}

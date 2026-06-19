@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { optimizarRuta } from '../services/ai.service';
+import { optimizarRutaIA } from '../services/gemini.service';
 
 export const optimizeRouter = Router();
 
@@ -17,7 +17,7 @@ const OptimizeSchema = z.object({
 });
 
 // ── POST /api/optimize ──────────────────────────────────────
-optimizeRouter.post('/', (req: Request, res: Response) => {
+optimizeRouter.post('/', async (req: Request, res: Response) => {
   const parsed = OptimizeSchema.safeParse(req.body);
 
   if (!parsed.success) {
@@ -30,15 +30,17 @@ optimizeRouter.post('/', (req: Request, res: Response) => {
   }
 
   const { origen, puntos } = parsed.data;
-  const rutaOptimizada = optimizarRuta(origen, puntos);
+  // Intenta optimizar con Gemini; cae al heurístico si no hay cuota/clave.
+  const { ruta, algoritmo, razon } = await optimizarRutaIA(origen, puntos);
 
   res.json({
     success: true,
     data: {
-      rutaOptimizada,
-      totalPuntos:   puntos.length,
-      algoritmo:     'nearest-neighbor',
-      timestamp:     new Date().toISOString(),
+      rutaOptimizada: ruta,
+      totalPuntos:    puntos.length,
+      algoritmo,
+      razon,
+      timestamp:      new Date().toISOString(),
     },
   });
 });

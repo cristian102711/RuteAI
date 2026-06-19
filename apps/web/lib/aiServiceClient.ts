@@ -70,14 +70,20 @@ export interface PuntoRuta {
   lng: number;
 }
 
-// Devuelve los puntos reordenados. Si ai-service no está disponible,
-// devuelve el orden original (fallback no bloqueante).
+export interface OptimizacionResultado {
+  rutaOptimizada: PuntoRuta[];
+  algoritmo: 'gemini' | 'nearest-neighbor';
+  razon?: string;
+}
+
+// Devuelve los puntos reordenados + el algoritmo usado (Gemini o heurístico).
+// Si ai-service no está disponible, devuelve el orden original (no bloqueante).
 export async function optimizarRuta(
   origen: PuntoRuta,
   puntos: PuntoRuta[]
-): Promise<PuntoRuta[]> {
+): Promise<OptimizacionResultado> {
   if (!AI_SERVICE_URL || puntos.length === 0) {
-    return puntos;
+    return { rutaOptimizada: puntos, algoritmo: 'nearest-neighbor' };
   }
 
   try {
@@ -85,7 +91,8 @@ export async function optimizarRuta(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ origen, puntos }),
-      signal: AbortSignal.timeout(5000),
+      // La IA puede tardar; damos margen pero con tope.
+      signal: AbortSignal.timeout(10000),
     });
 
     if (!response.ok) {
@@ -94,15 +101,19 @@ export async function optimizarRuta(
 
     const json = (await response.json()) as {
       success: boolean;
-      data: { rutaOptimizada: PuntoRuta[] };
+      data: { rutaOptimizada: PuntoRuta[]; algoritmo: 'gemini' | 'nearest-neighbor'; razon?: string };
     };
 
     if (!json.success) throw new Error('ai-service retornó success: false');
 
-    return json.data.rutaOptimizada;
+    return {
+      rutaOptimizada: json.data.rutaOptimizada,
+      algoritmo: json.data.algoritmo ?? 'nearest-neighbor',
+      razon: json.data.razon,
+    };
   } catch (error) {
     console.error('[AI Client] Falló optimización, usando orden original:', error);
-    return puntos;
+    return { rutaOptimizada: puntos, algoritmo: 'nearest-neighbor' };
   }
 }
 

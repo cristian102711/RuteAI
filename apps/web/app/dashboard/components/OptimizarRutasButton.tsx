@@ -23,11 +23,12 @@ export function OptimizarRutasButton() {
       }
 
       const stops = json.data?.rutaOptimizada?.length ?? 0;
+      const motor = json.data?.algoritmo === "gemini" ? "Gemini IA" : "heurístico";
       if (json.data?.persistida) {
-        toast.success(`Ruta optimizada y guardada · ${stops} paradas`);
+        toast.success(`Ruta optimizada (${motor}) y guardada · ${stops} paradas`);
         router.refresh();
       } else {
-        toast.success(`Ruta optimizada · ${stops} paradas (sin repartidor asignado)`);
+        toast.success(`Ruta optimizada (${motor}) · ${stops} paradas (sin repartidor asignado)`);
       }
     } catch {
       toast.error("Error al conectar con el servicio de rutas");

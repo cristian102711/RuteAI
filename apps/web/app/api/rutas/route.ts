@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
       lng: p.lng as number,
     }));
 
-    const rutaOptimizada = await optimizarRuta(puntos[0], puntos);
+    const { rutaOptimizada, algoritmo, razon } = await optimizarRuta(puntos[0], puntos);
 
     // Determinar repartidor: explícito o el más frecuente entre los activos
     const repartidorId = body.repartidorId ?? repartidorMasFrecuente(activos);
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
     if (!repartidorId) {
       // Previsualización sin persistir (no hay repartidor asignado)
       return NextResponse.json(
-        { data: { rutaOptimizada, persistida: false }, error: null },
+        { data: { rutaOptimizada, algoritmo, razon, persistida: false }, error: null },
         { status: 200 }
       );
     }
@@ -74,12 +74,12 @@ export async function POST(req: NextRequest) {
       body: {
         repartidorId,
         fecha: new Date().toISOString(),
-        rutaOptimizada: { stops: rutaOptimizada },
+        rutaOptimizada: { stops: rutaOptimizada, algoritmo, razon },
       },
     });
 
     return NextResponse.json(
-      { data: { ruta, rutaOptimizada, persistida: true }, error: null },
+      { data: { ruta, rutaOptimizada, algoritmo, razon, persistida: true }, error: null },
       { status: 201 }
     );
   } catch (err) {
