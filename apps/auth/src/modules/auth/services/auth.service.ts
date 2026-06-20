@@ -149,17 +149,22 @@ export const AuthService = {
     };
   },
 
-  async listarUsuarios() {
+  async listarUsuarios(empresaId: string) {
     const users = await AuthRepository.listUsers();
-    return users.map((u) => {
-      const meta = u.user_metadata as Partial<UserMeta>;
-      return {
-        id:        u.id,
-        email:     u.email,
-        nombre:    meta.nombre    ?? u.email?.split("@")[0] ?? "Usuario",
-        rol:       meta.rol       ?? "repartidor",
-        empresaId: meta.empresaId ?? "",
-      };
-    });
+    return users
+      .filter((u) => {
+        const meta = u.user_metadata as Partial<UserMeta>;
+        return meta.empresaId === empresaId;
+      })
+      .map((u) => {
+        const meta = u.user_metadata as Partial<UserMeta>;
+        return {
+          id:        u.id,
+          email:     u.email,
+          nombre:    meta.nombre    ?? u.email?.split("@")[0] ?? "Usuario",
+          rol:       meta.rol       ?? "repartidor",
+          empresaId: meta.empresaId ?? "",
+        };
+      });
   },
 };
