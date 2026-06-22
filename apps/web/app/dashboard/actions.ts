@@ -16,7 +16,6 @@ export async function agregarPedidoNuevo(formData: FormData) {
   const clienteTelefono = formData.get("clienteTelefono") as string;
   const fechaEntregaLimiteRaw = formData.get("fechaEntregaLimite") as string;
   const repartidorId = (formData.get("repartidorId") as string) || undefined;
-  // Coordenadas que vienen del selector de mapa (Google) en el cliente.
   const latRaw = formData.get("lat") as string;
   const lngRaw = formData.get("lng") as string;
   const coordsCliente =
@@ -26,61 +25,86 @@ export async function agregarPedidoNuevo(formData: FormData) {
 
   if (!cliente || !direccion || !producto) return { error: "Faltan datos" };
 
-  // El input datetime-local entrega "2026-06-17T15:30" (hora local). Lo
-  // convertimos a ISO para el SLA. Validamos que no sea anterior a ahora.
-  let fechaEntregaLimite: string | undefined;
+  // Validar SLA
+  let fechaEntregaLimite: Date | undefined;
   if (fechaEntregaLimiteRaw) {
     const d = new Date(fechaEntregaLimiteRaw);
     if (isNaN(d.getTime())) return { error: "Hora límite inválida" };
     if (d.getTime() < Date.now()) return { error: "La hora límite no puede estar en el pasado" };
-    fechaEntregaLimite = d.toISOString();
+    fechaEntregaLimite = d;
   }
 
-  // RF-02: Geocodificar la dirección + RF-03: Score IA (orquestado por el BFF)
-  // Preferimos las coordenadas que ya validó el selector de mapa en el cliente;
-  // solo geocodificamos en el servidor si no llegaron (fallback).
+  // Verificar sesión
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+
+  const usuarioDB = await prisma.usuario.findUnique({
+    where: { id: user.id },
+    select: { empresaId: true },
+  });
+  if (!usuarioDB) return { error: "Usuario no registrado" };
+
+  // Geocodificar si no vienen coords del mapa
   const horaActual = new Date().getHours();
   const coords = coordsCliente ?? (await geocodificarDireccion(direccion));
-
-  const lat = coords?.lat ?? -33.45; // Fallback: Santiago centro
+  const lat = coords?.lat ?? -33.45;
   const lng = coords?.lng ?? -70.66;
 
+  // Score IA
   const resultadoIA = await obtenerScoreRiesgo({
-    pedidoId:         "new",
-    lat,              // Ahora usa coordenadas reales de la dirección
-    lng,
-    hora:             horaActual,
-    diasRetraso:      0,
-    intentosFallidos: 0,
-    zonaRiesgo:       false,
+    pedidoId: "new", lat, lng, hora: horaActual,
+    diasRetraso: 0, intentosFallidos: 0, zonaRiesgo: false,
   });
-
   const scoreParaBD = Math.round(resultadoIA.score * 100);
 
-  try {
-    // Persistencia delegada a core-service
-    await callCore("/api/v1/orders", {
-      method: "POST",
-      body: {
-        nombreCliente: cliente,
-        direccion,
-        producto,
-        clienteTelefono: clienteTelefono || undefined,
-        fechaEntregaLimite,
-        lat: coords?.lat ?? undefined,
-        lng: coords?.lng ?? undefined,
-        repartidorId,
-        scoreRiesgo: scoreParaBD,
-      },
-    });
-  } catch (err) {
-    if (err instanceof CoreServiceError) return { error: err.message };
-    console.error("[agregarPedidoNuevo]", err);
-    return { error: "No se pudo crear el pedido" };
+  // Intentar via core-service primero, fallback a Prisma directo
+  let createdOk = false;
+  if (process.env.CORE_SERVICE_URL) {
+    try {
+      await callCore("/api/v1/orders", {
+        method: "POST",
+        body: {
+          nombreCliente: cliente, direccion, producto,
+          clienteTelefono: clienteTelefono || undefined,
+          fechaEntregaLimite: fechaEntregaLimite?.toISOString(),
+          lat: coords?.lat ?? undefined, lng: coords?.lng ?? undefined,
+          repartidorId, scoreRiesgo: scoreParaBD,
+        },
+      });
+      createdOk = true;
+    } catch (err) {
+      console.warn("[agregarPedidoNuevo] core-service no disponible, usando Prisma directo:", err);
+    }
+  }
+
+  // Fallback: Prisma directo (siempre funciona en producción sin core)
+  if (!createdOk) {
+    try {
+      await prisma.pedido.create({
+        data: {
+          nombreCliente: cliente,
+          direccion,
+          producto,
+          clienteTelefono: clienteTelefono || null,
+          fechaEntregaLimite: fechaEntregaLimite ?? null,
+          lat: coords?.lat ?? null,
+          lng: coords?.lng ?? null,
+          repartidorId: repartidorId || null,
+          scoreRiesgo: scoreParaBD,
+          estado: "pendiente",
+          empresaId: usuarioDB.empresaId,
+        },
+      });
+    } catch (err) {
+      console.error("[agregarPedidoNuevo] Error Prisma:", err);
+      return { error: "No se pudo crear el pedido" };
+    }
   }
 
   revalidatePath("/dashboard/pedidos");
-  return { success: true };
+  revalidatePath("/dashboard");
+  redirect("/dashboard/pedidos");
 }
 
 /**

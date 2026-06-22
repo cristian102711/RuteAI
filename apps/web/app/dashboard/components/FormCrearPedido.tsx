@@ -35,19 +35,19 @@ export function FormCrearPedido({
 
     try {
       const res = await agregarPedidoNuevo(formData);
+      // Si llegamos aquí sin redirect, hubo un error
       if (res?.error) {
         toast.error(res.error, { id: "crear-pedido" });
+        setIsSubmitting(false);
         return;
       }
-      toast.success("Pedido despachado exitosamente", { id: "crear-pedido" });
-      setDireccion("");
-      setLat("");
-      setLng("");
-      setPickerKey((k) => k + 1);
-      onCreated?.();
-    } catch {
-      toast.error("Hubo un fallo general en la red", { id: "crear-pedido" });
-    } finally {
+    } catch (err: any) {
+      // NEXT_REDIRECT es el redirect del servidor — es exitoso, no un error
+      if (err?.digest?.startsWith("NEXT_REDIRECT")) {
+        toast.success("¡Pedido creado exitosamente!", { id: "crear-pedido" });
+        return; // El redirect maneja la navegación
+      }
+      toast.error("Hubo un fallo al crear el pedido", { id: "crear-pedido" });
       setIsSubmitting(false);
     }
   }
