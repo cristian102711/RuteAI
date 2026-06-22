@@ -2,9 +2,11 @@ import prisma from "@ruteai/database";
 import { FilaPedido } from "./components/FilaPedido";
 import { createClient } from "@/lib/supabaseServer";
 import { crearEmpresaYUsuario } from "./actions";
+import Link from "next/link";
 import {
   Package, CheckSquare, Users, AlertTriangle,
-  Sparkles, ArrowRight, Clock, Timer, Gauge
+  Sparkles, ArrowRight, Clock, Timer, Gauge,
+  MapPin, Truck, Bike, Car, Radio
 } from "lucide-react";
 import { calcularMetricasSLA, formatearAtraso } from "@/lib/logistica";
 
@@ -160,36 +162,36 @@ export default async function DashboardPage() {
     ? Math.round((pedidosDeLaSemana.filter((p: any) => p.estado === "entregado").length / pedidosDeLaSemana.length) * 100)
     : 0;
 
-  // 5. Configurar el mapa en vivo dinámico basado en pedidos reales de la DB (sin fallbacks)
-  const paradasActivas = pedidos.filter((p: any) => p.estado === "pendiente" || p.estado === "en_ruta").slice(0, 7);
-  
-  // Mapeo determinístico de lat/lng a posiciones SVG
-  const mapPoints = paradasActivas.map((p: any, idx: number) => {
-    let x = 20 + (idx * 12) % 65;
-    let y = 30 + (idx * 9) % 50;
-
-    if (p.lat && p.lng) {
-      const normalizedX = ((p.lng + 74.25) / 0.4) * 80 + 10;
-      const normalizedY = (1 - (p.lat - 4.45) / 0.4) * 60 + 20;
-      x = Math.max(10, Math.min(90, normalizedX));
-      y = Math.max(20, Math.min(80, normalizedY));
-    }
-
-    return {
-      name: p.nombreCliente.split(" ")[0],
-      address: p.direccion,
-      x: `${x}%`,
-      y: `${y}%`,
-      color: p.estado === "en_ruta" ? "#a78bfa" : "#f59e0b",
-      estado: p.estado
-    };
+  // 5. Datos de flota: repartidores con su última ubicación y pedidos asignados
+  const repartidoresFlota = await prisma.usuario.findMany({
+    where: { empresaId: empresaActiva.id, rol: "repartidor" },
+    select: {
+      id: true, nombre: true, vehiculo: true, patente: true,
+      _count: { select: { pedidosAsignados: { where: { estado: { in: ["pendiente", "en_ruta"] } } } } },
+    },
+    orderBy: { nombre: "asc" },
+    take: 6,
   });
 
-  // Crear el string de ruta SVG conectando todos los puntos reales
-  let routePathD = "";
-  if (mapPoints.length > 0) {
-    routePathD = "M " + mapPoints.map((p: any) => `${parseFloat(p.x)},${parseFloat(p.y)}`).join(" L ");
-  }
+  // Última ubicación GPS de cada repartidor
+  const flotaConGPS = await Promise.all(
+    repartidoresFlota.map(async (rep) => {
+      const ultimaUbi = await prisma.ubicacion.findFirst({
+        where: { repartidorId: rep.id },
+        orderBy: { timestamp: "desc" },
+        select: { timestamp: true },
+      });
+      const minutosDesdeUltimo = ultimaUbi
+        ? Math.round((Date.now() - new Date(ultimaUbi.timestamp).getTime()) / 60000)
+        : null;
+      return {
+        ...rep,
+        pedidosActivos: rep._count.pedidosAsignados,
+        ultimoPing: minutosDesdeUltimo,
+        online: minutosDesdeUltimo !== null && minutosDesdeUltimo < 30,
+      };
+    })
+  );
 
   return (
     <div className="space-y-6 text-white">
@@ -390,95 +392,79 @@ export default async function DashboardPage() {
 
       </div>
 
-      {/* Grid inferior: Mapa y paradas */}
+      {/* Grid inferior: Flota y paradas */}
       <div className="grid gap-4 lg:grid-cols-3">
         
-        {/* Actividad en vivo con mapa animado */}
+        {/* Panel de Actividad de Flota */}
         <div className="rounded-xl border border-white/[0.04] bg-white/[0.02] lg:col-span-2 shadow-lg backdrop-blur-xl">
-          <div className="border-b border-white/[0.04] px-5 py-4">
-            <h3 className="text-sm font-semibold text-zinc-100">Actividad en vivo</h3>
-            <p className="text-xs text-zinc-500">Mapa dinámico de despachos activos ({mapPoints.length})</p>
+          <div className="border-b border-white/[0.04] px-5 py-4 flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-zinc-100">Actividad de Flota</h3>
+              <p className="text-xs text-zinc-500">{flotaConGPS.length} repartidores registrados · {flotaConGPS.filter(r => r.online).length} en línea</p>
+            </div>
+            <Link href="/dashboard/rutas" className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.06] px-3 py-1.5 text-xs font-medium text-zinc-300 transition-colors">
+              <MapPin className="h-3 w-3" /> Ver mapa GPS
+            </Link>
           </div>
 
-          <div className="relative overflow-hidden rounded-2xl m-5 aspect-[16/9] bg-zinc-950/85 border border-white/[0.04]">
-            
-            {/* Grilla técnica en CSS */}
-            <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.01)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.01)_1px,transparent_1px)] bg-[size:24px_24px]" />
-            
-            {/* Efectos de luces radiales */}
-            <div className="absolute -left-16 -top-16 h-64 w-64 rounded-full bg-purple-500/5 blur-[80px]" />
-            <div className="absolute -bottom-20 -right-10 h-72 w-72 rounded-full bg-amber-500/5 blur-[95px]" />
-
-            {/* Líneas de red */}
-            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full opacity-10">
-              <path d="M0,82 L100,82" stroke="white" strokeWidth="0.2" />
-              <path d="M0,46 L100,46" stroke="white" strokeWidth="0.2" />
-              <path d="M22,0 L22,100" stroke="white" strokeWidth="0.2" />
-              <path d="M58,0 L58,100" stroke="white" strokeWidth="0.2" />
-              <path d="M84,0 L84,100" stroke="white" strokeWidth="0.2" />
-            </svg>
-
-            {/* SVG Ruta animada conectando los despachos reales */}
-            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
-              <defs>
-                <linearGradient id="routeGrad" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="#f59e0b" />
-                  <stop offset="100%" stopColor="#a78bfa" />
-                </linearGradient>
-                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="0.8" result="blur" />
-                  <feMerge>
-                    <feMergeNode in="blur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-              </defs>
-              
-              {mapPoints.length > 1 && (
-                <>
-                  <path 
-                    d={routePathD} 
-                    fill="none" 
-                    stroke="url(#routeGrad)" 
-                    strokeWidth="0.6" 
-                    filter="url(#glow)" 
-                    opacity="0.8" 
-                  />
-                  <path 
-                    d={routePathD} 
-                    fill="none" 
-                    stroke="url(#routeGrad)" 
-                    strokeWidth="0.4" 
-                    strokeDasharray="1.2 1" 
-                  />
-                  {/* Círculo animado que viaja por la ruta real */}
-                  <circle r="1.2" fill="#f59e0b" filter="url(#glow)">
-                    <animateMotion dur="8s" repeatCount="indefinite" path={routePathD} />
-                  </circle>
-                </>
-              )}
-            </svg>
-
-            {/* Puntos y etiquetas flotantes en el mapa */}
-            {mapPoints.map((pt: any, idx: number) => (
-              <div key={idx} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: pt.x, top: pt.y }}>
-                <div className="relative h-2 w-2 rounded-full" style={{ backgroundColor: pt.color, boxShadow: `0 0 0 2px ${pt.color}40` }}>
-                  <span className="absolute inset-0 rounded-full animate-ping opacity-60" style={{ backgroundColor: pt.color }} />
-                </div>
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-md bg-zinc-950/85 px-1.5 py-0.5 text-[9px] font-medium text-zinc-300 border border-white/[0.04] backdrop-blur">
-                  {pt.name}
-                </div>
+          {flotaConGPS.length === 0 ? (
+            <div className="flex flex-col items-center justify-center p-12 text-center">
+              <div className="w-12 h-12 rounded-full bg-zinc-800/50 flex items-center justify-center mb-3 border border-white/[0.04]">
+                <Truck className="h-5 w-5 text-zinc-500" />
               </div>
-            ))}
-
-            {mapPoints.length === 0 && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
-                <span className="text-xl mb-1">🗺️</span>
-                <p className="text-zinc-500 text-xs tracking-wider">No hay despachos activos hoy en el mapa.</p>
-              </div>
-            )}
-
-          </div>
+              <p className="text-zinc-400 text-sm font-medium">Sin repartidores</p>
+              <p className="text-zinc-600 text-xs mt-1">Invita a tu equipo desde la sección Equipo.</p>
+            </div>
+          ) : (
+            <div className="grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-3">
+              {flotaConGPS.map((rep) => {
+                const VehicleIcon = rep.vehiculo?.toLowerCase().includes("moto") ? Bike
+                  : rep.vehiculo?.toLowerCase().includes("furg") ? Truck
+                  : Car;
+                return (
+                  <div key={rep.id} className="relative rounded-xl border border-white/[0.04] bg-zinc-900/40 p-4 hover:border-white/[0.08] transition-all group">
+                    {/* Indicador online/offline */}
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className={`h-2 w-2 rounded-full ${rep.online ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]" : "bg-zinc-600"}`}>
+                          {rep.online && <span className="block h-2 w-2 rounded-full bg-emerald-400 animate-ping" />}
+                        </div>
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                          {rep.online ? "En línea" : "Offline"}
+                        </span>
+                      </div>
+                      <VehicleIcon className="h-3.5 w-3.5 text-zinc-600" />
+                    </div>
+                    
+                    {/* Nombre y vehículo */}
+                    <div className="text-sm font-semibold text-zinc-200 truncate">{rep.nombre}</div>
+                    <div className="text-[11px] text-zinc-500 mt-0.5 truncate">
+                      {rep.vehiculo || "Sin vehículo"}{rep.patente ? ` · ${rep.patente}` : ""}
+                    </div>
+                    
+                    {/* Stats */}
+                    <div className="flex items-center gap-3 mt-3 pt-3 border-t border-white/[0.04]">
+                      <div className="flex items-center gap-1">
+                        <Package className="h-3 w-3 text-amber-500/70" />
+                        <span className="text-xs font-medium text-zinc-300">{rep.pedidosActivos}</span>
+                        <span className="text-[10px] text-zinc-600">activos</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Radio className="h-3 w-3 text-zinc-500/70" />
+                        <span className="text-[10px] text-zinc-500">
+                          {rep.ultimoPing !== null
+                            ? rep.ultimoPing < 1 ? "Ahora"
+                            : rep.ultimoPing < 60 ? `${rep.ultimoPing}min`
+                            : `${Math.round(rep.ultimoPing / 60)}h`
+                            : "Sin GPS"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Listado de próximas paradas (despachos pendientes) */}
