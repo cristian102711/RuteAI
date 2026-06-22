@@ -8,7 +8,18 @@ const prisma = new PrismaClient();
 
 async function main() {
   // ── 1. Empresa ────────────────────────────────────────────────────────────
-  const empresa = await prisma.empresa.findFirst({ orderBy: { createdAt: "asc" } });
+  const empresaNombreFiltro = process.env.EMPRESA_NOMBRE;
+  const empresaIdFiltro     = process.env.EMPRESA_ID;
+
+  let empresa;
+  if (empresaIdFiltro) {
+    empresa = await prisma.empresa.findUnique({ where: { id: empresaIdFiltro } });
+  } else if (empresaNombreFiltro) {
+    empresa = await prisma.empresa.findFirst({ where: { nombre: { contains: empresaNombreFiltro, mode: "insensitive" } } });
+  } else {
+    empresa = await prisma.empresa.findFirst({ orderBy: { createdAt: "asc" } });
+  }
+
   if (!empresa) { console.error("❌ No hay empresa. Loguéate primero."); process.exit(1); }
   console.log(`✅ Empresa: ${empresa.nombre} (${empresa.id})`);
   const empresaId = empresa.id;
@@ -26,12 +37,11 @@ async function main() {
   console.log("🧹 Demo anterior limpiado");
 
   // ── 3. Crear repartidores ficticios ───────────────────────────────────────
-  // NOTA: Estos IDs son UUIDs ficticios, no existen en Supabase Auth.
-  // Sirven SOLO para el simulador GPS y el mapa del admin.
+  const suffix = empresaId.slice(0, 8); // Prefijo único por empresa
   const repartidoresData = [
-    { id: randomUUID(), nombre: "Carlos Ríos",    email: "carlos@demo.ruteai",  vehiculo: "Moto Yamaha",   patente: "DEMO-01", telefono: "+56911111111" },
-    { id: randomUUID(), nombre: "Mateo Álvarez",  email: "mateo@demo.ruteai",   vehiculo: "Furgón Ducato", patente: "DEMO-02", telefono: "+56922222222" },
-    { id: randomUUID(), nombre: "Lucía Ramírez",  email: "lucia@demo.ruteai",   vehiculo: "Auto Suzuki",   patente: "DEMO-03", telefono: "+56933333333" },
+    { id: randomUUID(), nombre: "Carlos Ríos",    email: `carlos-${suffix}@demo.ruteai`,  vehiculo: "Moto Yamaha",   patente: "DEMO-01", telefono: "+56911111111" },
+    { id: randomUUID(), nombre: "Mateo Álvarez",  email: `mateo-${suffix}@demo.ruteai`,   vehiculo: "Furgón Ducato", patente: "DEMO-02", telefono: "+56922222222" },
+    { id: randomUUID(), nombre: "Lucía Ramírez",  email: `lucia-${suffix}@demo.ruteai`,   vehiculo: "Auto Suzuki",   patente: "DEMO-03", telefono: "+56933333333" },
   ];
 
   const reps = await Promise.all(

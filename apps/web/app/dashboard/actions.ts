@@ -156,34 +156,56 @@ type PedidoNotif = {
   direccion: string;
 };
 
+// Helper: intenta callCore, si falla usa Prisma directo
+async function updateEstadoPedido(id: string, estado: string, extra: Record<string, unknown> = {}) {
+  if (process.env.CORE_SERVICE_URL) {
+    try {
+      await callCore(`/api/v1/orders/${id}/estado`, {
+        method: "PATCH",
+        body: { estado, ...extra },
+      });
+      return;
+    } catch (err) {
+      console.warn(`[updateEstadoPedido] core-service no disponible, usando Prisma:`, err);
+    }
+  }
+
+  // Fallback Prisma directo
+  const data: Record<string, unknown> = { estado };
+  if (estado === "en_ruta") data.despachadoEn = new Date();
+  if (estado === "entregado") { data.entregadoEn = new Date(); data.scoreRiesgo = 0; }
+  if (estado === "fallido") { data.motivoFallo = extra.motivo || "Sin especificar"; data.intentosEntrega = { increment: 1 }; }
+  if (estado === "cancelado") { data.canceladoEn = new Date(); data.motivoCancelacion = extra.motivo || "Sin especificar"; }
+
+  await prisma.pedido.update({ where: { id }, data });
+}
+
 export async function marcarEnRuta(id: string) {
   if (!id) return;
 
   try {
-    // Obtener datos del pedido para la notificación (RF-06) vía core
-    const pedido = await callCore<PedidoNotif>(`/api/v1/orders/${id}`);
-
-    await callCore(`/api/v1/orders/${id}/estado`, {
-      method: "PATCH",
-      body: { estado: "en_ruta" },
+    const pedido = await prisma.pedido.findUnique({
+      where: { id },
+      select: { nombreCliente: true, clienteTelefono: true, direccion: true },
     });
 
-    // Disparar notificación Twilio (async, no bloquea la respuesta)
+    await updateEstadoPedido(id, "en_ruta");
+
     if (pedido?.clienteTelefono) {
       void notificarPedidoEnRuta({
-        pedidoId:  id,
-        telefono:  pedido.clienteTelefono,
-        cliente:   pedido.nombreCliente,
+        pedidoId: id,
+        telefono: pedido.clienteTelefono,
+        cliente: pedido.nombreCliente,
         direccion: pedido.direccion,
       });
     }
   } catch (err) {
-    if (err instanceof CoreServiceError) return { error: err.message };
     console.error("[marcarEnRuta]", err);
     return { error: "No se pudo actualizar el pedido" };
   }
 
   revalidatePath("/dashboard");
+  revalidatePath("/dashboard/pedidos");
   return { success: true };
 }
 
@@ -191,43 +213,51 @@ export async function marcarComoEntregado(id: string) {
   if (!id) return;
 
   try {
-    const pedido = await callCore<PedidoNotif>(`/api/v1/orders/${id}`);
-
-    // core pone scoreRiesgo: 0 automáticamente al marcar "entregado"
-    await callCore(`/api/v1/orders/${id}/estado`, {
-      method: "PATCH",
-      body: { estado: "entregado" },
+    const pedido = await prisma.pedido.findUnique({
+      where: { id },
+      select: { nombreCliente: true, clienteTelefono: true, direccion: true },
     });
 
-    // Notificación de entrega confirmada (RF-06)
+    await updateEstadoPedido(id, "entregado");
+
     if (pedido?.clienteTelefono) {
       void notificarPedidoEntregado({
-        pedidoId:  id,
-        telefono:  pedido.clienteTelefono,
-        cliente:   pedido.nombreCliente,
+        pedidoId: id,
+        telefono: pedido.clienteTelefono,
+        cliente: pedido.nombreCliente,
         direccion: pedido.direccion,
       });
     }
   } catch (err) {
-    if (err instanceof CoreServiceError) return { error: err.message };
     console.error("[marcarComoEntregado]", err);
     return { error: "No se pudo actualizar el pedido" };
   }
 
   revalidatePath("/dashboard");
+  revalidatePath("/dashboard/pedidos");
   return { success: true };
 }
 
 export async function eliminarPedido(id: string) {
   if (!id) return;
   try {
-    await callCore(`/api/v1/orders/${id}`, { method: "DELETE" });
+    if (process.env.CORE_SERVICE_URL) {
+      try {
+        await callCore(`/api/v1/orders/${id}`, { method: "DELETE" });
+        revalidatePath("/dashboard");
+        revalidatePath("/dashboard/pedidos");
+        return { success: true };
+      } catch (err) {
+        console.warn("[eliminarPedido] core no disponible, usando Prisma:", err);
+      }
+    }
+    await prisma.pedido.delete({ where: { id } });
   } catch (err) {
-    if (err instanceof CoreServiceError) return { error: err.message };
     console.error("[eliminarPedido]", err);
     return { error: "No se pudo eliminar el pedido" };
   }
   revalidatePath("/dashboard");
+  revalidatePath("/dashboard/pedidos");
   return { success: true };
 }
 
@@ -236,16 +266,13 @@ export async function eliminarPedido(id: string) {
 export async function cancelarPedido(id: string, motivo?: string) {
   if (!id) return { error: "ID no provisto" };
   try {
-    await callCore(`/api/v1/orders/${id}/estado`, {
-      method: "PATCH",
-      body: { estado: "cancelado", ...(motivo && { motivo }) },
-    });
+    await updateEstadoPedido(id, "cancelado", motivo ? { motivo } : {});
   } catch (err) {
-    if (err instanceof CoreServiceError) return { error: err.message };
     console.error("[cancelarPedido]", err);
     return { error: "No se pudo cancelar el pedido" };
   }
   revalidatePath("/dashboard");
+  revalidatePath("/dashboard/pedidos");
   return { success: true };
 }
 
@@ -253,16 +280,13 @@ export async function cancelarPedido(id: string, motivo?: string) {
 export async function marcarComoFallido(id: string, motivo?: string) {
   if (!id) return { error: "ID no provisto" };
   try {
-    await callCore(`/api/v1/orders/${id}/estado`, {
-      method: "PATCH",
-      body: { estado: "fallido", ...(motivo && { motivo }) },
-    });
+    await updateEstadoPedido(id, "fallido", motivo ? { motivo } : {});
   } catch (err) {
-    if (err instanceof CoreServiceError) return { error: err.message };
     console.error("[marcarComoFallido]", err);
     return { error: "No se pudo actualizar el pedido" };
   }
   revalidatePath("/dashboard");
+  revalidatePath("/dashboard/pedidos");
   return { success: true };
 }
 
