@@ -25,12 +25,21 @@ export default async function PedidosPage() {
       })
     : [];
 
-  // Lista de pedidos de la empresa (empresaId derivado del token en core)
+  // Lista de pedidos de la empresa — intenta core, fallback Prisma directo
   let todosLosPedidos: any[] = [];
-  try {
-    todosLosPedidos = await callCore<any[]>("/api/v1/orders");
-  } catch {
-    redirect("/dashboard");
+  if (process.env.CORE_SERVICE_URL) {
+    try {
+      todosLosPedidos = await callCore<any[]>("/api/v1/orders");
+    } catch {
+      console.warn("[PedidosPage] core-service no disponible, usando Prisma");
+    }
+  }
+  if (todosLosPedidos.length === 0 && usuarioDB) {
+    todosLosPedidos = await prisma.pedido.findMany({
+      where: { empresaId: usuarioDB.empresaId },
+      orderBy: { createdAt: "desc" },
+      include: { repartidor: { select: { id: true, nombre: true } } },
+    });
   }
 
   const total = todosLosPedidos.length;

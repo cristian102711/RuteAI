@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callCore, CoreServiceError } from "@/lib/coreServiceClient";
+import prisma from "@ruteai/database";
 
 // PATCH /api/pedidos/[id]/estado
 // Usado por el portal del repartidor para marcar entregado/fallido.
-// La validación de propiedad (pedido asignado al repartidor) la aplica core.
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -21,16 +21,34 @@ export async function PATCH(
       );
     }
 
-    const actualizado = await callCore(`/api/v1/orders/${pedidoId}/estado`, {
-      method: "PATCH",
-      body: {
-        estado,
-        ...(motivo && { motivo }),
-        ...(sinFoto !== undefined && { sinFoto }),
-      },
-    });
+    // Intentar core-service
+    if (process.env.CORE_SERVICE_URL) {
+      try {
+        const actualizado = await callCore(`/api/v1/orders/${pedidoId}/estado`, {
+          method: "PATCH",
+          body: {
+            estado,
+            ...(motivo && { motivo }),
+            ...(sinFoto !== undefined && { sinFoto }),
+          },
+        });
+        console.log(`[PATCH /api/pedidos/${pedidoId}/estado] → ${estado} (via core)`);
+        return NextResponse.json({ success: true, data: actualizado });
+      } catch (err) {
+        console.warn("[PATCH estado] core-service no disponible, usando Prisma:", err);
+      }
+    }
 
-    console.log(`[PATCH /api/pedidos/${pedidoId}/estado] → ${estado}`);
+    // Fallback Prisma directo
+    const data: Record<string, unknown> = { estado };
+    if (estado === "en_ruta") data.despachadoEn = new Date();
+    if (estado === "entregado") { data.entregadoEn = new Date(); data.scoreRiesgo = 0; }
+    if (estado === "fallido") { data.motivoFallo = motivo || "Sin especificar"; data.intentosEntrega = { increment: 1 }; }
+    if (estado === "cancelado") { data.canceladoEn = new Date(); data.motivoCancelacion = motivo || "Sin especificar"; }
+    if (sinFoto !== undefined) data.entregaSinFoto = sinFoto;
+
+    const actualizado = await prisma.pedido.update({ where: { id: pedidoId }, data });
+    console.log(`[PATCH /api/pedidos/${pedidoId}/estado] → ${estado} (via Prisma)`);
 
     return NextResponse.json({ success: true, data: actualizado });
   } catch (err) {
