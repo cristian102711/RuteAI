@@ -98,7 +98,6 @@ export async function POST() {
         empresaId,
         lat: next.lat,
         lng: next.lng,
-        velocidad: Math.round(25 + Math.random() * 20), // 25-45 km/h
       },
     });
     posiciones.push({ repartidorId, lat: next.lat, lng: next.lng });
