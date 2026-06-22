@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { optimizarRuta } from '../services/ai.service';
+import { planificarRuta } from '../services/ai.service';
 
 export const optimizeRouter = Router();
 
@@ -9,14 +9,18 @@ const PuntoSchema = z.object({
   id:  z.string(),
   lat: z.number(),
   lng: z.number(),
+  fechaEntregaLimite: z.string().nullable().optional(), // ISO; habilita el SLA
 });
 
 const OptimizeSchema = z.object({
-  origen:  PuntoSchema,
-  puntos:  z.array(PuntoSchema).min(1).max(20),
+  origen:       PuntoSchema,
+  puntos:       z.array(PuntoSchema).min(1).max(20),
+  velocidadKmh: z.number().positive().optional(),
 });
 
 // ── POST /api/optimize ──────────────────────────────────────
+// Planificación DETERMINISTA consciente del SLA: ordena para minimizar distancia
+// priorizando no incumplir horas límite, y devuelve ETA por parada + resumen.
 optimizeRouter.post('/', (req: Request, res: Response) => {
   const parsed = OptimizeSchema.safeParse(req.body);
 
@@ -29,16 +33,23 @@ optimizeRouter.post('/', (req: Request, res: Response) => {
     return;
   }
 
-  const { origen, puntos } = parsed.data;
-  const rutaOptimizada = optimizarRuta(origen, puntos);
+  const { origen, puntos, velocidadKmh } = parsed.data;
+  const hayDeadlines = puntos.some((p) => !!p.fechaEntregaLimite);
+  const plan = planificarRuta(origen, puntos, { velocidadKmh });
 
   res.json({
     success: true,
     data: {
-      rutaOptimizada,
-      totalPuntos:   puntos.length,
-      algoritmo:     'nearest-neighbor',
-      timestamp:     new Date().toISOString(),
+      rutaOptimizada: plan.orden,
+      etas:           plan.etas,
+      resumen: {
+        distanciaTotalKm: plan.distanciaTotalKm,
+        duracionTotalMin: plan.duracionTotalMin,
+        paradasEnRiesgo:  plan.paradasEnRiesgo,
+      },
+      totalPuntos: puntos.length,
+      algoritmo:   hayDeadlines ? 'sla-heuristico' : 'nearest-neighbor',
+      timestamp:   new Date().toISOString(),
     },
   });
 });

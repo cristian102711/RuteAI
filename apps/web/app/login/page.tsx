@@ -84,7 +84,7 @@ export default function LoginPage() {
         await logAuthEvent({ userId: resData.usuario.id, email: resData.usuario.email, provider: "email", status: "success" });
         const rol = resData.usuario.rol;
         if (rol === "super_admin") router.push("/admin");
-        else if (rol === "repartidor") router.push("/repartidor");
+        else if (rol === "repartidor") router.push("/repartidor/dashboard");
         else router.push("/dashboard");
         router.refresh();
       } else {

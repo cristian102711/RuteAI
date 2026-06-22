@@ -1,18 +1,21 @@
 export const dynamic = "force-dynamic";
 
-import prisma from "@ruteai/database";
 import { CrearEmpresaModal } from "./components/CrearEmpresaModal";
 import { EmpresasTable } from "./components/EmpresasTable";
+import { callCore } from "@/lib/coreServiceClient";
 
 export default async function AdminPage() {
-  const empresas = await prisma.empresa.findMany({
-    include: { _count: { select: { usuarios: true, pedidos: true } } },
-    orderBy: { createdAt: "desc" },
-  });
+  // Listado de empresas vía core (requiere rol super_admin, validado en core)
+  let empresas: any[] = [];
+  try {
+    empresas = await callCore<any[]>("/api/v1/empresas");
+  } catch {
+    empresas = [];
+  }
 
-  const totalUsuarios = empresas.reduce((acc: number, e: any) => acc + e._count.usuarios, 0);
+  const totalUsuarios = empresas.reduce((acc: number, e: any) => acc + (e._count?.usuarios ?? 0), 0);
   const totalActivas  = empresas.filter((e: any) => e.activa).length;
-  const totalPedidos  = empresas.reduce((acc: number, e: any) => acc + e._count.pedidos, 0);
+  const totalPedidos  = empresas.reduce((acc: number, e: any) => acc + (e._count?.pedidos ?? 0), 0);
 
   return (
     <div className="space-y-8">

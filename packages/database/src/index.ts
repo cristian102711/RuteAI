@@ -12,6 +12,7 @@ export type {
   Empresa,
   Usuario,
   Pedido,
+  EventoPedido,
   Ruta,
   Ubicacion,
   Alerta,

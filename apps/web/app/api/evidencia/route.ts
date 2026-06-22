@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabaseServer";
 import prisma from "@ruteai/database";
+import { minutosAtraso } from "@/lib/logistica";
 
 // POST /api/evidencia — Genera una Signed URL para que el móvil suba la foto
 // Body: { pedidoId: string, tipo: "foto" | "firma" }
@@ -97,25 +98,68 @@ export async function PATCH(req: NextRequest) {
 
     const usuarioDB = await prisma.usuario.findUnique({
       where: { id: user.id },
-      select: { empresaId: true },
+      select: { empresaId: true, nombre: true },
     });
     if (!usuarioDB) {
       return NextResponse.json({ success: false, error: "Usuario no encontrado" }, { status: 404 });
     }
 
-    // Actualizar el campo correcto según el tipo de evidencia
-    const campoActualizar = tipo === "foto"
-      ? { fotoEntregaUrl: publicUrl, estado: "entregado" as const }
-      : { firmaEntregaUrl: publicUrl };
-
-    const pedidoActualizado = await prisma.pedido.updateMany({
+    const pedido = await prisma.pedido.findFirst({
       where: { id: pedidoId, empresaId: usuarioDB.empresaId },
-      data: campoActualizar,
+      select: { id: true, estado: true, fechaEntregaLimite: true },
     });
-
-    if (pedidoActualizado.count === 0) {
+    if (!pedido) {
       return NextResponse.json({ success: false, error: "Pedido no encontrado" }, { status: 404 });
     }
+
+    // La firma se puede adjuntar sin transición. Para la foto, la entrega
+    // se confirma: bloqueamos si el pedido ya es terminal (cancelado/entregado).
+    if (tipo === "firma") {
+      await prisma.pedido.update({
+        where: { id: pedido.id },
+        data: { firmaEntregaUrl: publicUrl },
+      });
+      return NextResponse.json({ success: true });
+    }
+
+    if (pedido.estado === "cancelado") {
+      return NextResponse.json(
+        { success: false, error: "El pedido está cancelado y no admite más cambios." },
+        { status: 409 }
+      );
+    }
+
+    // tipo === "foto": confirmar entrega + sellar tiempo + registrar evento
+    const ahora = new Date();
+    const atraso = minutosAtraso(
+      { estado: "entregado", fechaEntregaLimite: pedido.fechaEntregaLimite, entregadoEn: ahora },
+      ahora
+    );
+
+    await prisma.$transaction([
+      prisma.pedido.update({
+        where: { id: pedido.id },
+        data: {
+          fotoEntregaUrl: publicUrl,
+          estado: "entregado",
+          entregadoEn: ahora,
+          entregaSinFoto: false,
+          scoreRiesgo: 0,
+        },
+      }),
+      prisma.eventoPedido.create({
+        data: {
+          pedidoId: pedido.id,
+          tipo: "entregado",
+          estadoAnterior: pedido.estado,
+          estadoNuevo: "entregado",
+          descripcion: "Entrega confirmada con foto",
+          actorId: user.id,
+          actorNombre: usuarioDB.nombre,
+          metadata: { minutosAtraso: atraso, aTiempo: atraso === 0, conFoto: true },
+        },
+      }),
+    ]);
 
     return NextResponse.json({ success: true });
   } catch (error) {

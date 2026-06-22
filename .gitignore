@@ -28,6 +28,9 @@
 # Permitir .env.example en cada package (documentación)
 !packages/**/.env.example
 !apps/**/.env.example
+# Backups de .env (contienen secretos de Supabase) — nunca commitear
+*.env.supabase.bak
+.env.supabase.bak
 
 # ── Vercel ────────────────────────────────────────────────────────
 .vercel
@@ -39,5 +42,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
-/coverage
+coverage/
+**/coverage/
 .ai/

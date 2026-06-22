@@ -1,9 +1,51 @@
+/// <reference types="google.maps" />
 "use client";
 
-import { useState, useMemo } from "react";
-import { Layers, Maximize2, Navigation, Sparkles, Wifi, WifiOff } from "lucide-react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { Layers, Maximize2, Navigation, Sparkles, Wifi, Play, Square, Truck, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { useRealtimeGPS } from "../components/RealtimeGPSPin";
-import { APIProvider, Map, Marker, InfoWindow } from "@vis.gl/react-google-maps";
+import { APIProvider, Map, Marker, InfoWindow, useMap } from "@vis.gl/react-google-maps";
+
+const MAP_ID = "rutas-admin-map";
+
+// Ícono de camión (SVG data URL) para representar a cada repartidor en el mapa.
+const TRUCK_ICON =
+  "data:image/svg+xml;charset=UTF-8," +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">` +
+      `<circle cx="20" cy="20" r="15" fill="#0ea5e9" stroke="#ffffff" stroke-width="2.5"/>` +
+      `<text x="20" y="27" font-size="17" text-anchor="middle">🚚</text>` +
+      `</svg>`
+  );
+
+// Dibuja la ruta optimizada por la IA como polyline con flechas de sentido.
+function RutaPolyline({ path }: { path: { lat: number; lng: number }[] }) {
+  const map = useMap(MAP_ID);
+  const ref = useRef<google.maps.Polyline | null>(null);
+  useEffect(() => {
+    if (!map) return;
+    ref.current?.setMap(null);
+    if (path.length < 2) return;
+    ref.current = new google.maps.Polyline({
+      path,
+      geodesic: true,
+      strokeColor: "#a855f7",
+      strokeOpacity: 0.9,
+      strokeWeight: 4,
+      icons: [
+        {
+          icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 3, strokeColor: "#a855f7" },
+          offset: "50%",
+          repeat: "120px",
+        },
+      ],
+    });
+    ref.current.setMap(map);
+    return () => ref.current?.setMap(null);
+  }, [map, path]);
+  return null;
+}
 
 interface Pedido {
   id: string;
@@ -52,8 +94,64 @@ const DARK_MAP_STYLE = [
 ];
 
 export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbicaciones }: Props) {
-  const { pinPos, ubicacion, conectado } = useRealtimeGPS(empresaId);
+  const { ubicacion, conectado } = useRealtimeGPS(empresaId);
   const [selectedPedido, setSelectedPedido] = useState<string | null>(null);
+
+  // ── Tracking en vivo por POLLING (no depende de Supabase Realtime) ──────────
+  // Refresca la última posición de cada repartidor cada ~1.8s. Funciona tanto en
+  // local (Postgres local) como en prod, leyendo /api/ubicaciones.
+  const [ubicaciones, setUbicaciones] = useState<UbicacionConRepartidor[]>(ultimasUbicaciones);
+  const [simulando, setSimulando] = useState(false);
+  const [rutaStops, setRutaStops] = useState<{ lat: number; lng: number }[]>([]);
+  const [optimizando, setOptimizando] = useState(false);
+
+  // Optimiza la ruta con IA (ai-service → Gemini, con fallback heurístico) y la
+  // dibuja como polyline sobre el mapa.
+  async function optimizarConIA() {
+    setOptimizando(true);
+    try {
+      const res = await fetch("/api/rutas", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.error ?? "No se pudo optimizar la ruta");
+        return;
+      }
+      const stops = (json.data?.rutaOptimizada ?? []) as { lat: number; lng: number }[];
+      setRutaStops(stops.map((s) => ({ lat: s.lat, lng: s.lng })));
+      const r = json.data?.resumen;
+      const extra = r ? ` · ~${r.duracionTotalMin} min · ${r.distanciaTotalKm} km` : "";
+      const base = `Ruta optimizada · ${stops.length} paradas${extra}`;
+      if ((r?.paradasEnRiesgo ?? 0) > 0) toast.warning(`${base} · ⚠ ${r!.paradasEnRiesgo} en riesgo SLA`);
+      else toast.success(base);
+    } catch {
+      toast.error("Error al optimizar la ruta");
+    } finally {
+      setOptimizando(false);
+    }
+  }
+
+  useEffect(() => {
+    let cancelado = false;
+    const tick = async () => {
+      try {
+        const res = await fetch("/api/ubicaciones");
+        const json = await res.json();
+        if (!cancelado && Array.isArray(json.data)) setUbicaciones(json.data);
+      } catch { /* silencioso */ }
+    };
+    tick();
+    const id = setInterval(tick, 1800);
+    return () => { cancelado = true; clearInterval(id); };
+  }, []);
+
+  // Simulación: mientras esté activa, avanza un paso a cada repartidor cada ~1.8s.
+  useEffect(() => {
+    if (!simulando) return;
+    const id = setInterval(() => {
+      fetch("/api/dev/simular-gps", { method: "POST" }).catch(() => {});
+    }, 1800);
+    return () => clearInterval(id);
+  }, [simulando]);
 
   const enRuta = pedidos.filter(p => p.estado === "en_ruta");
   const pendientes = pedidos.filter(p => p.estado === "pendiente");
@@ -88,6 +186,7 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
           {googleMapsApiKey ? (
             <APIProvider apiKey={googleMapsApiKey}>
               <Map
+                id={MAP_ID}
                 defaultCenter={mapCenter}
                 defaultZoom={12}
                 gestureHandling={"greedy"}
@@ -95,6 +194,9 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
                 styles={DARK_MAP_STYLE}
                 className="h-full w-full"
               >
+                {/* Ruta optimizada por la IA (polyline) */}
+                <RutaPolyline path={rutaStops} />
+
                 {/* Marcadores de Pedidos */}
                 {pedidos.map((pedido) => {
                   if (!pedido.lat || !pedido.lng) return null;
@@ -106,15 +208,13 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
                       <Marker
                         position={{ lat: pedido.lat, lng: pedido.lng }}
                         onClick={() => setSelectedPedido(isSelected ? null : pedido.id)}
-                        options={{
-                          icon: {
-                            path: "M 0,0 C -2,-20 -10,-22 -10,-30 A 10,10 0 1,1 10,-30 C 10,-22 2,-20 0,0 z",
-                            fillColor: isEnRuta ? "#f59e0b" : "#10b981",
-                            fillOpacity: 1,
-                            strokeColor: "#ffffff",
-                            strokeWeight: 1.5,
-                            scale: 1
-                          }
+                        icon={{
+                          path: "M 0,0 C -2,-20 -10,-22 -10,-30 A 10,10 0 1,1 10,-30 C 10,-22 2,-20 0,0 z",
+                          fillColor: isEnRuta ? "#f59e0b" : "#10b981",
+                          fillOpacity: 1,
+                          strokeColor: "#ffffff",
+                          strokeWeight: 1.5,
+                          scale: 1
                         }}
                       />
                       {isSelected && (
@@ -139,39 +239,24 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
                 {ubicacion && (
                   <Marker
                     position={{ lat: ubicacion.lat, lng: ubicacion.lng }}
-                    options={{
-                      icon: {
-                        path: "M 0,0 C -2,-20 -10,-22 -10,-30 A 10,10 0 1,1 10,-30 C 10,-22 2,-20 0,0 z",
-                        fillColor: "#3b82f6",
-                        fillOpacity: 1,
-                        strokeColor: "#ffffff",
-                        strokeWeight: 2,
-                        scale: 1.2
-                      }
+                    icon={{
+                      path: "M 0,0 C -2,-20 -10,-22 -10,-30 A 10,10 0 1,1 10,-30 C 10,-22 2,-20 0,0 z",
+                      fillColor: "#3b82f6",
+                      fillOpacity: 1,
+                      strokeColor: "#ffffff",
+                      strokeWeight: 2,
+                      scale: 1.2
                     }}
                   />
                 )}
 
-                {/* Pines de última ubicación conocida (cargados del servidor) */}
-                {!pinPos && ultimasUbicaciones.map((ub) => (
+                {/* Camiones de repartidores EN VIVO (polling /api/ubicaciones) */}
+                {ubicaciones.map((ub) => (
                   <Marker
-                    key={ub.id}
+                    key={ub.repartidorId}
                     position={{ lat: ub.lat, lng: ub.lng }}
-                    options={{
-                      label: {
-                        text: ub.repartidor.nombre.split(" ")[0],
-                        color: "#ffffff",
-                        fontSize: "9px"
-                      },
-                      icon: {
-                        path: 0, // SymbolPath.CIRCLE
-                        fillColor: "#3b82f6",
-                        fillOpacity: 0.7,
-                        strokeColor: "#ffffff",
-                        strokeWeight: 1,
-                        scale: 8
-                      }
-                    }}
+                    title={ub.repartidor?.nombre ?? "Repartidor"}
+                    icon={{ url: TRUCK_ICON }}
                   />
                 ))}
               </Map>
@@ -199,15 +284,43 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
             ))}
           </div>
 
-          {/* Indicador Realtime */}
+          {/* Toggle de simulación de movimiento (demo) */}
+          <button
+            onClick={() => setSimulando((s) => !s)}
+            className={`absolute left-4 top-36 z-10 inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-xs font-semibold backdrop-blur-md border transition-colors ${
+              simulando
+                ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                : "bg-white/5 text-zinc-300 border-white/[0.04] hover:bg-white/10"
+            }`}
+            title="Mueve los camiones hacia sus pedidos asignados (demo local)"
+          >
+            {simulando ? <Square className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+            {simulando ? "Detener simulación" : "Simular movimiento"}
+          </button>
+
+          {/* Optimizar ruta con IA (Gemini → fallback heurístico) */}
+          <button
+            onClick={optimizarConIA}
+            disabled={optimizando}
+            className="absolute left-4 top-48 z-10 inline-flex items-center gap-1.5 rounded-md bg-gradient-to-r from-purple-500 to-purple-400 px-3 py-2 text-xs font-bold text-white shadow-[0_0_15px_rgba(168,85,247,0.4)] hover:opacity-90 transition-opacity disabled:opacity-60"
+            title="La IA ordena las paradas para el mejor camino y dibuja la ruta"
+          >
+            {optimizando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+            {optimizando ? "Optimizando…" : "Optimizar con IA"}
+          </button>
+
+          {/* Indicador de estado del tracking (polling siempre activo) */}
           <div className="absolute top-4 right-4 z-10">
             <div className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium backdrop-blur border ${
-              conectado
+              simulando
                 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                : "bg-zinc-800/80 text-zinc-500 border-white/[0.04]"
+                : conectado
+                  ? "bg-sky-500/10 text-sky-400 border-sky-500/20"
+                  : "bg-zinc-800/80 text-zinc-400 border-white/[0.04]"
             }`}>
-              {conectado ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
-              {conectado ? "GPS en vivo" : "Conectando..."}
+              {simulando
+                ? <><span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" /> Simulando movimiento</>
+                : <><Wifi className="h-3 w-3" /> GPS en vivo · {ubicaciones.length}</>}
             </div>
           </div>
 
@@ -222,6 +335,10 @@ export function RutasMapaClient({ empresaId, empresaNombre, pedidos, ultimasUbic
               </span>
               <span className="text-zinc-400">
                 Total: <span className="font-mono text-white">{pedidos.length}</span>
+              </span>
+              <span className="inline-flex items-center gap-1 text-zinc-400">
+                <Truck className="h-3 w-3 text-sky-400" />
+                Repartidores: <span className="font-mono text-sky-400 font-semibold">{ubicaciones.length}</span>
               </span>
             </div>
             <span className="inline-flex items-center gap-1.5 rounded bg-purple-500/15 px-2 py-0.5 font-semibold text-purple-400 ring-1 ring-inset ring-purple-500/20">

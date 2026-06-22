@@ -46,7 +46,7 @@ model Usuario {
   id       String  @id // UUID de Supabase Auth
   nombre   String
   email    String  @unique
-  rol      String  @default("repartidor") // "encargado" | "repartidor"
+  rol      String  @default("repartidor") // "super_admin" | "encargado" | "repartidor"
   telefono String? // Para notificaciones Twilio
   vehiculo String? // Ej: Moto, Auto, Furgón
   patente  String? // Ej: AB-CD-12
@@ -75,16 +75,29 @@ model Pedido {
   lat              Float?  // Geocodificado por Nominatim al crear
   lng              Float?
   producto         String
-  horarioPreferido String? // Ej: "10:00 - 13:00"
+  horarioPreferido String? // Ej: "10:00 - 13:00" (ventana sugerida, texto libre)
 
   // IA y Estado
-  estado      String @default("pendiente") // pendiente | en_ruta | entregado | fallido
+  // estado: pendiente | en_ruta | entregado | fallido | cancelado
+  //   - fallido  = se intentó entregar y no se pudo (re-agendable)
+  //   - cancelado = pedido anulado, estado TERMINAL (no admite más cambios)
+  //   - "atrasado" NO es un estado: se deriva de fechaEntregaLimite (ver lib/logistica)
+  estado      String @default("pendiente")
   scoreRiesgo Float? // 0.0 a 1.0 — calculado por microservicio IA
+
+  // SLA / tiempos de entrega
+  fechaEntregaLimite DateTime? // Deadline definido por el encargado con el reloj
+  despachadoEn       DateTime? // Momento en que pasó a en_ruta
+  entregadoEn        DateTime? // Momento real de entrega (para medir OTD / atraso)
+  canceladoEn        DateTime? // Momento de cancelación
+  intentosEntrega    Int       @default(0) // Re-intentos de entrega fallida
 
   // Evidencia de entrega (URLs de Supabase Storage)
   fotoEntregaUrl  String?
   firmaEntregaUrl String?
-  motivoFallo     String?
+  entregaSinFoto  Boolean @default(false) // Entrega confirmada omitiendo la foto (justificado)
+  motivoFallo     String? // Motivo tipificado del fallo (catálogo en lib/logistica)
+  motivoCancelacion String? // Motivo tipificado de la cancelación
 
   // Relaciones
   empresaId String
@@ -96,8 +109,34 @@ model Pedido {
   rutaId String?
   ruta   Ruta?   @relation(fields: [rutaId], references: [id])
 
+  eventos EventoPedido[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// -------------------------------------------------------------
+// 3.1 EVENTO DE PEDIDO (Timeline / Auditoría de trazabilidad)
+// Cada cambio relevante del pedido deja un evento inmutable.
+// Permite reconstruir la historia del despacho para disputas.
+// -------------------------------------------------------------
+model EventoPedido {
+  id             String   @id @default(uuid())
+  pedidoId       String
+  pedido         Pedido   @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+
+  tipo           String   // creado | despachado | entregado | fallido | cancelado | reintento | atraso
+  estadoAnterior String?
+  estadoNuevo    String?
+  motivo         String?  // Motivo tipificado cuando aplica (fallo / cancelación)
+  descripcion    String?
+  actorId        String?  // Usuario que ejecutó la acción
+  actorNombre    String?
+  metadata       Json?    // { minutosAtraso, sinFoto, ... }
+
+  createdAt DateTime @default(now())
+
+  @@index([pedidoId, createdAt])
 }
 
 // -------------------------------------------------------------
@@ -108,7 +147,8 @@ model Pedido {
 model Ruta {
   id             String   @id @default(uuid())
   fecha          DateTime @db.Date
-  estado         String   @default("pendiente") // pendiente | activa | completada | cancelada
+  // Catálogo unificado con la API (core + BFF): planificada -> en_curso -> completada | cancelada
+  estado         String   @default("planificada") // planificada | en_curso | completada | cancelada
   rutaOptimizada Json?    // Orden de paradas calculado por IA
 
   empresaId String
@@ -132,6 +172,7 @@ model Ubicacion {
   id        String   @id @default(uuid())
   lat       Float
   lng       Float
+  velocidad Float?   // km/h reportada por el GPS del repartidor (opcional)
   timestamp DateTime @default(now())
 
   repartidorId String

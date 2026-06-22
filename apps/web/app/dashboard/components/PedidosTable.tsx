@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useTransition } from "react";
 import Link from "next/link";
-import { Search, Sparkles, MoreHorizontal, Pencil, Trash2, CheckCircle, Eye } from "lucide-react";
+import { Search, Sparkles, MoreHorizontal, Pencil, Trash2, CheckCircle, Eye, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
-import { eliminarPedido, marcarComoEntregado } from "../actions";
+import { eliminarPedido, marcarComoEntregado, asignarRepartidor } from "../actions";
+import { estaAtrasado, minutosAtraso, formatearAtraso } from "@/lib/logistica";
 
 interface Pedido {
   id: string;
@@ -13,9 +14,56 @@ interface Pedido {
   direccion: string;
   estado: string;
   scoreRiesgo: number | null;
+  repartidorId?: string | null;
+  fechaEntregaLimite?: string | Date | null;
+  entregadoEn?: string | Date | null;
 }
 
-export function PedidosTable({ pedidos }: { pedidos: Pedido[] }) {
+interface Repartidor {
+  id: string;
+  nombre: string;
+}
+
+// ─── Asignación inline de repartidor ─────────────────────────────────────────
+function AsignarRepartidorCell({
+  pedidoId, repartidorIdActual, repartidores, deshabilitado,
+}: { pedidoId: string; repartidorIdActual: string | null; repartidores: Repartidor[]; deshabilitado?: boolean }) {
+  const [isPending, startTransition] = useTransition();
+
+  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value;
+    startTransition(async () => {
+      const res = await asignarRepartidor(pedidoId, val === "" ? null : val);
+      if (res?.error) toast.error(res.error);
+      else toast.success("Repartidor actualizado");
+    });
+  };
+
+  if (repartidores.length === 0) {
+    return <span className="text-xs text-zinc-600">Sin repartidores</span>;
+  }
+
+  return (
+    <div className="relative inline-flex items-center">
+      <select
+        defaultValue={repartidorIdActual ?? ""}
+        onChange={handleChange}
+        disabled={isPending || deshabilitado}
+        className="appearance-none h-7 rounded-md border border-white/[0.06] bg-white/[0.03] pl-2 pr-6 text-xs text-zinc-300 hover:bg-white/[0.06] focus:outline-none focus:ring-1 focus:ring-amber-500/40 transition disabled:opacity-50 cursor-pointer"
+        style={{ minWidth: "120px" }}
+        title={deshabilitado ? "Pedido en estado terminal" : "Asignar repartidor"}
+      >
+        <option value="">Sin asignar</option>
+        {repartidores.map((r) => (
+          <option key={r.id} value={r.id}>{r.nombre}</option>
+        ))}
+      </select>
+      <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-zinc-500" />
+    </div>
+  );
+}
+
+export function PedidosTable({ pedidos, repartidores = [] }: { pedidos: Pedido[]; repartidores?: Repartidor[] }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<string>("Todos");
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
@@ -33,7 +81,7 @@ export function PedidosTable({ pedidos }: { pedidos: Pedido[] }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const filters = ["Todos", "Pendientes", "En ruta", "Entregados", "Fallidos"];
+  const filters = ["Todos", "Pendientes", "En ruta", "Atrasados", "Entregados", "Fallidos", "Cancelados"];
 
   const filtered = useMemo(() => {
     return pedidos.filter((p) => {
@@ -41,10 +89,16 @@ export function PedidosTable({ pedidos }: { pedidos: Pedido[] }) {
         "Pendientes": "pendiente",
         "En ruta": "en_ruta",
         "Entregados": "entregado",
-        "Fallidos": "fallido"
+        "Fallidos": "fallido",
+        "Cancelados": "cancelado",
       };
-      
-      const matchStatus = filter === "Todos" || p.estado === dbStatusMap[filter];
+
+      const matchStatus =
+        filter === "Todos"
+          ? true
+          : filter === "Atrasados"
+            ? estaAtrasado(p)
+            : p.estado === dbStatusMap[filter];
       const matchQuery =
         query === "" ||
         p.id.toLowerCase().includes(query.toLowerCase()) ||
@@ -74,9 +128,14 @@ export function PedidosTable({ pedidos }: { pedidos: Pedido[] }) {
           classes: "bg-emerald-500/10 text-emerald-400 ring-emerald-500/30" 
         };
       case "fallido":
-        return { 
-          label: "Fallido", 
-          classes: "bg-red-500/10 text-red-400 ring-red-500/30" 
+        return {
+          label: "Fallido",
+          classes: "bg-orange-500/10 text-orange-400 ring-orange-500/30"
+        };
+      case "cancelado":
+        return {
+          label: "Cancelado",
+          classes: "bg-red-500/10 text-red-400 ring-red-500/30"
         };
       default:
         return { 
@@ -160,12 +219,9 @@ export function PedidosTable({ pedidos }: { pedidos: Pedido[] }) {
               filtered.map((o) => {
                 const shortId = "RA-" + o.id.slice(-5).toUpperCase();
                 const status = getStatusBadge(o.estado);
-                const riskScore = o.scoreRiesgo ?? Math.floor(Math.random() * 100);
+                const riskScore = o.scoreRiesgo ?? 0;
                 const risk = getRiskBadge(riskScore);
-
-                // Mock repartidor
-                const repartidores = ["Diego Morales", "Camila Ríos", "Mateo Álvarez", "Lucía Ramírez"];
-                const repartidor = repartidores[o.id.charCodeAt(0) % repartidores.length];
+                const esTerminal = o.estado === "entregado" || o.estado === "cancelado";
 
                 return (
                   <tr key={o.id} className="hover:bg-white/[0.02] transition-colors group">
@@ -176,10 +232,17 @@ export function PedidosTable({ pedidos }: { pedidos: Pedido[] }) {
                     
                     {/* Estado */}
                     <td className="px-5 py-3">
-                      <span className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${status.classes}`}>
-                        <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                        {status.label}
-                      </span>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${status.classes}`}>
+                          <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                          {status.label}
+                        </span>
+                        {estaAtrasado(o) && (
+                          <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold ring-1 ring-inset ring-rose-500/40 bg-rose-500/15 text-rose-400 animate-pulse" title="Fuera de plazo SLA">
+                            ⏱ {formatearAtraso(minutosAtraso(o))}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     
                     {/* Riesgo IA */}
@@ -195,8 +258,16 @@ export function PedidosTable({ pedidos }: { pedidos: Pedido[] }) {
                       </div>
                     </td>
                     
-                    <td className="px-5 py-3 text-zinc-400">{repartidor}</td>
-                    
+                    {/* Asignación de repartidor (real) */}
+                    <td className="px-5 py-3">
+                      <AsignarRepartidorCell
+                        pedidoId={o.id}
+                        repartidorIdActual={o.repartidorId ?? null}
+                        repartidores={repartidores}
+                        deshabilitado={esTerminal}
+                      />
+                    </td>
+
                     {/* Menú tres puntos */}
                     <td className="px-5 py-3 text-right">
                       <div className="relative" ref={openMenu === o.id ? menuRef : null}>

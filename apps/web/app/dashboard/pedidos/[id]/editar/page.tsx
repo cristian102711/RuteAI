@@ -1,16 +1,19 @@
-import prisma from "@ruteai/database";
 import { createClient } from "@/lib/supabaseServer";
 import { redirect } from "next/navigation";
-import { EditarPedidoForm } from "./EditarPedidoForm";
+import { callCore } from "@/lib/coreServiceClient";
+import { EditarPedidoForm, type Pedido } from "./EditarPedidoForm";
 
 export default async function EditarPedidoPage({ params }: { params: { id: string } }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const pedido = await prisma.pedido.findUnique({
-    where: { id: params.id },
-  });
+  let pedido: Pedido | null = null;
+  try {
+    pedido = await callCore<Pedido>(`/api/v1/orders/${params.id}`);
+  } catch {
+    // Pedido inexistente o fuera de alcance — redirige abajo
+  }
 
   if (!pedido) {
     redirect("/dashboard/pedidos");

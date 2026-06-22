@@ -129,3 +129,129 @@ function distanciaEuclidiana(a: Punto, b: Punto): number {
   const dLng = b.lng - a.lng;
   return Math.sqrt(dLat * dLat + dLng * dLng);
 }
+
+// ============================================================
+// Planificación con SLA — DETERMINISTA (sin IA externa/LLM).
+// Calcula ETA por parada (distancia real Haversine + velocidad + tiempo de
+// servicio) y ordena las paradas priorizando NO incumplir las horas límite.
+// ============================================================
+
+/** Distancia en km entre dos coordenadas (fórmula de Haversine). */
+export function haversineKm(a: Punto, b: Punto): number {
+  const R = 6371; // radio terrestre km
+  const rad = (x: number) => (x * Math.PI) / 180;
+  const dLat = rad(b.lat - a.lat);
+  const dLng = rad(b.lng - a.lng);
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(s)));
+}
+
+export interface ParadaPlan extends Punto {
+  fechaEntregaLimite?: string | null; // ISO; opcional
+}
+
+export interface OpcionesPlan {
+  velocidadKmh?: number;       // velocidad promedio urbana (def. 28)
+  minutosPorParada?: number;   // tiempo de servicio por entrega (def. 6)
+  margenRiesgoMin?: number;    // holgura mínima antes de marcar "en riesgo" (def. 10)
+  ahora?: Date;
+}
+
+export interface ParadaETA {
+  id: string;
+  etaMin: number;        // minutos desde el inicio hasta completar esta parada
+  distanciaKm: number;   // tramo desde la parada anterior
+  enRiesgo: boolean;     // llegaría después de su hora límite
+}
+
+export interface PlanRuta {
+  orden: Punto[];              // origen + paradas ordenadas
+  etas: ParadaETA[];
+  distanciaTotalKm: number;
+  duracionTotalMin: number;
+  paradasEnRiesgo: number;
+}
+
+/** Calcula ETA acumulada y riesgo SLA para un orden YA definido de paradas. */
+export function calcularETAs(
+  origen: Punto,
+  stops: ParadaPlan[],
+  opts: OpcionesPlan = {}
+): Omit<PlanRuta, "orden"> {
+  const v = opts.velocidadKmh ?? 28;
+  const serv = opts.minutosPorParada ?? 6;
+  const ahora = opts.ahora ?? new Date();
+
+  let etaMin = 0;
+  let distTot = 0;
+  let enRiesgo = 0;
+  let prev: Punto = origen;
+  const etas: ParadaETA[] = [];
+
+  for (const s of stops) {
+    const dkm = haversineKm(prev, s);
+    distTot += dkm;
+    etaMin += (dkm / v) * 60 + serv;
+    let riesgo = false;
+    if (s.fechaEntregaLimite) {
+      const limiteMin = (new Date(s.fechaEntregaLimite).getTime() - ahora.getTime()) / 60_000;
+      riesgo = etaMin > limiteMin;
+    }
+    if (riesgo) enRiesgo++;
+    etas.push({ id: s.id, etaMin: Math.round(etaMin), distanciaKm: +dkm.toFixed(2), enRiesgo: riesgo });
+    prev = s;
+  }
+
+  return {
+    etas,
+    distanciaTotalKm: +distTot.toFixed(2),
+    duracionTotalMin: Math.round(etaMin),
+    paradasEnRiesgo: enRiesgo,
+  };
+}
+
+/**
+ * Ordena las paradas con un greedy consciente del SLA: en cada paso, si alguna
+ * parada está por incumplir su hora límite (holgura < margen), prioriza la más
+ * cercana entre esas; si no, sigue por cercanía. Devuelve el orden + ETAs.
+ */
+export function planificarRuta(
+  origen: Punto,
+  puntos: ParadaPlan[],
+  opts: OpcionesPlan = {}
+): PlanRuta {
+  const v = opts.velocidadKmh ?? 28;
+  const serv = opts.minutosPorParada ?? 6;
+  const margen = opts.margenRiesgoMin ?? 10;
+  const ahora = opts.ahora ?? new Date();
+
+  const restantes = [...puntos];
+  const orden: ParadaPlan[] = [];
+  let actual: Punto = origen;
+  let etaMin = 0;
+
+  while (restantes.length > 0) {
+    const cand = restantes.map((r, i) => {
+      const dkm = haversineKm(actual, r);
+      const arribo = etaMin + (dkm / v) * 60 + serv;
+      const limiteMin = r.fechaEntregaLimite
+        ? (new Date(r.fechaEntregaLimite).getTime() - ahora.getTime()) / 60_000
+        : Infinity;
+      return { i, dkm, arribo, holgura: limiteMin - arribo };
+    });
+
+    const urgentes = cand.filter((c) => c.holgura < margen);
+    const pool = urgentes.length > 0 ? urgentes : cand;
+    pool.sort((a, b) => a.dkm - b.dkm);
+    const elegido = pool[0];
+
+    orden.push(restantes[elegido.i]);
+    etaMin = elegido.arribo;
+    actual = restantes[elegido.i];
+    restantes.splice(elegido.i, 1);
+  }
+
+  return { orden: [origen, ...orden], ...calcularETAs(origen, orden, opts) };
+}

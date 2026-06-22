@@ -2,16 +2,20 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { eliminarPedido, marcarComoEntregado, marcarEnRuta } from "../actions";
-import { Trash2, CheckCircle, Send } from "lucide-react";
+import { eliminarPedido, marcarEnRuta, cancelarPedido } from "../actions";
+import { Trash2, CheckCircle, Send, Ban } from "lucide-react";
 import Swal from "sweetalert2";
 import { ModalEvidencia } from "./ModalEvidencia";
+import { MOTIVOS_CANCELACION } from "@/lib/logistica";
 
 export function BotonesTabla({ pedidoId, estado, nombreCliente = "Cliente" }: { pedidoId: string, estado: string, nombreCliente?: string }) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   const [showModal, setShowModal] = useState(false);
+
+  const activo = estado === "pendiente" || estado === "en_ruta";
 
   const handleEntregar = () => {
     // En lugar de alerta simple, abrimos la validación fotográfica
@@ -79,10 +83,52 @@ export function BotonesTabla({ pedidoId, estado, nombreCliente = "Cliente" }: { 
     }
   };
 
+  const handleCancelar = async () => {
+    const opciones = MOTIVOS_CANCELACION.reduce(
+      (acc, m) => ({ ...acc, [m.valor]: m.label }),
+      {} as Record<string, string>
+    );
+
+    const { value: motivo, isConfirmed } = await Swal.fire({
+      title: "¿Cancelar pedido?",
+      text: "El pedido queda anulado y no podrá cambiar de estado.",
+      input: "select",
+      inputOptions: opciones,
+      inputPlaceholder: "Motivo de cancelación",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#27272a",
+      confirmButtonText: "Sí, cancelar pedido",
+      cancelButtonText: "Volver",
+      background: "#09090b",
+      color: "#f4f4f5",
+      inputValidator: (v) => (!v ? "Selecciona un motivo" : undefined),
+      customClass: { popup: "rounded-3xl border border-red-500/20 shadow-[0_0_40px_rgba(239,68,68,0.1)]" },
+    });
+
+    if (!isConfirmed) return;
+
+    setIsCancelling(true);
+    toast.loading("Cancelando pedido...", { id: "cancelar-" + pedidoId });
+    try {
+      const res = await cancelarPedido(pedidoId, motivo);
+      if (res?.error) {
+        toast.error(res.error, { id: "cancelar-" + pedidoId });
+        return;
+      }
+      toast.success("Pedido cancelado", { id: "cancelar-" + pedidoId });
+    } catch {
+      toast.error("Error al cancelar", { id: "cancelar-" + pedidoId });
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   return (
     <div className="flex items-center gap-2">
-      <button 
-        onClick={handleEliminar} 
+      <button
+        onClick={handleEliminar}
         disabled={isDeleting || isCompleting}
         className="p-2 border border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/20 flex justify-center items-center w-9 h-9 text-rose-400 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group active:scale-95 text-[10px]" 
         title="Cancelar este pedido permanentemente"
@@ -112,10 +158,34 @@ export function BotonesTabla({ pedidoId, estado, nombreCliente = "Cliente" }: { 
         </button>
       )}
 
+      {activo && (
+        <button
+          onClick={handleCancelar}
+          disabled={isCancelling || isDeleting || isCompleting}
+          className="p-2 border border-red-500/20 bg-red-500/5 flex justify-center items-center w-9 h-9 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group active:scale-95"
+          title="Cancelar pedido (anular)"
+        >
+          {isCancelling ? <Spinner className="w-3.5 h-3.5 border-red-400" /> : <Ban strokeWidth={2} className="w-4 h-4 text-red-400 group-hover:scale-110 transition-transform" />}
+        </button>
+      )}
+
       {estado === "entregado" && (
         <span className="py-1.5 px-3 flex gap-1.5 items-center border border-emerald-500/30 rounded-xl bg-emerald-500/10 shadow-inner" title="¡Entrega exitosa!">
-          <CheckCircle strokeWidth={2} className="w-3.5 h-3.5 text-emerald-400" /> 
+          <CheckCircle strokeWidth={2} className="w-3.5 h-3.5 text-emerald-400" />
           <span className="text-[10px] font-extrabold my-auto uppercase tracking-wider text-emerald-400">Completado</span>
+        </span>
+      )}
+
+      {estado === "cancelado" && (
+        <span className="py-1.5 px-3 flex gap-1.5 items-center border border-red-500/30 rounded-xl bg-red-500/10 shadow-inner" title="Pedido cancelado — estado bloqueado">
+          <Ban strokeWidth={2} className="w-3.5 h-3.5 text-red-400" />
+          <span className="text-[10px] font-extrabold my-auto uppercase tracking-wider text-red-400">Cancelado</span>
+        </span>
+      )}
+
+      {estado === "fallido" && (
+        <span className="py-1.5 px-3 flex gap-1.5 items-center border border-orange-500/30 rounded-xl bg-orange-500/10 shadow-inner" title="Intento de entrega fallido (re-agendable)">
+          <span className="text-[10px] font-extrabold my-auto uppercase tracking-wider text-orange-400">Fallido</span>
         </span>
       )}
 

@@ -1,12 +1,12 @@
 import prisma from "@ruteai/database";
-import { FormCrearPedido } from "./components/FormCrearPedido";
 import { FilaPedido } from "./components/FilaPedido";
 import { createClient } from "@/lib/supabaseServer";
 import { crearEmpresaYUsuario } from "./actions";
-import { 
-  Package, CheckSquare, Users, AlertTriangle, 
-  Sparkles, ArrowRight, Zap
+import {
+  Package, CheckSquare, Users, AlertTriangle,
+  Sparkles, ArrowRight, Clock, Timer, Gauge
 } from "lucide-react";
+import { calcularMetricasSLA, formatearAtraso } from "@/lib/logistica";
 
 // Server component para la gestión de RouteAI Dashboard conectado a datos reales sin fallbacks ficticios
 export default async function DashboardPage() {
@@ -109,6 +109,9 @@ export default async function DashboardPage() {
   const fallidos = pedidos.filter((p: any) => p.estado === "fallido").length;
   const enRuta = pedidos.filter((p: any) => p.estado === "en_ruta").length;
   const avancePorcentaje = pedidosDelDia > 0 ? Math.round((entregados / pedidosDelDia) * 100) : 0;
+
+  // Métricas SLA / cumplimiento de horario (atraso derivado, sin cron)
+  const sla = calcularMetricasSLA(pedidos as any);
 
   // Fecha bonita actual en español
   const hoyFormatted = new Date().toLocaleDateString("es-ES", {
@@ -267,6 +270,45 @@ export default async function DashboardPage() {
           <div className="mt-1 text-xs text-zinc-500">{conductoresTotales > 0 ? "Conductores activos" : "Sin conductores"}</div>
         </div>
 
+      </div>
+
+      {/* Cumplimiento de SLA / Horarios de entrega */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        {/* Atrasados ahora */}
+        <div className={`rounded-xl border p-5 shadow-lg backdrop-blur-xl ${sla.atrasadosActivos > 0 ? "border-rose-500/30 bg-rose-500/[0.04]" : "border-white/[0.04] bg-white/[0.02]"}`}>
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+            <Clock className="h-3.5 w-3.5 text-rose-400" />
+            Atrasados ahora
+          </div>
+          <div className="mt-3 text-3xl font-semibold tabular-nums text-white">{sla.atrasadosActivos}</div>
+          <div className="mt-1 text-xs text-zinc-500">
+            {sla.atrasadosActivos > 0 ? "Pedidos fuera de plazo SLA" : "Todo dentro de plazo"}
+          </div>
+        </div>
+
+        {/* OTD — On-Time Delivery */}
+        <div className="rounded-xl border border-white/[0.04] bg-white/[0.02] p-5 shadow-lg backdrop-blur-xl">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+            <Gauge className="h-3.5 w-3.5 text-emerald-400" />
+            Entregas a tiempo (OTD)
+          </div>
+          <div className="mt-3 text-3xl font-semibold tabular-nums text-white">{sla.otd}%</div>
+          <div className="mt-1 text-xs text-zinc-500">
+            {sla.entregadosATiempo}/{sla.entregados} entregas dentro de plazo
+          </div>
+        </div>
+
+        {/* Atraso promedio */}
+        <div className="rounded-xl border border-white/[0.04] bg-white/[0.02] p-5 shadow-lg backdrop-blur-xl">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+            <Timer className="h-3.5 w-3.5 text-amber-400" />
+            Atraso promedio
+          </div>
+          <div className="mt-3 text-3xl font-semibold tabular-nums text-white">
+            {sla.atrasoPromedioMin > 0 ? formatearAtraso(sla.atrasoPromedioMin) : "—"}
+          </div>
+          <div className="mt-1 text-xs text-zinc-500">En las entregas fuera de plazo</div>
+        </div>
       </div>
 
       {/* Grid del medio: Reporte y Sugerencia IA */}
@@ -477,20 +519,11 @@ export default async function DashboardPage() {
 
       </div>
 
-      {/* Zona Funcional Real: Formulario de Creación y Tabla de Pedidos DB */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 pt-2">
-        
-        {/* Formulario Crear Pedido */}
-        <div className="xl:col-span-1 bg-white/[0.02] border border-white/[0.04] rounded-3xl p-7 shadow-xl hover:border-zinc-750 transition-all duration-300 h-fit">
-          <h2 className="text-sm font-bold tracking-widest uppercase mb-6 text-amber-500 flex items-center gap-2">
-            <Zap className="w-4 h-4" />
-            Nuevo Despacho
-          </h2>
-          <FormCrearPedido empresaId={empresaActiva.id} />
-        </div>
+      {/* Monitoreo: despachos en curso. La creación de pedidos vive en la pestaña Pedidos. */}
+      <div className="pt-2">
 
         {/* Listado de Pedidos Recientes */}
-        <div className="xl:col-span-2 bg-white/[0.02] border border-white/[0.04] rounded-3xl shadow-xl overflow-hidden flex flex-col hover:border-zinc-750 transition-all duration-300">
+        <div className="bg-white/[0.02] border border-white/[0.04] rounded-3xl shadow-xl overflow-hidden flex flex-col hover:border-zinc-750 transition-all duration-300">
           <div className="px-8 py-5 border-b border-white/[0.04] flex justify-between items-center bg-zinc-950/20">
             <h2 className="text-sm font-bold tracking-widest uppercase text-zinc-300">
               Despachos en Curso <span className="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2.5 py-0.5 rounded-full ml-2 text-xs">{pedidos.length}</span>

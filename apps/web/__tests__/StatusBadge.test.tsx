@@ -18,9 +18,20 @@ describe("StatusBadge", () => {
     expect(screen.getByText("ENTREGADO")).toBeInTheDocument();
   });
 
-  it("renders CANCELADO label for estado='fallido'", () => {
+  it("renders FALLIDO label for estado='fallido'", () => {
     render(<StatusBadge estado="fallido" />);
+    expect(screen.getByText("FALLIDO")).toBeInTheDocument();
+  });
+
+  it("renders CANCELADO label for estado='cancelado'", () => {
+    render(<StatusBadge estado="cancelado" />);
     expect(screen.getByText("CANCELADO")).toBeInTheDocument();
+  });
+
+  it("renders ATRASADO overlay when atrasado is true", () => {
+    render(<StatusBadge estado="en_ruta" atrasado minutosAtraso={45} />);
+    expect(screen.getByText("EN CAMINO")).toBeInTheDocument();
+    expect(screen.getByText(/ATRASADO/)).toBeInTheDocument();
   });
 
   it("falls back to PENDIENTE for unknown estado", () => {

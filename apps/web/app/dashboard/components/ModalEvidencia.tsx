@@ -142,6 +142,29 @@ export function ModalEvidencia({ pedidoId, nombreCliente, onClose, onSuccess }: 
     reader.readAsDataURL(file);
   }, []);
 
+  // ── Confirmar entrega SIN foto (requisito omitido) ──
+  // Marca el pedido como entregado vía el endpoint de estado con sinFoto=true,
+  // sin pasar por Supabase Storage.
+  async function handleOmitirFoto() {
+    setError(null);
+    setPaso("subiendo");
+    try {
+      const res = await fetch(`/api/pedidos/${pedidoId}/estado`, {
+        method:  "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ estado: "entregado", sinFoto: true }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? "No se pudo confirmar la entrega");
+      }
+      onSuccess();
+    } catch (err: any) {
+      setError(err?.message ?? "Error al confirmar. Inténtalo de nuevo.");
+      setPaso("foto");
+    }
+  }
+
   // ── Subir todo y cerrar ──
   async function handleCompletar(omitirFirma = false) {
     if (!fotoBlob) { setError("Necesitas tomar una foto primero."); return; }
@@ -272,6 +295,20 @@ export function ModalEvidencia({ pedidoId, nombreCliente, onClose, onSuccess }: 
             >
               Siguiente — Firma del cliente <ChevronRight className="h-4 w-4" />
             </button>
+
+            {/* Omitir foto — requisito no exigible (no está en venta) */}
+            <div className="rounded-xl border border-zinc-800 bg-white/[0.02] p-3">
+              <p className="text-[11px] text-zinc-500 leading-relaxed">
+                ℹ️ La foto de entrega es opcional en esta versión: al no estar en venta,
+                omitimos ese requisito. Puedes confirmar la entrega sin evidencia fotográfica.
+              </p>
+              <button
+                onClick={handleOmitirFoto}
+                className="mt-2 w-full flex items-center justify-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 py-2.5 text-xs font-bold text-emerald-400 hover:bg-emerald-500/20 transition-colors active:scale-95"
+              >
+                <CheckCircle2 className="h-4 w-4" /> Confirmar entrega sin foto
+              </button>
+            </div>
           </div>
         )}
 

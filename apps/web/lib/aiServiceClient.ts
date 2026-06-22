@@ -63,6 +63,74 @@ function fallbackScore(payload: ScorePayload): ScoreResult {
   return { score: parseFloat(score.toFixed(2)), nivel, razones };
 }
 
+// ── Optimización de rutas (TSP nearest-neighbor en ai-service) ──
+export interface PuntoRuta {
+  id: string;
+  lat: number;
+  lng: number;
+  fechaEntregaLimite?: string | null; // ISO; habilita la planificación con SLA
+}
+
+export interface ResumenRuta {
+  distanciaTotalKm: number;
+  duracionTotalMin: number;
+  paradasEnRiesgo: number;
+}
+
+export interface OptimizacionResultado {
+  rutaOptimizada: PuntoRuta[];
+  algoritmo: 'gemini' | 'sla-heuristico' | 'nearest-neighbor';
+  resumen?: ResumenRuta;
+  razon?: string;
+}
+
+// Devuelve los puntos reordenados + el algoritmo usado (Gemini o heurístico).
+// Si ai-service no está disponible, devuelve el orden original (no bloqueante).
+export async function optimizarRuta(
+  origen: PuntoRuta,
+  puntos: PuntoRuta[]
+): Promise<OptimizacionResultado> {
+  if (!AI_SERVICE_URL || puntos.length === 0) {
+    return { rutaOptimizada: puntos, algoritmo: 'nearest-neighbor' };
+  }
+
+  try {
+    const response = await fetch(`${AI_SERVICE_URL}/api/optimize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ origen, puntos }),
+      // La IA puede tardar; damos margen pero con tope.
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!response.ok) {
+      throw new Error(`ai-service respondió con status ${response.status}`);
+    }
+
+    const json = (await response.json()) as {
+      success: boolean;
+      data: {
+        rutaOptimizada: PuntoRuta[];
+        algoritmo: OptimizacionResultado['algoritmo'];
+        resumen?: ResumenRuta;
+        razon?: string;
+      };
+    };
+
+    if (!json.success) throw new Error('ai-service retornó success: false');
+
+    return {
+      rutaOptimizada: json.data.rutaOptimizada,
+      algoritmo: json.data.algoritmo ?? 'nearest-neighbor',
+      resumen: json.data.resumen,
+      razon: json.data.razon,
+    };
+  } catch (error) {
+    console.error('[AI Client] Falló optimización, usando orden original:', error);
+    return { rutaOptimizada: puntos, algoritmo: 'nearest-neighbor' };
+  }
+}
+
 // ── Cliente principal ────────────────────────────────────────
 export async function obtenerScoreRiesgo(
   payload: ScorePayload

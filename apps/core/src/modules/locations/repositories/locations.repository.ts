@@ -1,10 +1,14 @@
 import prisma from "../../../lib/prisma";
 
 export const LocationsRepository = {
+  // Última ubicación conocida de cada repartidor de la empresa
+  // (distinct por repartidorId tras ordenar por timestamp desc).
   async findAll(empresaId: string) {
     return prisma.ubicacion.findMany({
-      where:   { empresaId },
-      orderBy: { timestamp: "desc" },
+      where:    { empresaId },
+      orderBy:  { timestamp: "desc" },
+      distinct: ["repartidorId"],
+      include:  { repartidor: { select: { id: true, nombre: true } } },
     });
   },
 

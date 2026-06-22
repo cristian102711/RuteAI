@@ -21,9 +21,9 @@ function calcularProgreso(entregados: number, total: number): number {
   return Math.round((entregados / total) * 100);
 }
 
-type EstadoPedido = "pendiente" | "en_ruta" | "entregado" | "fallido";
+type EstadoPedido = "pendiente" | "en_ruta" | "entregado" | "fallido" | "cancelado";
 function esEstadoValido(estado: string): estado is EstadoPedido {
-  return ["pendiente", "en_ruta", "entregado", "fallido"].includes(estado);
+  return ["pendiente", "en_ruta", "entregado", "fallido", "cancelado"].includes(estado);
 }
 
 function tiempoRelativo(fechaISO: string): string {
@@ -99,8 +99,11 @@ describe("esEstadoValido — validación de estados de pedido", () => {
   it("acepta 'fallido'", () => {
     expect(esEstadoValido("fallido")).toBe(true);
   });
-  it("rechaza estados inválidos", () => {
-    expect(esEstadoValido("cancelado")).toBe(false);
+  it("acepta 'cancelado'", () => {
+    expect(esEstadoValido("cancelado")).toBe(true);
+  });
+  it("rechaza estados inválidos ('atrasado' es derivado, no un estado)", () => {
+    expect(esEstadoValido("atrasado")).toBe(false);
     expect(esEstadoValido("")).toBe(false);
     expect(esEstadoValido("PENDIENTE")).toBe(false);
   });

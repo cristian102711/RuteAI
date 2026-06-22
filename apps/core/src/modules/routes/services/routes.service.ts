@@ -11,7 +11,12 @@ export const RoutesService = {
     return ruta;
   },
 
-  async crear(data: { empresaId: string; repartidorId: string; fecha: Date }) {
+  async crear(data: {
+    empresaId: string;
+    repartidorId: string;
+    fecha: Date;
+    rutaOptimizada?: unknown;
+  }) {
     if (!data.repartidorId) throw new Error("repartidorId es requerido.");
     return RoutesRepository.create(data);
   },

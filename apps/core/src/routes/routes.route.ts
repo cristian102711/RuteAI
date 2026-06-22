@@ -1,26 +1,31 @@
 import { Router } from "express";
-import type { Request, Response } from "express";
+import type { Request, Response, RequestHandler } from "express";
 import { RoutesService } from "../modules/routes/services/routes.service";
+import { requireAuth } from "../middlewares/auth.middleware";
 import { z } from "zod";
 
 export const routesRouter = Router();
 
+// Todos los endpoints de rutas requieren estar autenticados
+routesRouter.use(requireAuth as RequestHandler);
+
 const CreateRouteSchema = z.object({
-  empresaId:    z.string().uuid(),
-  repartidorId: z.string().uuid(),
-  fecha:        z.coerce.date(),
+  empresaId:      z.string().uuid().optional(),
+  repartidorId:   z.string().uuid(),
+  fecha:          z.coerce.date(),
+  rutaOptimizada: z.any().optional(),
 });
 
 const UpdateEstadoSchema = z.object({
   estado: z.enum(["planificada", "en_curso", "completada", "cancelada"]),
 });
 
-// GET /api/v1/routes?empresaId=xxx
+// GET /api/v1/routes — rutas de la empresa (empresaId derivado del token)
 routesRouter.get("/", async (req: Request, res: Response): Promise<void> => {
   try {
-    const empresaId = req.query["empresaId"];
-    if (!empresaId || typeof empresaId !== "string") {
-      res.status(400).json({ success: false, error: "empresaId requerido" });
+    const empresaId = req.user!.empresaId;
+    if (!empresaId) {
+      res.status(403).json({ success: false, error: "Usuario sin empresa asignada" });
       return;
     }
     const rutas = await RoutesService.listar(empresaId);
@@ -48,7 +53,10 @@ routesRouter.post("/", async (req: Request, res: Response): Promise<void> => {
       res.status(400).json({ success: false, error: "Datos inválidos", details: parsed.error.flatten() });
       return;
     }
-    const ruta = await RoutesService.crear(parsed.data);
+    const ruta = await RoutesService.crear({
+      ...parsed.data,
+      empresaId: req.user!.empresaId,
+    });
     res.status(201).json({ success: true, data: ruta });
   } catch (error) {
     res.status(500).json({ success: false, error: error instanceof Error ? error.message : "Error interno" });

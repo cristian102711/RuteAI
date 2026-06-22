@@ -8,10 +8,20 @@ import { Edit3, Save } from "lucide-react";
 import { Pedido } from "@ruteai/database";
 import { StatusBadge } from "./StatusBadge";
 import { ScoreBadge } from "./ScoreBadge";
+import { estaAtrasado, minutosAtraso } from "@/lib/logistica";
 
 export function FilaPedido({ pedido }: { pedido: Pedido }) {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  const atrasado = estaAtrasado(pedido);
+  const minAtraso = minutosAtraso(pedido);
+  const limiteTexto = pedido.fechaEntregaLimite
+    ? new Date(pedido.fechaEntregaLimite).toLocaleString("es-CL", {
+        day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
+        timeZone: "America/Santiago",
+      })
+    : null;
 
   // Acción cliente para procesar la edición del pedido
   async function handleGuardarEdicion(formData: FormData) {
@@ -63,14 +73,19 @@ export function FilaPedido({ pedido }: { pedido: Pedido }) {
 
   // --- MODO LECTURA NORMAL ---
   return (
-    <div className="flex justify-between items-center p-4 rounded-xl bg-zinc-900/40 border border-zinc-800/60 hover:border-emerald-500/30 hover:bg-zinc-800/40 hover:shadow-md transition-all duration-300 group">
+    <div className={`flex justify-between items-center p-4 rounded-xl bg-zinc-900/40 border ${atrasado ? "border-rose-500/40" : "border-zinc-800/60"} hover:border-emerald-500/30 hover:bg-zinc-800/40 hover:shadow-md transition-all duration-300 group`}>
       <div className="flex flex-col gap-1 pr-4">
-        <div className="flex items-center gap-3 mb-1">
+        <div className="flex items-center gap-3 mb-1 flex-wrap">
           <span className="font-mono text-xs font-bold text-emerald-400">#{pedido.id.slice(-4).toUpperCase()}</span>
-          <StatusBadge estado={pedido.estado} />
+          <StatusBadge estado={pedido.estado} atrasado={atrasado} minutosAtraso={minAtraso} />
         </div>
         <p className="text-sm font-semibold text-white">📍 {pedido.direccion}</p>
         <p className="text-xs text-zinc-500 truncate max-w-[200px] md:max-w-md lg:max-w-xs mt-0.5">👤 {pedido.nombreCliente} {pedido.clienteTelefono && `• 📞 ${pedido.clienteTelefono}`}</p>
+        {limiteTexto && (
+          <p suppressHydrationWarning className={`text-[11px] mt-0.5 ${atrasado ? "text-rose-400 font-semibold" : "text-zinc-600"}`}>
+            ⏱ Límite: {limiteTexto}{pedido.estado === "entregado" && pedido.entregadoEn ? ` · entregado ${minAtraso > 0 ? `${minAtraso} min tarde` : "a tiempo"}` : ""}
+          </p>
+        )}
       </div>
       
       <div className="flex items-center gap-4">
