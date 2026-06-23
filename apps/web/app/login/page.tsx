@@ -83,7 +83,7 @@ export default function LoginPage() {
         toast.success("¡Bienvenido de vuelta!", { id: "auth" });
         await logAuthEvent({ userId: resData.usuario.id, email: resData.usuario.email, provider: "email", status: "success" });
         const rol = resData.usuario.rol;
-        if (rol === "super_admin") router.push("/admin");
+        if (rol === "super_admin") router.push("/super-admin");
         else if (rol === "repartidor") router.push("/repartidor/dashboard");
         else router.push("/dashboard");
         router.refresh();
