@@ -60,7 +60,6 @@ export function SuperAdminSidebar() {
             <Building2 className={`h-4 w-4 ${isActive('/super-admin/empresas') ? 'text-amber-500' : ''}`} />
             Empresas
           </span>
-          <span className="rounded bg-purple-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-purple-400">7</span>
         </Link>
         
         <Link 
@@ -74,22 +73,12 @@ export function SuperAdminSidebar() {
         </Link>
 
         <Link 
-          href="/super-admin/seguridad" 
-          className={`group flex items-center justify-between rounded-md px-2.5 py-1.5 text-sm transition-colors ${isActive('/super-admin/seguridad') ? 'bg-white/[0.06] text-white ring-1 ring-inset ring-white/10' : 'text-zinc-400 hover:bg-white/[0.04] hover:text-white'}`}
+          href="/super-admin/logs" 
+          className={`group flex items-center justify-between rounded-md px-2.5 py-1.5 text-sm transition-colors ${isActive('/super-admin/logs') ? 'bg-white/[0.06] text-white ring-1 ring-inset ring-white/10' : 'text-zinc-400 hover:bg-white/[0.04] hover:text-white'}`}
         >
           <span className="flex items-center gap-2.5">
-            <ShieldCheck className={`h-4 w-4 ${isActive('/super-admin/seguridad') ? 'text-amber-500' : ''}`} />
-            Seguridad
-          </span>
-        </Link>
-
-        <Link 
-          href="/super-admin/integraciones" 
-          className={`group flex items-center justify-between rounded-md px-2.5 py-1.5 text-sm transition-colors ${isActive('/super-admin/integraciones') ? 'bg-white/[0.06] text-white ring-1 ring-inset ring-white/10' : 'text-zinc-400 hover:bg-white/[0.04] hover:text-white'}`}
-        >
-          <span className="flex items-center gap-2.5">
-            <Webhook className={`h-4 w-4 ${isActive('/super-admin/integraciones') ? 'text-amber-500' : ''}`} />
-            Integraciones
+            <ShieldCheck className={`h-4 w-4 ${isActive('/super-admin/logs') ? 'text-amber-500' : ''}`} />
+            Logs de Acceso
           </span>
         </Link>
 
