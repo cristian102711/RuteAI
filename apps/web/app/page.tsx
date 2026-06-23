@@ -112,9 +112,6 @@ export default function LandingPage() {
               <Link href="/dashboard" className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-amber-500 to-amber-400 px-5 py-3 text-sm font-semibold text-black shadow-[0_0_20px_rgba(245,158,11,0.3)] hover:opacity-95 transition">
                 Probar el dashboard <ArrowRight className="h-4 w-4" />
               </Link>
-              <Link href="/super-admin" className="inline-flex items-center gap-2 rounded-lg border border-zinc-700 bg-white/5 px-5 py-3 text-sm font-medium hover:bg-white/10 transition">
-                Ver panel Super Admin
-              </Link>
             </div>
             
             <div className="mt-10 grid grid-cols-3 gap-6 border-t border-zinc-800 pt-6">
