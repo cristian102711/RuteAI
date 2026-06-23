@@ -1,10 +1,24 @@
+// Node.js portátil en Windows carece de CAs del sistema; esto permite HTTPS en dev.
+if (process.env.NODE_ENV !== 'production') {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+}
+
 import express from 'express';
 import cors from 'cors';
-import 'dotenv/config';
+import dotenv from 'dotenv';
+import path from 'path';
 
-import { healthRouter } from './routes/health.route';
-import { scoreRouter } from './routes/score.route';
-import { optimizeRouter } from './routes/optimize.route';
+// Carga cascada: local tiene prioridad, el root del monorepo actúa como fallback.
+// Esto permite que OPENROUTER_API_KEY del .env raíz llegue al servicio
+// cuando no existe apps/ai-service/.env propio.
+dotenv.config();                                                        // 1. apps/ai-service/.env (prioridad)
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });      // 2. root .env (fallback)
+
+import { healthRouter }    from './routes/health.route';
+import { scoreRouter }     from './routes/score.route';
+import { optimizeRouter }  from './routes/optimize.route';
+import { reorganizeRouter } from './routes/reorganize.route';
+import { swaggerRouter }   from './swagger';
 
 const app = express();
 const PORT = process.env.PORT ?? 3001;
@@ -19,13 +33,12 @@ app.use(cors({
 }));
 app.use(express.json());
 
-import { swaggerRouter } from './swagger';
-
 // ── Rutas ─────────────────────────────────────────────────────
-app.use('/api/health',   healthRouter);
-app.use('/api/score',    scoreRouter);
-app.use('/api/optimize', optimizeRouter);
-app.use('/docs',         swaggerRouter);
+app.use('/api/health',     healthRouter);
+app.use('/api/score',      scoreRouter);
+app.use('/api/optimize',   optimizeRouter);
+app.use('/api/reorganize', reorganizeRouter);
+app.use('/docs',           swaggerRouter);
 
 // ── 404 handler ───────────────────────────────────────────────
 app.use((_req, res) => {

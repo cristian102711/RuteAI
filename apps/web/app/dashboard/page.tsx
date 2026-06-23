@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   Package, CheckSquare, Users, AlertTriangle,
   Sparkles, ArrowRight, Clock, Timer, Gauge,
-  MapPin, Truck, Bike, Car, Radio
+  MapPin, Truck, Bike, Car, Radio, Zap
 } from "lucide-react";
 import { calcularMetricasSLA, formatearAtraso } from "@/lib/logistica";
 
@@ -211,11 +211,14 @@ export default async function DashboardPage() {
             <span className={`h-2 w-2 rounded-full ${empresaActiva.planEstado === 'activo' ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
             Plan <strong>{empresaActiva.plan?.toUpperCase()}</strong> · Vence: {empresaActiva.planFechaVencimiento ? new Date(empresaActiva.planFechaVencimiento).toLocaleDateString() : 'N/A'}
           </div>
-          <button className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-[0_0_15px_rgba(167,139,250,0.15)] hover:opacity-90 transition active:scale-[0.98]"
-            style={{ background: "linear-gradient(135deg, hsl(271 81% 66%), hsl(300 74% 40%))" }}>
-            <Sparkles className="h-4 w-4" />
-            Optimizar Flota
-          </button>
+          <Link
+            href="/dashboard/pedidos"
+            className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-[0_0_15px_rgba(167,139,250,0.15)] hover:opacity-90 transition active:scale-[0.98]"
+            style={{ background: "linear-gradient(135deg, hsl(271 81% 66%), hsl(300 74% 40%))" }}
+          >
+            <Zap className="h-4 w-4" />
+            Optimizar Rutas con IA
+          </Link>
         </div>
       </div>
 
@@ -381,7 +384,7 @@ export default async function DashboardPage() {
           <div className="mt-4 space-y-2 border-t border-white/[0.04] pt-3 text-xs text-zinc-500">
             <div className="flex justify-between">
               <span>Modelo de IA</span>
-              <span className="font-mono text-zinc-300">gpt-logistics-v2.1</span>
+              <span className="font-mono text-zinc-300">gpt-oss-120b:free</span>
             </div>
             <div className="flex justify-between">
               <span>Alertas pendientes</span>

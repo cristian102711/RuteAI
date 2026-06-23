@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import './env'; // MUST be first — loads DATABASE_URL before Prisma is imported
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
 import cors from "cors";

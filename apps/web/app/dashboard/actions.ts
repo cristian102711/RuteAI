@@ -51,10 +51,18 @@ export async function agregarPedidoNuevo(formData: FormData) {
   const lat = coords?.lat ?? -33.45;
   const lng = coords?.lng ?? -70.66;
 
-  // Score IA
+  // Score IA — usa Open Router cuando se proveen producto + dirección
   const resultadoIA = await obtenerScoreRiesgo({
-    pedidoId: "new", lat, lng, hora: horaActual,
-    diasRetraso: 0, intentosFallidos: 0, zonaRiesgo: false,
+    pedidoId: "new",
+    producto,
+    direccion,
+    fechaEntrega: fechaEntregaLimite?.toISOString() ?? null,
+    // Campos heurísticos como respaldo
+    lat, lng,
+    hora: horaActual,
+    diasRetraso: 0,
+    intentosFallidos: 0,
+    zonaRiesgo: false,
   });
   const scoreParaBD = Math.round(resultadoIA.score * 100);
 

@@ -7,14 +7,20 @@
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL;
 
 // ── Tipos ────────────────────────────────────────────────────
+
 interface ScorePayload {
   pedidoId: string;
-  lat: number;
-  lng: number;
-  hora: number;
-  diasRetraso: number;
-  intentosFallidos: number;
-  zonaRiesgo: boolean;
+  // Modo IA — Open Router (preferido cuando están disponibles)
+  producto?: string;
+  direccion?: string;
+  fechaEntrega?: string | null;
+  // Modo heurístico — fallback determinista
+  lat?: number;
+  lng?: number;
+  hora?: number;
+  diasRetraso?: number;
+  intentosFallidos?: number;
+  zonaRiesgo?: boolean;
 }
 
 interface ScoreResult {
@@ -30,21 +36,21 @@ function fallbackScore(payload: ScorePayload): ScoreResult {
   let score = 0;
   const razones: string[] = [];
 
-  if (payload.hora >= 22 || payload.hora <= 6) {
+  if ((payload.hora ?? 12) >= 22 || (payload.hora ?? 12) <= 6) {
     score += 0.25;
     razones.push('Entrega en horario nocturno');
   }
-  if (payload.diasRetraso >= 3) {
+  if ((payload.diasRetraso ?? 0) >= 3) {
     score += 0.30;
     razones.push(`${payload.diasRetraso} días de retraso acumulado`);
-  } else if (payload.diasRetraso >= 1) {
+  } else if ((payload.diasRetraso ?? 0) >= 1) {
     score += 0.15;
     razones.push(`${payload.diasRetraso} día(s) de retraso`);
   }
-  if (payload.intentosFallidos >= 2) {
+  if ((payload.intentosFallidos ?? 0) >= 2) {
     score += 0.25;
     razones.push(`${payload.intentosFallidos} intentos fallidos`);
-  } else if (payload.intentosFallidos === 1) {
+  } else if ((payload.intentosFallidos ?? 0) === 1) {
     score += 0.10;
     razones.push('1 intento fallido previo');
   }
@@ -54,21 +60,20 @@ function fallbackScore(payload: ScorePayload): ScoreResult {
   }
 
   score = Math.min(1, Math.max(0, score));
-
   const nivel: ScoreResult['nivel'] =
     score > 0.6 ? 'alto' : score > 0.3 ? 'medio' : 'bajo';
-
   if (razones.length === 0) razones.push('Sin factores de riesgo detectados');
 
   return { score: parseFloat(score.toFixed(2)), nivel, razones };
 }
 
-// ── Optimización de rutas (TSP nearest-neighbor en ai-service) ──
+// ── Optimización de rutas (TSP nearest-neighbor / SLA en ai-service) ──
+
 export interface PuntoRuta {
   id: string;
   lat: number;
   lng: number;
-  fechaEntregaLimite?: string | null; // ISO; habilita la planificación con SLA
+  fechaEntregaLimite?: string | null;
 }
 
 export interface ResumenRuta {
@@ -79,16 +84,14 @@ export interface ResumenRuta {
 
 export interface OptimizacionResultado {
   rutaOptimizada: PuntoRuta[];
-  algoritmo: 'gemini' | 'sla-heuristico' | 'nearest-neighbor';
+  algoritmo: 'sla-heuristico' | 'nearest-neighbor';
   resumen?: ResumenRuta;
   razon?: string;
 }
 
-// Devuelve los puntos reordenados + el algoritmo usado (Gemini o heurístico).
-// Si ai-service no está disponible, devuelve el orden original (no bloqueante).
 export async function optimizarRuta(
   origen: PuntoRuta,
-  puntos: PuntoRuta[]
+  puntos: PuntoRuta[],
 ): Promise<OptimizacionResultado> {
   if (!AI_SERVICE_URL || puntos.length === 0) {
     return { rutaOptimizada: puntos, algoritmo: 'nearest-neighbor' };
@@ -99,13 +102,10 @@ export async function optimizarRuta(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ origen, puntos }),
-      // La IA puede tardar; damos margen pero con tope.
-      signal: AbortSignal.timeout(10000),
+      signal: AbortSignal.timeout(10_000),
     });
 
-    if (!response.ok) {
-      throw new Error(`ai-service respondió con status ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`ai-service respondió con status ${response.status}`);
 
     const json = (await response.json()) as {
       success: boolean;
@@ -121,9 +121,9 @@ export async function optimizarRuta(
 
     return {
       rutaOptimizada: json.data.rutaOptimizada,
-      algoritmo: json.data.algoritmo ?? 'nearest-neighbor',
-      resumen: json.data.resumen,
-      razon: json.data.razon,
+      algoritmo:      json.data.algoritmo ?? 'nearest-neighbor',
+      resumen:        json.data.resumen,
+      razon:          json.data.razon,
     };
   } catch (error) {
     console.error('[AI Client] Falló optimización, usando orden original:', error);
@@ -131,11 +131,11 @@ export async function optimizarRuta(
   }
 }
 
-// ── Cliente principal ────────────────────────────────────────
-export async function obtenerScoreRiesgo(
-  payload: ScorePayload
-): Promise<ScoreResult> {
-  // Si no hay URL configurada, usar fallback directamente
+// ── Score de riesgo principal ────────────────────────────────
+// Prefiere el modo IA (Open Router) cuando se proveen producto+dirección.
+// Si el ai-service no responde, aplica el fallback heurístico para no
+// bloquear la creación del pedido.
+export async function obtenerScoreRiesgo(payload: ScorePayload): Promise<ScoreResult> {
   if (!AI_SERVICE_URL) {
     console.warn('[AI Client] AI_SERVICE_URL no configurada — usando fallback');
     return fallbackScore(payload);
@@ -146,31 +146,94 @@ export async function obtenerScoreRiesgo(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-      // Timeout de 5 segundos para no bloquear la UX
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(8_000),
     });
 
-    if (!response.ok) {
-      throw new Error(`ai-service respondió con status ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`ai-service respondió con status ${response.status}`);
 
-    const json = await response.json() as {
+    const json = (await response.json()) as {
       success: boolean;
       data: ScoreResult;
     };
 
-    if (!json.success) {
-      throw new Error('ai-service retornó success: false');
-    }
+    if (!json.success) throw new Error('ai-service retornó success: false');
 
     console.info(
-      `[AI Client] Score calculado: ${json.data.score} (${json.data.nivel}) — ${json.data.razones.join(', ')}`
+      `[AI Client] Score: ${json.data.score} (${json.data.nivel}) — ${json.data.razones.join(', ')}`,
     );
 
     return json.data;
   } catch (error) {
-    // Log del error pero NO interrumpimos el flujo del pedido
     console.error('[AI Client] Falló la llamada al ai-service, usando fallback:', error);
     return fallbackScore(payload);
+  }
+}
+
+// ── Reorganización de pedidos por prioridad IA ────────────────
+
+export interface PedidoParaReorganizar {
+  id: string;
+  producto: string;
+  direccion: string;
+  estado: string;
+  scoreRiesgo?: number | null;
+  fechaEntregaLimite?: string | Date | null;
+  urgencia?: boolean;
+}
+
+export interface ReorganizacionResultado {
+  idsOrdenados: string[];
+  razon: string;
+  totalPedidos: number;
+}
+
+export async function reorganizarPedidos(
+  pedidos: PedidoParaReorganizar[],
+): Promise<ReorganizacionResultado> {
+  if (!AI_SERVICE_URL || pedidos.length === 0) {
+    return {
+      idsOrdenados: pedidos.map((p) => p.id),
+      razon: 'Sin servicio de IA disponible — orden sin cambios.',
+      totalPedidos: pedidos.length,
+    };
+  }
+
+  try {
+    const payload = pedidos.map((p) => ({
+      id:                 p.id,
+      producto:           p.producto,
+      direccion:          p.direccion,
+      estado:             p.estado,
+      scoreRiesgo:        p.scoreRiesgo ?? 0,
+      fechaEntregaLimite: p.fechaEntregaLimite instanceof Date
+        ? p.fechaEntregaLimite.toISOString()
+        : (p.fechaEntregaLimite ?? null),
+      urgencia: p.urgencia ?? false,
+    }));
+
+    const response = await fetch(`${AI_SERVICE_URL}/api/reorganize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pedidos: payload }),
+      signal: AbortSignal.timeout(20_000),
+    });
+
+    if (!response.ok) throw new Error(`ai-service respondió con status ${response.status}`);
+
+    const json = (await response.json()) as {
+      success: boolean;
+      data: ReorganizacionResultado;
+    };
+
+    if (!json.success) throw new Error('ai-service retornó success: false');
+
+    return json.data;
+  } catch (error) {
+    console.error('[AI Client] Falló reorganización:', error);
+    return {
+      idsOrdenados: pedidos.map((p) => p.id),
+      razon: 'Error al contactar la IA — se mantiene el orden original.',
+      totalPedidos: pedidos.length,
+    };
   }
 }

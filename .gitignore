@@ -45,3 +45,24 @@ yarn-error.log*
 coverage/
 **/coverage/
 .ai/
+
+# ── SQLite (modo offline / fallback corporativo) ──────────────
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# ── Backups de schema y .env generados por setup-sqlite.bat ───
+*.bak
+.env.postgres.bak
+packages/database/prisma/schema.postgres.bak
+
+# ── Toolkit local de desarrollo offline (solo este PC con firewall) ──
+# Scripts y helpers que dependen del Node portable / red restringida
+# de este equipo. No deben llegar a otros equipos ni al repo final.
+setup-env.bat
+setup-sqlite.bat
+restore-postgres.bat
+check-db.js
+_scripts/
+packages/database/prisma/schema.sqlite.prisma
