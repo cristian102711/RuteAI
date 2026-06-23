@@ -53,11 +53,14 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
+import { swaggerRouter } from "./swagger";
+
 app.use("/api/v1", healthRouter);
 app.use("/api/v1/orders",    ordersRouter);
 app.use("/api/v1/routes",    routesRouter);
 app.use("/api/v1/locations", locationsRouter);
 app.use("/api/v1/empresas",  empresasRouter);
+app.use("/docs",             swaggerRouter);
 
 // ── 404 handler ───────────────────────────────────────────────
 app.use((req: Request, res: Response) => {

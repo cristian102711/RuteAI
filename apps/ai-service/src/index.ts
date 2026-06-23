@@ -19,10 +19,13 @@ app.use(cors({
 }));
 app.use(express.json());
 
+import { swaggerRouter } from './swagger';
+
 // ── Rutas ─────────────────────────────────────────────────────
 app.use('/api/health',   healthRouter);
 app.use('/api/score',    scoreRouter);
 app.use('/api/optimize', optimizeRouter);
+app.use('/docs',         swaggerRouter);
 
 // ── 404 handler ───────────────────────────────────────────────
 app.use((_req, res) => {
