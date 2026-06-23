@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Plus, Search, Filter, Download, MoreHorizontal, X, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { useSearchParams } from "next/navigation";
 
 interface Empresa {
   id: string;
@@ -17,12 +18,20 @@ interface Empresa {
 }
 
 export default function SuperAdminEmpresas() {
+  const searchParams = useSearchParams();
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitLoading, setIsSubmitLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [planFilter, setPlanFilter] = useState<string | null>(null);
   const [estadoFilter, setEstadoFilter] = useState<string | null>(null);
+
+  useEffect(() => {
+    const q = searchParams.get("search");
+    if (q !== null) {
+      setSearchQuery(q);
+    }
+  }, [searchParams]);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
