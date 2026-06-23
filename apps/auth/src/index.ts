@@ -12,10 +12,13 @@ const PORT = process.env.PORT ?? 3002;
 app.use(cors());
 app.use(express.json());
 
+import { swaggerRouter } from "./swagger";
+
 // Routes
 app.use("/api/v1", healthRouter);
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1", usersRouter);
+app.use("/docs", swaggerRouter);
 
 // For Vercel serverless
 export default app;
