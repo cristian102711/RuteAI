@@ -1,13 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Route, ChevronDown, LayoutDashboard, Building2, ChartColumn, ShieldCheck, Webhook, Settings } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Route, ChevronDown, LayoutDashboard, Building2, ChartColumn, ShieldCheck, Settings, LogOut } from "lucide-react";
+import { createClient } from "@/lib/supabaseClient";
+import { toast } from "sonner";
 
 export function SuperAdminSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const supabase = createClient();
 
   const isActive = (path: string) => pathname === path || pathname?.startsWith(`${path}/`);
+
+  const handleLogout = async () => {
+    toast.loading("Cerrando sesión...", { id: "logout" });
+    await supabase.auth.signOut();
+    toast.success("Sesión cerrada correctamente", { id: "logout" });
+    router.push("/login");
+    router.refresh();
+  };
 
   return (
     <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-zinc-800 bg-zinc-950 md:flex z-50">
@@ -95,14 +107,23 @@ export function SuperAdminSidebar() {
 
       {/* User Profile */}
       <div className="border-t border-zinc-800 p-3">
-        <div className="flex items-center gap-2.5 rounded-lg p-2 hover:bg-white/5 transition-colors cursor-pointer">
-          <div className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-amber-500 to-purple-600 text-xs font-bold text-white">
-            JR
+        <div className="flex items-center justify-between gap-2.5 rounded-lg p-2 hover:bg-white/5 transition-colors">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-amber-500 to-purple-600 text-xs font-bold text-white">
+              JR
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-medium text-white">Julián Rivera</div>
+              <div className="truncate text-[11px] text-zinc-500 font-mono">julian@routeai.app</div>
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-medium text-white">Julián Rivera</div>
-            <div className="truncate text-[11px] text-zinc-500">julian@routeai.app</div>
-          </div>
+          <button 
+            onClick={handleLogout}
+            title="Cerrar sesión"
+            className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-zinc-500 hover:bg-red-500/10 hover:text-red-400 transition"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
         </div>
       </div>
     </aside>
