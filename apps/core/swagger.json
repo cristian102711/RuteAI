@@ -1,0 +1,779 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "RuteAI Core Service",
+    "version": "1.0.0",
+    "description": "Microservicio CRUD del sistema de gestión logística RuteAI. Gestiona pedidos, rutas optimizadas, ubicaciones GPS y empresas multi-tenant.",
+    "contact": {
+      "name": "Equipo RuteAI",
+      "email": "soporte@ruteai.cl"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3003",
+      "description": "Desarrollo local"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Health",
+      "description": "Estado del servicio"
+    },
+    {
+      "name": "Pedidos",
+      "description": "CRUD de pedidos de despacho"
+    },
+    {
+      "name": "Rutas",
+      "description": "Optimización y gestión de rutas"
+    },
+    {
+      "name": "Ubicaciones",
+      "description": "GPS tracking de repartidores"
+    },
+    {
+      "name": "Empresas",
+      "description": "Gestión multi-tenant de empresas"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Token JWT de Supabase Auth"
+      }
+    },
+    "schemas": {
+      "Pedido": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "nombreCliente": {
+            "type": "string",
+            "example": "Juan Pérez"
+          },
+          "clienteTelefono": {
+            "type": "string",
+            "example": "+56912345678"
+          },
+          "direccion": {
+            "type": "string",
+            "example": "Av. Providencia 1234"
+          },
+          "lat": {
+            "type": "number",
+            "example": -33.4489
+          },
+          "lng": {
+            "type": "number",
+            "example": -70.6693
+          },
+          "producto": {
+            "type": "string",
+            "example": "Caja electrónica"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "pendiente",
+              "en_ruta",
+              "entregado",
+              "fallido",
+              "cancelado"
+            ]
+          },
+          "scoreRiesgo": {
+            "type": "number",
+            "example": 42
+          },
+          "repartidorId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "empresaId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Ruta": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "nombre": {
+            "type": "string",
+            "example": "Ruta Norte AM"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "pendiente",
+              "en_curso",
+              "completada"
+            ]
+          },
+          "distanciaKm": {
+            "type": "number",
+            "example": 15.3
+          },
+          "tiempoEstimadoMin": {
+            "type": "number",
+            "example": 45
+          },
+          "repartidorId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "Ubicacion": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "repartidorId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "lat": {
+            "type": "number",
+            "example": -33.4489
+          },
+          "lng": {
+            "type": "number",
+            "example": -70.6693
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "error": {
+            "type": "string",
+            "example": "No encontrado"
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "BearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Estado del servicio",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Servicio operativo",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "service": {
+                      "type": "string",
+                      "example": "core"
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders": {
+      "get": {
+        "tags": [
+          "Pedidos"
+        ],
+        "summary": "Listar pedidos de la empresa",
+        "description": "Retorna todos los pedidos filtrados por empresaId del token JWT.",
+        "parameters": [
+          {
+            "name": "estado",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pendiente",
+                "en_ruta",
+                "entregado",
+                "fallido",
+                "cancelado"
+              ]
+            },
+            "description": "Filtrar por estado"
+          },
+          {
+            "name": "repartidorId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Filtrar por repartidor asignado"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de pedidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Pedido"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autenticado"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Pedidos"
+        ],
+        "summary": "Crear nuevo pedido",
+        "description": "Crea un pedido asociado a la empresa del token. Solo rol 'encargado'.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "nombreCliente",
+                  "direccion",
+                  "producto"
+                ],
+                "properties": {
+                  "nombreCliente": {
+                    "type": "string",
+                    "example": "María Torres"
+                  },
+                  "clienteTelefono": {
+                    "type": "string",
+                    "example": "+56987654321"
+                  },
+                  "direccion": {
+                    "type": "string",
+                    "example": "Av. Las Condes 11000"
+                  },
+                  "producto": {
+                    "type": "string",
+                    "example": "Laptop Lenovo"
+                  },
+                  "horarioPreferido": {
+                    "type": "string",
+                    "example": "14:00 - 18:00"
+                  },
+                  "fechaEntregaLimite": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "lat": {
+                    "type": "number"
+                  },
+                  "lng": {
+                    "type": "number"
+                  },
+                  "repartidorId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Pedido creado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pedido"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "403": {
+            "description": "Sin permisos (solo encargados)"
+          }
+        }
+      }
+    },
+    "/api/v1/orders/{id}": {
+      "get": {
+        "tags": [
+          "Pedidos"
+        ],
+        "summary": "Obtener detalle de un pedido",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detalle del pedido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pedido"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Pedido no encontrado"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Pedidos"
+        ],
+        "summary": "Eliminar un pedido",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pedido eliminado"
+          },
+          "404": {
+            "description": "No encontrado"
+          }
+        }
+      }
+    },
+    "/api/v1/orders/{id}/estado": {
+      "patch": {
+        "tags": [
+          "Pedidos"
+        ],
+        "summary": "Cambiar estado de un pedido",
+        "description": "Transiciona el estado: pendiente → en_ruta → entregado/fallido/cancelado. Validación multi-tenant.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "estado"
+                ],
+                "properties": {
+                  "estado": {
+                    "type": "string",
+                    "enum": [
+                      "pendiente",
+                      "en_ruta",
+                      "entregado",
+                      "fallido",
+                      "cancelado"
+                    ]
+                  },
+                  "motivo": {
+                    "type": "string",
+                    "example": "Cliente ausente"
+                  },
+                  "sinFoto": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Estado actualizado"
+          },
+          "400": {
+            "description": "Estado inválido"
+          },
+          "403": {
+            "description": "Sin permisos"
+          },
+          "409": {
+            "description": "Transición no permitida"
+          }
+        }
+      }
+    },
+    "/api/v1/orders/{id}/eventos": {
+      "get": {
+        "tags": [
+          "Pedidos"
+        ],
+        "summary": "Timeline de auditoría del pedido",
+        "description": "Retorna todos los eventos/cambios de estado del pedido para trazabilidad.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de eventos"
+          },
+          "404": {
+            "description": "Pedido no encontrado"
+          }
+        }
+      }
+    },
+    "/api/v1/routes": {
+      "get": {
+        "tags": [
+          "Rutas"
+        ],
+        "summary": "Listar rutas de la empresa",
+        "responses": {
+          "200": {
+            "description": "Lista de rutas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Ruta"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Rutas"
+        ],
+        "summary": "Crear ruta optimizada",
+        "description": "Crea una ruta asignando pedidos pendientes a un repartidor con optimización geográfica.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "repartidorId",
+                  "pedidoIds"
+                ],
+                "properties": {
+                  "repartidorId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "pedidoIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Ruta creada"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          }
+        }
+      }
+    },
+    "/api/v1/routes/{id}/estado": {
+      "patch": {
+        "tags": [
+          "Rutas"
+        ],
+        "summary": "Cambiar estado de una ruta",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "estado": {
+                    "type": "string",
+                    "enum": [
+                      "en_curso",
+                      "completada"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Estado actualizado"
+          }
+        }
+      }
+    },
+    "/api/v1/locations": {
+      "get": {
+        "tags": [
+          "Ubicaciones"
+        ],
+        "summary": "Últimas ubicaciones de repartidores",
+        "description": "Retorna la última posición GPS de cada repartidor activo de la empresa.",
+        "responses": {
+          "200": {
+            "description": "Lista de ubicaciones",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Ubicacion"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Ubicaciones"
+        ],
+        "summary": "Registrar ping GPS",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "lat",
+                  "lng"
+                ],
+                "properties": {
+                  "lat": {
+                    "type": "number",
+                    "example": -33.4489
+                  },
+                  "lng": {
+                    "type": "number",
+                    "example": -70.6693
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Ubicación registrada"
+          }
+        }
+      }
+    },
+    "/api/v1/locations/repartidor/{id}": {
+      "get": {
+        "tags": [
+          "Ubicaciones"
+        ],
+        "summary": "Última ubicación de un repartidor",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ubicación del repartidor"
+          }
+        }
+      }
+    },
+    "/api/v1/empresas": {
+      "get": {
+        "tags": [
+          "Empresas"
+        ],
+        "summary": "Listar empresas (super_admin)",
+        "responses": {
+          "200": {
+            "description": "Lista de empresas"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Empresas"
+        ],
+        "summary": "Crear empresa",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "nombre",
+                  "email"
+                ],
+                "properties": {
+                  "nombre": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Empresa creada"
+          }
+        }
+      }
+    },
+    "/api/v1/empresas/{id}/toggle": {
+      "patch": {
+        "tags": [
+          "Empresas"
+        ],
+        "summary": "Activar/desactivar empresa",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estado toggled"
+          }
+        }
+      }
+    }
+  }
+}
